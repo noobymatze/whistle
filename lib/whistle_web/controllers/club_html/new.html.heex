@@ -1,0 +1,8 @@
+<.header>
+  Neuer Verein
+  <:subtitle><.form_hint /></:subtitle>
+</.header>
+
+<.club_form changeset={@changeset} associations={@associations} action={~p"/admin/clubs"} />
+
+<.back navigate={~p"/admin/clubs"}>Zurück zur Übersicht</.back>

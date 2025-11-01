@@ -1,0 +1,59 @@
+<.simple_form :let={f} for={@changeset} action={@action}>
+  <.error :if={@changeset.action}>
+    Ups, es ist ein Fehler aufgetreten. Bitte prüfe die Fehler weiter unten.
+  </.error>
+  <.input field={f[:name]} type="text" label="Name" />
+  <.input
+    field={f[:type]}
+    options={@types}
+    prompt="Bitte wähle den Typen"
+    type="select"
+    label="Typ"
+  />
+  <.input field={f[:date]} type="date" label="Datum" />
+  <.input
+    field={f[:organizer_id]}
+    options={@clubs}
+    prompt="Kein Ausrichter"
+    type="select"
+    label="Ausrichter"
+  />
+  <div class="flex flex-row gap-4 w-full">
+    <.input class="flex-1" field={f[:max_participants]} type="number" label="Maximale Teilnehmer" />
+    <.input
+      class="flex-1"
+      field={f[:max_per_club]}
+      type="number"
+      label="Maximale Teilnehmer pro Verein"
+    />
+    <.input
+      class="flex-1"
+      field={f[:max_organizer_participants]}
+      type="number"
+      label="Maximale Teilnehmer für Ausrichter"
+    />
+  </div>
+  <:actions>
+    <div class="flex items-center gap-4">
+      <.button>Speichern</.button>
+      <.link
+        :if={@course && is_nil(@course.released_at)}
+        href={~p"/admin/courses/#{@course}/release"}
+        method="post"
+        data-confirm="Möchtest du diesen Kurs wirklich freigeben?"
+        class="text-sm font-semibold text-blue-600 hover:text-blue-700"
+      >
+        Freigeben
+      </.link>
+      <.link
+        :if={@course}
+        href={~p"/admin/courses/#{@course}"}
+        method="delete"
+        data-confirm="Bist du dir sicher?"
+        class="text-sm font-semibold text-red-600 hover:text-red-700"
+      >
+        Löschen
+      </.link>
+    </div>
+  </:actions>
+</.simple_form>

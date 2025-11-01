@@ -1,0 +1,52 @@
+<.header class="mb-2">
+  Kursanmeldungen
+</.header>
+
+<div class="mb-6 flex items-end justify-between gap-4">
+  <form method="get" action={~p"/admin/registrations"} class="flex items-end gap-4">
+    <select
+      id="season_id"
+      name="season_id"
+      value={@selected_season_id || ""}
+      onchange="this.form.submit()"
+      class="rounded-md border border-gray-300 py-2 px-2 pr-12 text-sm focus:border-blue-500 focus:outline-none"
+    >
+      <option value="">Alle Saisons</option>
+      <%= for season <- @seasons do %>
+        <option
+          value={season.id}
+          selected={season.id == (@selected_season_id && String.to_integer(@selected_season_id))}
+        >
+          Saison {season.year}
+        </option>
+      <% end %>
+    </select>
+  </form>
+</div>
+
+<.table id="registrations" rows={@registrations}>
+  <:col :let={reg} label="Name">
+    {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
+    |> Enum.filter(& &1)
+    |> Enum.join(" ")}
+  </:col>
+  <:col :let={reg} label="Kurs">{reg.course_name}</:col>
+  <:col :let={reg} label="Ausrichter">{reg.organizer_name}</:col>
+  <:col :let={reg} label="Kurs Datum">
+    {if reg.course_date do
+      Calendar.strftime(reg.course_date, "%d.%m.%Y")
+    end}
+  </:col>
+  <:action :let={reg}>
+    <%= if Whistle.Accounts.Role.full_admin?(@current_user) && is_nil(reg.unenrolled_at) do %>
+      <.link
+        href={~p"/admin/registrations/#{reg.course_id}/#{reg.user_id}"}
+        method="delete"
+        data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"
+        class="underline"
+      >
+        Abmelden
+      </.link>
+    <% end %>
+  </:action>
+</.table>

@@ -1,0 +1,28 @@
+<.simple_form :let={f} for={@changeset} action={@action}>
+  <.error :if={@changeset.action}>
+    <.error_hint />
+  </.error>
+  <.input field={f[:name]} type="text" label="Name" />
+  <.input field={f[:short_name]} type="text" label="Kurzname" />
+  <.input
+    field={f[:association_id]}
+    type="select"
+    prompt="Bitte wähle den Verband"
+    options={@associations}
+    label="Verband"
+  />
+  <:actions>
+    <div class="flex items-center gap-4">
+      <.button>Speichern</.button>
+      <.link
+        :if={@club}
+        href={~p"/admin/clubs/#{@club}"}
+        method="delete"
+        data-confirm="Bist du dir sicher?"
+        class="text-sm font-semibold text-red-600 hover:text-red-700"
+      >
+        Löschen
+      </.link>
+    </div>
+  </:actions>
+</.simple_form>

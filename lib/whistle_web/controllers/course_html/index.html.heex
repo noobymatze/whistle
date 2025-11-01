@@ -1,0 +1,53 @@
+<.header class="mb-2">
+  Kurse
+</.header>
+
+<div class="mb-6 flex items-start justify-between gap-4">
+  <form method="get" action={~p"/admin/courses"} class="flex items-start gap-4">
+    <select
+      id="season_id"
+      name="season_id"
+      value={@selected_season_id || ""}
+      onchange="this.form.submit()"
+      class="rounded-md border border-gray-300 py-1 px-2 pr-12 text-sm focus:border-blue-500 focus:outline-none"
+    >
+      <option value="">Alle Saisons</option>
+      <%= for season <- @seasons do %>
+        <option
+          value={season.id}
+          selected={season.id == (@selected_season_id && String.to_integer(@selected_season_id))}
+        >
+          Saison {season.year}
+        </option>
+      <% end %>
+    </select>
+  </form>
+  <.link href={~p"/admin/courses/new"}>
+    <.button>Neuer Kurs</.button>
+  </.link>
+</div>
+
+<.table id="courses" rows={@courses} row_click={&JS.navigate(~p"/admin/courses/#{&1}/edit")}>
+  <:col :let={course} label="Name">{course.name}</:col>
+  <:col :let={course} label="Ausrichter">{course.organizer_name}</:col>
+  <:col :let={course} label="Datum">
+    {if course.date, do: Calendar.strftime(course.date, "%d.%m.%Y"), else: ""}
+  </:col>
+  <:col :let={course} label="Teilnehmer">{course.participants || 0}</:col>
+  <:col :let={course} label="Freigegeben">
+    {if course.released_at,
+      do: Whistle.Timezone.format_local(course.released_at, "%d.%m.%Y %H:%M"),
+      else: ""}
+  </:col>
+  <:action :let={course}>
+    <%= if is_nil(course.released_at) do %>
+      <.link
+        href={~p"/admin/courses/#{course}/release"}
+        method="post"
+        data-confirm="Möchtest du diesen Kurs wirklich freigeben?"
+      >
+        Freigeben
+      </.link>
+    <% end %>
+  </:action>
+</.table>

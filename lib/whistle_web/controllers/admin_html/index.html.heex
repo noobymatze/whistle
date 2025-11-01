@@ -1,0 +1,24 @@
+<.header>
+  Benutzer
+</.header>
+
+<div class="mb-6 flex justify-end">
+  <.link href={~p"/admin/users/new"}>
+    <.button>Neuer Benutzer</.button>
+  </.link>
+</div>
+
+<.table
+  id="users"
+  rows={@users}
+  row_click={
+    fn user ->
+      can_manage_user?(@current_user, user) && JS.navigate(~p"/admin/users/#{user}/edit")
+    end
+  }
+>
+  <:col :let={user} label="Benutzername">{user.username}</:col>
+  <:col :let={user} label="E-Mail">{user.email}</:col>
+  <:col :let={user} label="Telefon">{user.phone}</:col>
+  <:col :let={user} label="Mobiltelefon">{user.mobile}</:col>
+</.table>

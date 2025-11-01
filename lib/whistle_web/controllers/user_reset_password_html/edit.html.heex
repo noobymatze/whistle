@@ -1,0 +1,29 @@
+<div class="mx-auto max-w-sm">
+  <.header class="text-center">
+    Passwort zurücksetzen
+  </.header>
+
+  <.simple_form :let={f} for={@changeset} action={~p"/users/reset_password/#{@token}"}>
+    <.error :if={@changeset.action}>
+      Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+    </.error>
+
+    <.input field={f[:password]} type="password" label="Neues Passwort" required />
+    <.input
+      field={f[:password_confirmation]}
+      type="password"
+      label="Neues Passwort bestätigen"
+      required
+    />
+    <:actions>
+      <.button phx-disable-with="Wird zurückgesetzt..." class="w-full">
+        Passwort zurücksetzen
+      </.button>
+    </:actions>
+  </.simple_form>
+
+  <p class="text-center text-sm mt-4">
+    <.link href={~p"/users/register"}>Registrieren</.link>
+    | <.link href={~p"/users/log_in"}>Anmelden</.link>
+  </p>
+</div>

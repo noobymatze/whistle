@@ -1,0 +1,8 @@
+<.header>
+  Saison bearbeiten
+  <:subtitle><.form_hint /></:subtitle>
+</.header>
+
+<.season_form changeset={@changeset} action={~p"/admin/seasons/#{@season}"} season={@season} />
+
+<.back navigate={~p"/admin/seasons"}>Zurück zur Übersicht</.back>

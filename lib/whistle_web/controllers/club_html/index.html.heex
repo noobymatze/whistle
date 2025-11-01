@@ -1,0 +1,14 @@
+<.header>
+  Vereine
+</.header>
+
+<div class="mb-6 flex justify-end">
+  <.link href={~p"/admin/clubs/new"}>
+    <.button>Neuer Verein</.button>
+  </.link>
+</div>
+
+<.table id="clubs" rows={@clubs} row_click={&JS.navigate(~p"/admin/clubs/#{&1}/edit")}>
+  <:col :let={club} label="Name">{club.name}</:col>
+  <:col :let={club} label="Kurzname">{club.short_name}</:col>
+</.table>

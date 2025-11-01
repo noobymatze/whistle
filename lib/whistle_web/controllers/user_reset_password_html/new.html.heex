@@ -1,0 +1,26 @@
+<div class="mx-auto max-w-sm">
+  <.header class="text-center">
+    Passwort vergessen?
+    <:subtitle>Wir senden einen Passwort-Zurücksetzen-Link zu deiner E-Mail</:subtitle>
+  </.header>
+
+  <.simple_form :let={f} for={@conn.params["user"]} as={:user} action={~p"/users/reset_password"}>
+    <.input
+      field={f[:username_or_email]}
+      type="text"
+      label="Benutzername"
+      placeholder="Benutzername oder E-Mail"
+      required
+    />
+    <:actions>
+      <.button phx-disable-with="Wird gesendet..." class="w-full">
+        Passwort-Zurücksetzen-Anweisungen senden
+      </.button>
+    </:actions>
+  </.simple_form>
+
+  <p class="text-center text-sm mt-4">
+    <.link href={~p"/users/register"}>Registrieren</.link>
+    | <.link href={~p"/users/log_in"}>Anmelden</.link>
+  </p>
+</div>

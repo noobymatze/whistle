@@ -1,0 +1,69 @@
+<.header>
+  Kurs bearbeiten
+  <:subtitle><.form_hint /></:subtitle>
+</.header>
+
+<.course_form
+  changeset={@changeset}
+  types={@types}
+  clubs={@clubs}
+  action={~p"/admin/courses/#{@course}"}
+  course={@course}
+/>
+
+<.back navigate={~p"/admin/courses"}>Zurück zur Übersicht</.back>
+
+<%= if @course.id do %>
+  <div class="mt-24">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">Teilnehmer</h2>
+      <%= if length(@registrations) > 0 do %>
+        <.link
+          href={"mailto:?bcc=#{@registrations |> Enum.filter(fn r -> is_nil(r.unenrolled_at) end) |> Enum.map(& &1.user_email) |> Enum.join(";")}"}
+          class="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+        >
+          <.icon name="hero-envelope" class="h-4 w-4" /> Sende Mail an alle
+        </.link>
+      <% end %>
+    </div>
+
+    <.table id="registrations" rows={@registrations}>
+      <:col :let={reg} label="Name">
+        {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
+        |> Enum.filter(& &1)
+        |> Enum.join(" ")}
+      </:col>
+
+      <:col :let={reg} label="E-Mail">
+        {reg.user_email}
+      </:col>
+
+      <:col :let={reg} label="Abgemeldet">
+        <%= if reg.unenrolled_at do %>
+          <% local_unenrolled = Whistle.Timezone.to_local(reg.unenrolled_at) %>
+          <% datum = Calendar.strftime(local_unenrolled, "%d.%m.%Y %H:%M") %>
+          <%= if reg.course_date && Date.compare(Date.add(reg.course_date, -7), DateTime.to_date(local_unenrolled)) == :gt do %>
+            {datum}
+            <br />
+            <span class="text-red-600">(&lt; 1 Woche vor Beginn)</span>
+          <% else %>
+            {datum}
+          <% end %>
+        <% end %>
+      </:col>
+
+      <:action :let={reg}>
+        <%= if is_nil(reg.unenrolled_at) do %>
+          <.link
+            href={~p"/admin/courses/#{@course}/registrations/#{reg.user_id}/sign-out"}
+            method="delete"
+            data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"
+            class="text-sm font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
+          >
+            Abmelden
+          </.link>
+        <% end %>
+      </:action>
+    </.table>
+  </div>
+<% end %>

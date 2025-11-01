@@ -1,0 +1,20 @@
+<.header>
+  Saisons
+</.header>
+
+<div class="mb-6 flex justify-end">
+  <.link href={~p"/admin/seasons/new"}>
+    <.button>Neue Saison</.button>
+  </.link>
+</div>
+
+<.table id="seasons" rows={@seasons} row_click={&JS.navigate(~p"/admin/seasons/#{&1}/edit")}>
+  <:col :let={season} label="Jahr">{season.year}</:col>
+  <:col :let={season} label="Beginn"><.date date={season.start} /></:col>
+  <:col :let={season} label="Start Kursanmeldung">
+    <.datetime datetime={season.start_registration} />
+  </:col>
+  <:col :let={season} label="Ende Kursanmeldung">
+    <.datetime datetime={season.end_registration} />
+  </:col>
+</.table>

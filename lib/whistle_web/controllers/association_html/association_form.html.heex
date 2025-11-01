@@ -1,0 +1,20 @@
+<.simple_form :let={f} for={@changeset} action={@action}>
+  <.error :if={@changeset.action}>
+    <.error_hint />
+  </.error>
+  <.input field={f[:name]} type="text" label="Name" />
+  <:actions>
+    <div class="flex items-center gap-4">
+      <.button>Speichern</.button>
+      <.link
+        :if={@association}
+        href={~p"/admin/associations/#{@association}"}
+        method="delete"
+        data-confirm="Bist du dir sicher?"
+        class="text-sm font-semibold text-red-600 hover:text-red-700"
+      >
+        Löschen
+      </.link>
+    </div>
+  </:actions>
+</.simple_form>

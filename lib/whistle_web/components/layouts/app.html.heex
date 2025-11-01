@@ -1,0 +1,144 @@
+<header class="px-4 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
+    <div class="flex items-center gap-4">
+      <a href="/">
+        <img src={~p"/images/logo.svg"} width="36" />
+      </a>
+      <a href="/" class="font-semibold text-zinc-900 text-lg">
+        nordref
+      </a>
+    </div>
+    <div class="flex items-center gap-4 font-semibold leading-6 text-zinc-900">
+      <ul class="relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
+        <%= if @current_user do %>
+          <li>
+            <.link
+              href={~p"/"}
+              class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1"
+            >
+              <.icon name="hero-whistle" class="h-4 w-4" /> Kursanmeldung
+            </.link>
+          </li>
+          <li>
+            <.link
+              href={~p"/my-courses"}
+              class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1"
+            >
+              <.icon name="hero-academic-cap" class="h-4 w-4" /> Meine Kurse
+            </.link>
+          </li>
+          <%= if Whistle.Accounts.Role.can_access_admin?(@current_user) do %>
+            <li class="relative group">
+              <button class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1">
+                <.icon name="hero-cog-6-tooth" class="h-4 w-4" /> Administration
+              </button>
+              <ul class="absolute left-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <li>
+                  <.link
+                    href={~p"/admin/courses"}
+                    class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                  >
+                    <.icon name="hero-academic-cap-solid" class="h-4 w-4" /> Kurse
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    href={~p"/admin/registrations"}
+                    class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                  >
+                    <.icon name="hero-clipboard-document-list-solid" class="h-4 w-4" />
+                    Kursanmeldungen
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    href={~p"/admin/users"}
+                    class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                  >
+                    <.icon name="hero-users-solid" class="h-4 w-4" />
+                    {if Whistle.Accounts.Role.full_admin?(@current_user),
+                      do: "Benutzer",
+                      else: "Mitglieder"}
+                  </.link>
+                </li>
+                <%= if Whistle.Accounts.Role.full_admin?(@current_user) do %>
+                  <li>
+                    <.link
+                      href={~p"/admin/clubs"}
+                      class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                    >
+                      <.icon name="hero-building-office-solid" class="h-4 w-4" /> Vereine
+                    </.link>
+                  </li>
+                  <li>
+                    <.link
+                      href={~p"/admin/associations"}
+                      class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                    >
+                      <.icon name="hero-building-library-solid" class="h-4 w-4" /> Verbände
+                    </.link>
+                  </li>
+                  <li>
+                    <.link
+                      href={~p"/admin/seasons"}
+                      class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                    >
+                      <.icon name="hero-calendar-solid" class="h-4 w-4" /> Saisons
+                    </.link>
+                  </li>
+                <% end %>
+              </ul>
+            </li>
+          <% end %>
+          <li class="relative group">
+            <button class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1">
+              <.icon name="hero-user-circle" class="h-4 w-4" /> Profil
+            </button>
+            <ul class="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <li>
+                <.link
+                  href={~p"/users/settings"}
+                  class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                >
+                  <.icon name="hero-cog-6-tooth" class="h-4 w-4" /> Konto
+                </.link>
+              </li>
+              <li class="border-t border-zinc-200">
+                <.link
+                  href={~p"/users/log_out"}
+                  method="delete"
+                  class="flex items-center gap-2 px-4 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
+                >
+                  <.icon name="hero-arrow-right-on-rectangle" class="h-4 w-4" /> Abmelden
+                </.link>
+              </li>
+            </ul>
+          </li>
+        <% else %>
+          <li>
+            <.link
+              href={~p"/users/register"}
+              class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+            >
+              Registrieren
+            </.link>
+          </li>
+          <li>
+            <.link
+              href={~p"/users/log_in"}
+              class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+            >
+              Anmelden
+            </.link>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </div>
+</header>
+<main class="px-4 py-20 sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-6xl">
+    <.flash_group flash={@flash} />
+    {@inner_content}
+  </div>
+</main>

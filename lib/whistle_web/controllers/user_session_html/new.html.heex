@@ -1,0 +1,31 @@
+<div class="mx-auto max-w-sm">
+  <.header class="text-center">
+    Mit deinem Konto anmelden
+    <:subtitle>
+      Du hast noch kein Konto?
+      <.link navigate={~p"/users/register"} class="font-semibold text-brand hover:underline">
+        Registriere
+      </.link>
+      dich jetzt.
+    </:subtitle>
+  </.header>
+
+  <.simple_form :let={f} for={@conn.params["user"]} as={:user} action={~p"/users/log_in"}>
+    <.error :if={@error_message}>{@error_message}</.error>
+
+    <.input field={f[:username]} type="text" label="Benutzername" required />
+    <.input field={f[:password]} type="password" label="Passwort" required />
+
+    <:actions :let={f}>
+      <.input field={f[:remember_me]} type="checkbox" label="Angemeldet bleiben" />
+      <.link href={~p"/users/reset_password"} class="text-sm font-semibold">
+        Passwort vergessen?
+      </.link>
+    </:actions>
+    <:actions>
+      <.button phx-disable-with="Melden dich an..." class="w-full">
+        Anmelden <span aria-hidden="true">→</span>
+      </.button>
+    </:actions>
+  </.simple_form>
+</div>

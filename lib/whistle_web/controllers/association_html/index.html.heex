@@ -1,0 +1,17 @@
+<.header>
+  Verbände
+</.header>
+
+<div class="mb-6 flex justify-end">
+  <.link href={~p"/admin/associations/new"}>
+    <.button>Neuer Verband</.button>
+  </.link>
+</div>
+
+<.table
+  id="associations"
+  rows={@associations}
+  row_click={&JS.navigate(~p"/admin/associations/#{&1}/edit")}
+>
+  <:col :let={association} label="Name">{association.name}</:col>
+</.table>

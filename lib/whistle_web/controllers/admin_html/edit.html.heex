@@ -1,0 +1,70 @@
+<.header>
+  {if @user, do: "Benutzerrolle bearbeiten", else: "Neuen Benutzer erstellen"}
+</.header>
+
+<.simple_form
+  :let={f}
+  for={@changeset}
+  action={if @user, do: ~p"/admin/users/#{@user}", else: ~p"/admin/users"}
+  method={if @user, do: "put", else: "post"}
+>
+  <.error :if={@changeset.action}>
+    Oops, es ist etwas schiefgegangen, bitte schaue dir die Fehler an.
+  </.error>
+
+  <div :if={@user} class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <h3 class="text-sm font-medium text-blue-900">
+      Bearbeite: {@user.username} ({@user.email})
+    </h3>
+    <p class="mt-1 text-sm text-blue-700">
+      Aktuelle Rolle: <span class="font-semibold">{role_description(@user.role)}</span>
+    </p>
+  </div>
+
+  <.input :if={!@user} field={f[:email]} type="email" label="E-Mail" required />
+  <.input :if={!@user} field={f[:password]} type="password" label="Passwort" required />
+  <.input :if={!@user} field={f[:username]} type="text" label="Benutzername" required />
+
+  <div class="flex gap-2">
+    <.input class="flex-1" field={f[:first_name]} type="text" label="Vorname" />
+    <.input class="flex-1" field={f[:last_name]} type="text" label="Nachname" />
+  </div>
+  <.input field={f[:mobile]} type="text" label="Mobiltelefon" />
+  <.input field={f[:phone]} type="text" label="Telefon" />
+  <.input field={f[:birthday]} type="date" label="Geburtstag" />
+
+  <.input
+    field={f[:role]}
+    options={@assignable_roles}
+    prompt="Wähle eine Rolle"
+    type="select"
+    label="Rolle"
+  />
+
+  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+    <h4 class="text-sm font-medium text-yellow-800">Rollenberechtigungen</h4>
+    <div class="mt-2 text-sm text-yellow-700">
+      <ul class="list-disc list-inside space-y-1">
+        <li>
+          <strong>Super Admin:</strong>
+          Vollständiger Zugriff auf das System, kann alle Benutzer und Rollen verwalten
+        </li>
+        <li><strong>Admin:</strong> Kann alle Benutzer außer Super Admins verwalten</li>
+        <li>
+          <strong>Vereins-Admin:</strong>
+          Kann Benutzer in seinem Verein verwalten (Trainer und Benutzer)
+        </li>
+        <li><strong>Trainer:</strong> Begrenzte Berechtigungen, kann Kurse verwalten</li>
+        <li><strong>Benutzer:</strong> Grundlegender Zugriff, kann sich für Kurse anmelden</li>
+      </ul>
+    </div>
+  </div>
+
+  <:actions>
+    <.button type="submit">
+      {if @user, do: "Rolle aktualisieren", else: "Benutzer erstellen"}
+    </.button>
+  </:actions>
+</.simple_form>
+
+<.back navigate={~p"/admin/users"}>Zurück zur Übersicht</.back>
