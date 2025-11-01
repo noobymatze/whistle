@@ -16,7 +16,7 @@ jobs:
           POSTGRES_USER: ref
           POSTGRES_PASSWORD: sql
           POSTGRES_DB: ref_test
-        ports: ['5432:5432']
+        ports: ['5438:5432']
         options: >-
           --health-cmd="pg_isready -U ref" --health-interval=5s
           --health-timeout=5s --health-retries=10
@@ -40,7 +40,6 @@ jobs:
       - run: mix deps.get
       - run: mix format --check-formatted
       - run: mix compile --warnings-as-errors
-      - run: mix ecto.create && mix ecto.migrate
       - run: mix test
 
   docker:
