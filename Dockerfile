@@ -76,6 +76,7 @@ RUN apt-get update \
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+  && sed -i '/de_DE.UTF-8/s/^# //g' /etc/locale.gen \
   && locale-gen
 
 ENV LANG=de_DE.UTF-8
