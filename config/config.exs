@@ -9,7 +9,7 @@ import Config
 
 config :whistle,
   ecto_repos: [Whistle.Repo],
-  generators: [timestamp_type: :utc_datetime],
+  generators: [timestamp_type: :naive_datetime],
   local_timezone: "Europe/Berlin"
 
 # Configure Elixir to use tzdata for timezone database

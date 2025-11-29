@@ -9,7 +9,7 @@ defmodule Whistle.Repo.Migrations.CreateRegistrations do
       add :registered_by, references(:users, on_delete: :nothing)
       add :unenrolled_by, references(:users, on_delete: :nothing)
 
-      timestamps(type: :utc_datetime, inserted_at: :created_at)
+      timestamps(type: :naive_datetime, inserted_at: :created_at)
     end
 
     create index(:registrations, [:course_id])

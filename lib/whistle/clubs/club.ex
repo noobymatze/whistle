@@ -7,7 +7,7 @@ defmodule Whistle.Clubs.Club do
     field :short_name, :string
     field :association_id, :id
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   @doc false

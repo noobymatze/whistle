@@ -7,7 +7,7 @@ defmodule Whistle.Repo.Migrations.CreateClubs do
       add :short_name, :text
       add :association_id, references(:associations, on_delete: :nothing)
 
-      timestamps(type: :utc_datetime, inserted_at: :created_at)
+      timestamps(type: :naive_datetime, inserted_at: :created_at)
     end
 
     create index(:clubs, [:association_id])

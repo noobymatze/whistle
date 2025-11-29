@@ -21,7 +21,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:ok, registration} = Registrations.enroll_one(user, course)
@@ -48,7 +48,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       course2 =
@@ -59,7 +59,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert [{:ok, _}, {:ok, _}] = Registrations.enroll(user, [course1, course2])
@@ -83,7 +83,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:ok, _} = Registrations.enroll_one(user, course, admin.id)
@@ -108,7 +108,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       course2 =
@@ -118,7 +118,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       Registrations.enroll(user, [course1, course2])
@@ -131,7 +131,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:error, {:not_allowed, _course}} =
@@ -151,7 +151,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       Registrations.enroll_one(user, course1)
@@ -164,7 +164,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:ok, _} = Registrations.enroll_one(user, course2)
@@ -187,7 +187,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       course2 =
@@ -197,7 +197,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       Registrations.enroll(user, [course1, course2])
@@ -210,7 +210,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:ok, _} = Registrations.enroll_one(user, course3)
@@ -233,7 +233,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       course2 =
@@ -243,7 +243,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       Registrations.enroll(user, [course1, course2])
@@ -258,7 +258,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:ok, _} = Registrations.enroll_one(user, course3)
@@ -278,7 +278,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # First enrollment succeeds
@@ -301,7 +301,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Enroll in course1
@@ -413,7 +413,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_organizer_participants: 5,
           max_per_club: 3,
           # Released
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Create 3 organizer registrations (using only 3 of 5 reserved)
@@ -455,7 +455,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Create 5 organizer registrations
@@ -488,7 +488,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Create 2 organizer registrations
@@ -522,7 +522,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Club 2 reaches its limit
@@ -550,7 +550,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Initial enrollment
@@ -710,7 +710,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # User without club should be treated as non-organizer
@@ -733,7 +733,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # Step 1: Enroll
@@ -771,7 +771,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 5,
           max_organizer_participants: 2,
           max_per_club: 2,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       # 2 organizer users
@@ -824,7 +824,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       course2 =
@@ -834,7 +834,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       Registrations.enroll(user, [course1, course2])
@@ -847,7 +847,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:error, {:not_allowed, _}} =
@@ -861,7 +861,7 @@ defmodule Whistle.RegistrationsEnrollmentTest do
           max_participants: 20,
           max_organizer_participants: 5,
           max_per_club: 3,
-          released_at: DateTime.utc_now()
+          released_at: NaiveDateTime.utc_now()
         })
 
       assert {:ok, _} = Registrations.enroll_one(user, course1_s2)

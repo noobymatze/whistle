@@ -9,7 +9,7 @@ defmodule Whistle.Registrations.Registration do
     field :registered_by, :id
     field :unenrolled_by, :id
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   def changeset(registration, attrs) do

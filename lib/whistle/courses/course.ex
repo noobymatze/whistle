@@ -13,7 +13,7 @@ defmodule Whistle.Courses.Course do
     field :organizer_id, :id
     field :season_id, :id
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   def available_types() do

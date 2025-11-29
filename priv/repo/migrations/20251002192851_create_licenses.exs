@@ -23,7 +23,7 @@ defmodule Whistle.Repo.Migrations.CreateLicenses do
       add :user_id, references(:users), null: false
       add :created_by, references(:users), null: false
 
-      timestamps(type: :utc_datetime)
+      timestamps(type: :naive_datetime, inserted_at: :created_at)
     end
 
     create index(:licenses, [:season_id])

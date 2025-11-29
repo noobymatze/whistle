@@ -8,7 +8,7 @@ defmodule Whistle.Seasons.Season do
     field :start_registration, :naive_datetime
     field :end_registration, :naive_datetime
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   @doc false

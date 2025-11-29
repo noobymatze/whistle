@@ -40,9 +40,8 @@
 
       <:col :let={reg} label="Abgemeldet">
         <%= if reg.unenrolled_at do %>
-          <% local_unenrolled = Whistle.Timezone.to_local(reg.unenrolled_at) %>
-          <% datum = Calendar.strftime(local_unenrolled, "%d.%m.%Y %H:%M") %>
-          <%= if reg.course_date && Date.compare(Date.add(reg.course_date, -7), DateTime.to_date(local_unenrolled)) == :gt do %>
+          <% datum = Calendar.strftime(reg.unenrolled_at, "%d.%m.%Y %H:%M") %>
+          <%= if reg.course_date && Date.compare(Date.add(reg.course_date, -7), NaiveDateTime.to_date(reg.unenrolled_at)) == :gt do %>
             {datum}
             <br />
             <span class="text-red-600">(&lt; 1 Woche vor Beginn)</span>

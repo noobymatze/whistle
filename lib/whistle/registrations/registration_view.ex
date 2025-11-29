@@ -15,10 +15,10 @@ defmodule Whistle.Registrations.RegistrationView do
     field :user_birthday, :date
     field :username, :string
     field :user_club_id, :integer
-    field :registered_at, :utc_datetime
+    field :registered_at, :naive_datetime
     field :registered_by, :integer
     field :unenrolled_by, :integer
-    field :unenrolled_at, :utc_datetime
+    field :unenrolled_at, :naive_datetime
     field :course_id, :integer
     field :course_name, :string
     field :season_id, :integer

@@ -11,7 +11,7 @@ defmodule Whistle.Accounts.License do
     belongs_to :user, Whistle.Accounts.User
     belongs_to :created_by_user, Whistle.Accounts.User, foreign_key: :created_by
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   @doc false

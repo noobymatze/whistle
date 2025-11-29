@@ -350,7 +350,7 @@ defmodule Whistle.Registrations do
       registration ->
         registration
         |> Registration.changeset(%{
-          unenrolled_at: DateTime.utc_now(),
+          unenrolled_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
           unenrolled_by: unenrolled_by_user_id
         })
         |> Repo.update()

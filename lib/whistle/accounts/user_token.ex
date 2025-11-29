@@ -19,7 +19,7 @@ defmodule Whistle.Accounts.UserToken do
     field :sent_to, :string
     belongs_to :user, Whistle.Accounts.User
 
-    timestamps(updated_at: false)
+    timestamps(type: :naive_datetime, updated_at: false)
   end
 
   @doc """

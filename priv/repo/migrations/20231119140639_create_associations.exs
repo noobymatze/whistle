@@ -5,7 +5,7 @@ defmodule Whistle.Repo.Migrations.CreateAssociations do
     create table(:associations) do
       add :name, :text
 
-      timestamps(type: :utc_datetime, inserted_at: :created_at)
+      timestamps(type: :naive_datetime, inserted_at: :created_at)
     end
   end
 end

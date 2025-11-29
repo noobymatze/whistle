@@ -16,6 +16,6 @@ defmodule Whistle.Courses.CourseView do
     field :participants_from_organizer, :integer
     field :participants_other, :integer
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 end

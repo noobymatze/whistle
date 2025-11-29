@@ -16,7 +16,7 @@ defmodule Whistle.Repo.Migrations.CreateUsersAuthTables do
       add :role, :text, null: false, default: "USER"
       add :hashed_password, :string
       add :confirmed_at, :naive_datetime
-      timestamps(type: :utc_datetime, inserted_at: :created_at)
+      timestamps(type: :naive_datetime, inserted_at: :created_at)
     end
 
     create unique_index(:users, [:email])
@@ -26,7 +26,7 @@ defmodule Whistle.Repo.Migrations.CreateUsersAuthTables do
       add :token, :binary, null: false
       add :context, :string, null: false
       add :sent_to, :string
-      timestamps(updated_at: false)
+      timestamps(type: :naive_datetime, updated_at: false)
     end
 
     create index(:users_tokens, [:user_id])

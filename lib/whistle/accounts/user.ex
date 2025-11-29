@@ -18,7 +18,7 @@ defmodule Whistle.Accounts.User do
     field :club_id, :id
     field :role, :string, default: Role.default_role()
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   @doc """

@@ -5,7 +5,7 @@ defmodule Whistle.Associations.Association do
   schema "associations" do
     field :name, :string
 
-    timestamps(type: :utc_datetime, inserted_at: :created_at)
+    timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 
   @doc false

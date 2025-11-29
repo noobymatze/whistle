@@ -8,7 +8,7 @@ defmodule Whistle.Repo.Migrations.CreateSeasons do
       add :start_registration, :naive_datetime
       add :end_registration, :naive_datetime
 
-      timestamps(type: :utc_datetime, inserted_at: :created_at)
+      timestamps(type: :naive_datetime, inserted_at: :created_at)
     end
   end
 end
