@@ -5,6 +5,7 @@ defmodule WhistleWeb.UserAuth do
   import Phoenix.Controller
 
   alias Whistle.Accounts
+  alias Whistle.Accounts.Role
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
@@ -212,12 +213,13 @@ defmodule WhistleWeb.UserAuth do
   end
 
   @doc """
-  Used for all routes, that
+  Used for all routes that require a club to be selected.
+  SUPER_ADMINs are exempt from this requirement.
   """
   def require_club(conn, _opts) do
     user = conn.assigns[:current_user]
 
-    if user.club_id do
+    if user.club_id || Role.super_admin?(user) do
       conn
     else
       conn
