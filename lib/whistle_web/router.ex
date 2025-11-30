@@ -82,6 +82,7 @@ defmodule WhistleWeb.Router do
     post "/courses/:id/release", CourseController, :release
     delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
     get "/registrations", RegistrationController, :index
+    get "/registrations/export", RegistrationController, :export
     delete "/registrations/:course_id/:user_id", RegistrationController, :delete
     get "/users", AdminController, :index
     resources "/users", AdminController, only: [:new, :create, :edit, :update]

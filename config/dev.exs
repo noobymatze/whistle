@@ -1,5 +1,10 @@
 import Config
 
+# Load environment variables from .env file
+if File.exists?(".env") and Code.ensure_loaded?(Dotenvy) do
+  Dotenvy.source!(".env")
+end
+
 # Configure your database
 config :whistle, Whistle.Repo,
   username: "ref",
@@ -82,16 +87,9 @@ config :phoenix_live_view, :debug_heex_annotations, true
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
-config :whistle, Whistle.Mailer,
-  adapter: Swoosh.Adapters.SMTP,
-  relay: System.get_env("SMTP_RELAY"),
-  port: String.to_integer(System.get_env("SMTP_PORT") || "587"),
-  username: System.get_env("SMTP_USERNAME"),
-  password: System.get_env("SMTP_PASSWORD"),
-  auth: :always,
-  tls: :starttls,
-  ssl: false
+# Use local mailbox adapter in development - emails go to http://localhost:4000/dev/mailbox
+config :whistle, Whistle.Mailer, adapter: Swoosh.Adapters.Local
 
 config :whistle, :mailer_from,
-  email: System.get_env("MAILER_FROM_EMAIL"),
+  email: System.get_env("MAILER_FROM_EMAIL") || "noreply@whistle.local",
   name: System.get_env("MAILER_FROM_NAME") || "Nordref"
