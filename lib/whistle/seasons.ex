@@ -37,12 +37,10 @@ defmodule Whistle.Seasons do
         start_at = season.start_registration
         end_at = season.end_registration
 
-        # Convert DateTime to NaiveDateTime for comparison
+        # now is already a NaiveDateTime from Whistle.Timezone.now_local()
         # Assuming naive datetimes in DB are in local timezone
-        now_naive = DateTime.to_naive(now)
-
-        start_at != nil and NaiveDateTime.before?(start_at, now_naive) and
-          ((end_at != nil and NaiveDateTime.after?(end_at, now_naive)) or end_at == nil)
+        start_at != nil and NaiveDateTime.before?(start_at, now) and
+          ((end_at != nil and NaiveDateTime.after?(end_at, now)) or end_at == nil)
     end
   end
 
@@ -50,7 +48,14 @@ defmodule Whistle.Seasons do
   Returns the current seasons based on the starting date.
   """
   def get_current_season(now \\ nil) do
-    now = if now, do: DateTime.to_date(now), else: Whistle.Timezone.today_local()
+    now =
+      cond do
+        is_nil(now) -> Whistle.Timezone.today_local()
+        is_struct(now, NaiveDateTime) -> NaiveDateTime.to_date(now)
+        is_struct(now, DateTime) -> DateTime.to_date(now)
+        true -> now
+      end
+
     query = from s in Season, where: s.start <= ^now, order_by: [desc: s.start], limit: 1
     Repo.one(query)
   end

@@ -147,7 +147,7 @@ defmodule Whistle.Courses do
   def release_course(%Course{} = course) do
     course
     |> Ecto.Changeset.change(
-      released_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      released_at: Whistle.Timezone.now_local() |> NaiveDateTime.truncate(:second)
     )
     |> Repo.update()
   end
