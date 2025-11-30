@@ -24,7 +24,9 @@
   </form>
 
   <.link
-    href={~p"/admin/registrations/export?#{if @selected_season_id, do: [season_id: @selected_season_id], else: []}"}
+    href={
+      ~p"/admin/registrations/export?#{if @selected_season_id, do: [season_id: @selected_season_id], else: []}"
+    }
     class="inline-flex items-center gap-2 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
   >
     <svg
