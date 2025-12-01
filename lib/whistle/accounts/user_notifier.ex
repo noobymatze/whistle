@@ -10,7 +10,7 @@ defmodule Whistle.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({from_email, from_name})
+      |> from({from_name, from_email})
       |> subject(subject)
       |> text_body(body)
 
