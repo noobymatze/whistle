@@ -157,7 +157,10 @@ defmodule Whistle.AccountsTest do
         Accounts.register_user(%{
           email: shared_email,
           username: unique_username(),
-          password: valid_user_password()
+          password: valid_user_password(),
+          first_name: "Test",
+          last_name: "User",
+          birthday: ~D[1990-01-01]
         })
 
       # Create second user with same email but different username
@@ -165,7 +168,10 @@ defmodule Whistle.AccountsTest do
         Accounts.register_user(%{
           email: shared_email,
           username: unique_username(),
-          password: valid_user_password()
+          password: valid_user_password(),
+          first_name: "Test",
+          last_name: "User",
+          birthday: ~D[1990-01-01]
         })
 
       assert user1.email == user2.email
@@ -186,7 +192,7 @@ defmodule Whistle.AccountsTest do
   describe "change_user_registration/2" do
     test "returns a changeset" do
       assert %Ecto.Changeset{} = changeset = Accounts.change_user_registration(%User{})
-      assert changeset.required == [:password, :username, :email]
+      assert changeset.required == [:password, :username, :email, :first_name, :last_name, :birthday]
     end
 
     test "allows fields to be set" do

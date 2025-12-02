@@ -10,6 +10,14 @@
     type="select"
     label="Typ"
   />
+  <.input
+    field={f[:season_id]}
+    options={@seasons}
+    prompt="Wähle eine Saison"
+    type="select"
+    label="Saison"
+    required
+  />
   <.input field={f[:date]} type="date" label="Datum" />
   <.input
     field={f[:organizer_id]}

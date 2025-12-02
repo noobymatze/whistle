@@ -26,12 +26,12 @@
   <.input :if={!@user} field={f[:username]} type="text" label="Benutzername" required />
 
   <div class="flex gap-2">
-    <.input class="flex-1" field={f[:first_name]} type="text" label="Vorname" />
-    <.input class="flex-1" field={f[:last_name]} type="text" label="Nachname" />
+    <.input class="flex-1" field={f[:first_name]} type="text" label="Vorname" required />
+    <.input class="flex-1" field={f[:last_name]} type="text" label="Nachname" required />
   </div>
   <.input field={f[:mobile]} type="text" label="Mobiltelefon" />
   <.input field={f[:phone]} type="text" label="Telefon" />
-  <.input field={f[:birthday]} type="date" label="Geburtstag" />
+  <.input field={f[:birthday]} type="date" label="Geburtstag" required />
 
   <.input
     field={f[:role]}
@@ -62,7 +62,7 @@
 
   <:actions>
     <.button type="submit">
-      {if @user, do: "Rolle aktualisieren", else: "Benutzer erstellen"}
+      {if @user, do: "Benutzer aktualisieren", else: "Benutzer erstellen"}
     </.button>
   </:actions>
 </.simple_form>

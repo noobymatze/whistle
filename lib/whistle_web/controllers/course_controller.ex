@@ -33,7 +33,8 @@ defmodule WhistleWeb.CourseController do
     changeset = Courses.change_course(%Course{season_id: season_id})
     types = Course.available_types()
     clubs = get_club_options()
-    render(conn, :new, changeset: changeset, types: types, clubs: clubs)
+    seasons = get_season_options()
+    render(conn, :new, changeset: changeset, types: types, clubs: clubs, seasons: seasons)
   end
 
   def create(conn, %{"course" => course_params}) do
@@ -46,7 +47,8 @@ defmodule WhistleWeb.CourseController do
       {:error, %Ecto.Changeset{} = changeset} ->
         types = Course.available_types()
         clubs = get_club_options()
-        render(conn, :new, changeset: changeset, types: types, clubs: clubs)
+        seasons = get_season_options()
+        render(conn, :new, changeset: changeset, types: types, clubs: clubs, seasons: seasons)
     end
   end
 
@@ -55,6 +57,7 @@ defmodule WhistleWeb.CourseController do
     changeset = Courses.change_course(course)
     types = Course.available_types()
     clubs = get_club_options()
+    seasons = get_season_options()
 
     # Fetch registrations for this course
     registrations =
@@ -66,6 +69,7 @@ defmodule WhistleWeb.CourseController do
       changeset: changeset,
       types: types,
       clubs: clubs,
+      seasons: seasons,
       registrations: registrations
     )
   end
@@ -82,6 +86,7 @@ defmodule WhistleWeb.CourseController do
       {:error, %Ecto.Changeset{} = changeset} ->
         types = Course.available_types()
         clubs = get_club_options()
+        seasons = get_season_options()
 
         # Fetch registrations for this course
         registrations =
@@ -93,6 +98,7 @@ defmodule WhistleWeb.CourseController do
           changeset: changeset,
           types: types,
           clubs: clubs,
+          seasons: seasons,
           registrations: registrations
         )
     end
@@ -151,5 +157,10 @@ defmodule WhistleWeb.CourseController do
   defp get_club_options() do
     Clubs.list_clubs()
     |> Enum.map(fn club -> {club.name, club.id} end)
+  end
+
+  defp get_season_options() do
+    Seasons.list_seasons()
+    |> Enum.map(fn season -> {"Saison #{season.year}", season.id} end)
   end
 end

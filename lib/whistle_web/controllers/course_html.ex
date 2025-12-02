@@ -9,6 +9,7 @@ defmodule WhistleWeb.CourseHTML do
   attr :changeset, Ecto.Changeset, required: true
   attr :clubs, :list, required: true
   attr :types, :list, required: true
+  attr :seasons, :list, required: true
   attr :action, :string, required: true
   attr :course, :map, default: nil
 

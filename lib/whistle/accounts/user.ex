@@ -58,6 +58,7 @@ defmodule Whistle.Accounts.User do
       :phone,
       :birthday
     ])
+    |> validate_required([:first_name, :last_name, :birthday])
     |> validate_email(opts)
     |> validate_username(opts)
     |> validate_password(opts)
@@ -110,7 +111,7 @@ defmodule Whistle.Accounts.User do
   end
 
   defp maybe_validate_unique_username(changeset, opts) do
-    if Keyword.get(opts, :validate_email, true) do
+    if Keyword.get(opts, :validate_username, true) do
       changeset
       |> unsafe_validate_unique(:username, Whistle.Repo)
       |> unique_constraint(:username)

@@ -19,6 +19,12 @@
     <.input field={f[:email]} type="email" label="E-Mail" required />
     <.input field={f[:password]} type="password" label="Passwort" required />
 
+    <div class="flex gap-2">
+      <.input class="flex-1" field={f[:first_name]} type="text" label="Vorname" required />
+      <.input class="flex-1" field={f[:last_name]} type="text" label="Nachname" required />
+    </div>
+    <.input field={f[:birthday]} type="date" label="Geburtsdatum" required />
+
     <:actions>
       <.button phx-disable-with="Konto wird erstellt..." class="w-full">Konto erstellen</.button>
     </:actions>

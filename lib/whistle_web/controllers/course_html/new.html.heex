@@ -3,6 +3,12 @@
   <:subtitle><.form_hint /></:subtitle>
 </.header>
 
-<.course_form changeset={@changeset} types={@types} clubs={@clubs} action={~p"/admin/courses"} />
+<.course_form
+  changeset={@changeset}
+  types={@types}
+  clubs={@clubs}
+  seasons={@seasons}
+  action={~p"/admin/courses"}
+/>
 
 <.back navigate={~p"/admin/courses"}>Zurück zur Übersicht</.back>

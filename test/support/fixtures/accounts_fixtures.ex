@@ -14,7 +14,10 @@ defmodule Whistle.AccountsFixtures do
     Enum.into(attrs, %{
       email: unique_user_email(),
       username: unique_username(),
-      password: valid_user_password()
+      password: valid_user_password(),
+      first_name: "Test",
+      last_name: "User",
+      birthday: ~D[1990-01-01]
     })
   end
 

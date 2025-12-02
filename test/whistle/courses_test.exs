@@ -7,6 +7,7 @@ defmodule Whistle.CoursesTest do
     alias Whistle.Courses.Course
 
     import Whistle.CoursesFixtures
+    import Whistle.SeasonsFixtures
 
     @invalid_attrs %{
       name: nil,
@@ -29,6 +30,8 @@ defmodule Whistle.CoursesTest do
     end
 
     test "create_course/1 with valid data creates a course" do
+      season = season_fixture()
+
       valid_attrs = %{
         name: "some name",
         type: "some type",
@@ -36,7 +39,8 @@ defmodule Whistle.CoursesTest do
         max_participants: 42,
         max_per_club: 42,
         max_organizer_participants: 42,
-        released_at: ~N[2024-02-08 18:45:00]
+        released_at: ~N[2024-02-08 18:45:00],
+        season_id: season.id
       }
 
       assert {:ok, %Course{} = course} = Courses.create_course(valid_attrs)

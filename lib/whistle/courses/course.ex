@@ -40,7 +40,8 @@ defmodule Whistle.Courses.Course do
     ])
     |> validate_required([
       :name,
-      :type
+      :type,
+      :season_id
     ])
   end
 end

@@ -2,6 +2,7 @@ defmodule WhistleWeb.CourseControllerTest do
   use WhistleWeb.ConnCase
 
   import Whistle.CoursesFixtures
+  import Whistle.SeasonsFixtures
 
   setup :register_and_log_in_user
 
@@ -49,7 +50,8 @@ defmodule WhistleWeb.CourseControllerTest do
 
   describe "create course" do
     test "redirects to show when data is valid", %{conn: conn} do
-      conn = post(conn, ~p"/admin/courses", course: @create_attrs)
+      season = season_fixture()
+      conn = post(conn, ~p"/admin/courses", course: Map.put(@create_attrs, :season_id, season.id))
 
       assert %{id: id} = redirected_params(conn)
       assert redirected_to(conn) == ~p"/admin/courses/#{id}/edit"
