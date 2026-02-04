@@ -6,7 +6,7 @@ defmodule Whistle.Accounts do
   import Ecto.Query, warn: false
   alias Whistle.Repo
 
-  alias Whistle.Accounts.{User, UserToken, UserNotifier, Role}
+  alias Whistle.Accounts.{User, UserToken, UserNotifier, Role, UserView}
 
   ## Database getters
 
@@ -432,7 +432,7 @@ defmodule Whistle.Accounts do
   end
 
   def list_users() do
-    Repo.all(User)
+    Repo.all(UserView)
   end
 
   @doc """
