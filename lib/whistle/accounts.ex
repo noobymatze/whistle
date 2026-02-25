@@ -506,6 +506,13 @@ defmodule Whistle.Accounts do
   end
 
   @doc """
+  Deletes a user account and all associated tokens.
+  """
+  def delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
+
+  @doc """
   Checks if a user can manage another user.
   """
   def can_manage_user?(manager, target) do

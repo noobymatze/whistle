@@ -86,7 +86,7 @@ defmodule WhistleWeb.Router do
     get "/registrations/export", RegistrationController, :export
     delete "/registrations/:course_id/:user_id", RegistrationController, :delete
     get "/users", AdminController, :index
-    resources "/users", AdminController, only: [:new, :create, :edit, :update]
+    resources "/users", AdminController, only: [:new, :create, :edit, :update, :delete]
     resources "/clubs", ClubController, except: [:show]
     resources "/associations", AssociationController, except: [:show]
     resources "/seasons", SeasonController, except: [:show]

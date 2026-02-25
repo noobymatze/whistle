@@ -81,6 +81,36 @@ defmodule WhistleWeb.AdminController do
     end
   end
 
+  def delete(conn, %{"id" => id}) do
+    user = Accounts.get_user!(id)
+    current_user = conn.assigns.current_user
+
+    cond do
+      user.id == current_user.id ->
+        conn
+        |> put_flash(:error, "Du kannst dein eigenes Konto nicht löschen.")
+        |> redirect(to: ~p"/admin/users/#{user}/edit")
+
+      not Accounts.can_manage_user?(current_user, user) ->
+        conn
+        |> put_flash(:error, "Du hast keine Berechtigung, diesen Benutzer zu löschen.")
+        |> redirect(to: ~p"/admin/users/#{user}/edit")
+
+      true ->
+        case Accounts.delete_user(user) do
+          {:ok, _} ->
+            conn
+            |> put_flash(:info, "Benutzer wurde erfolgreich gelöscht.")
+            |> redirect(to: ~p"/admin/users")
+
+          {:error, _} ->
+            conn
+            |> put_flash(:error, "Benutzer konnte nicht gelöscht werden.")
+            |> redirect(to: ~p"/admin/users/#{user}/edit")
+        end
+    end
+  end
+
   def update(conn, %{"id" => id, "user" => user_params}) do
     user = Accounts.get_user!(id)
 

@@ -168,4 +168,107 @@ defmodule WhistleWeb.AdminControllerTest do
                "Du hast keine Berechtigung, diesen Benutzer zu bearbeiten."
     end
   end
+
+  describe "DELETE /admin/users/:id (delete)" do
+    test "redirects when unauthenticated", %{conn: conn, regular_user: user} do
+      conn = delete(conn, ~p"/admin/users/#{user}")
+      assert redirected_to(conn) == "/users/log_in"
+    end
+
+    test "redirects when user is not an admin", %{conn: conn, regular_user: user} do
+      other_user = user_fixture(%{role: "USER"})
+
+      conn =
+        conn
+        |> log_in_user(user)
+        |> delete(~p"/admin/users/#{other_user}")
+
+      assert redirected_to(conn) == "/"
+    end
+
+    test "super admin can delete a regular user", %{conn: conn, super_admin: super_admin, regular_user: user} do
+      conn =
+        conn
+        |> log_in_user(super_admin)
+        |> delete(~p"/admin/users/#{user}")
+
+      assert redirected_to(conn) == "/admin/users"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Benutzer wurde erfolgreich gelöscht."
+      assert_raise Ecto.NoResultsError, fn -> Whistle.Accounts.get_user!(user.id) end
+    end
+
+    test "admin can delete a regular user", %{conn: conn, admin: admin, regular_user: user} do
+      conn =
+        conn
+        |> log_in_user(admin)
+        |> delete(~p"/admin/users/#{user}")
+
+      assert redirected_to(conn) == "/admin/users"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Benutzer wurde erfolgreich gelöscht."
+      assert_raise Ecto.NoResultsError, fn -> Whistle.Accounts.get_user!(user.id) end
+    end
+
+    test "admin cannot delete another admin", %{conn: conn, admin: admin} do
+      other_admin = user_fixture(%{role: "ADMIN"})
+
+      conn =
+        conn
+        |> log_in_user(admin)
+        |> delete(~p"/admin/users/#{other_admin}")
+
+      assert redirected_to(conn) == "/admin/users/#{other_admin.id}/edit"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Du hast keine Berechtigung, diesen Benutzer zu löschen."
+
+      assert Whistle.Accounts.get_user!(other_admin.id)
+    end
+
+    test "admin cannot delete a super admin", %{conn: conn, admin: admin, super_admin: super_admin} do
+      conn =
+        conn
+        |> log_in_user(admin)
+        |> delete(~p"/admin/users/#{super_admin}")
+
+      assert redirected_to(conn) == "/admin/users/#{super_admin.id}/edit"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Du hast keine Berechtigung, diesen Benutzer zu löschen."
+
+      assert Whistle.Accounts.get_user!(super_admin.id)
+    end
+
+    test "user cannot delete themselves", %{conn: conn, admin: admin} do
+      conn =
+        conn
+        |> log_in_user(admin)
+        |> delete(~p"/admin/users/#{admin}")
+
+      assert redirected_to(conn) == "/admin/users/#{admin.id}/edit"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Du kannst dein eigenes Konto nicht löschen."
+
+      assert Whistle.Accounts.get_user!(admin.id)
+    end
+
+    test "club admin cannot delete a user from a different club", %{
+      conn: conn,
+      club_admin: club_admin
+    } do
+      other_user = user_fixture(%{role: "USER"})
+
+      conn =
+        conn
+        |> log_in_user(club_admin)
+        |> delete(~p"/admin/users/#{other_user}")
+
+      assert redirected_to(conn) == "/admin/users/#{other_user.id}/edit"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Du hast keine Berechtigung, diesen Benutzer zu löschen."
+
+      assert Whistle.Accounts.get_user!(other_user.id)
+    end
+  end
 end
