@@ -186,14 +186,21 @@ defmodule WhistleWeb.AdminControllerTest do
       assert redirected_to(conn) == "/"
     end
 
-    test "super admin can delete a regular user", %{conn: conn, super_admin: super_admin, regular_user: user} do
+    test "super admin can delete a regular user", %{
+      conn: conn,
+      super_admin: super_admin,
+      regular_user: user
+    } do
       conn =
         conn
         |> log_in_user(super_admin)
         |> delete(~p"/admin/users/#{user}")
 
       assert redirected_to(conn) == "/admin/users"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Benutzer wurde erfolgreich gelöscht."
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) ==
+               "Benutzer wurde erfolgreich gelöscht."
+
       assert_raise Ecto.NoResultsError, fn -> Whistle.Accounts.get_user!(user.id) end
     end
 
@@ -204,7 +211,10 @@ defmodule WhistleWeb.AdminControllerTest do
         |> delete(~p"/admin/users/#{user}")
 
       assert redirected_to(conn) == "/admin/users"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Benutzer wurde erfolgreich gelöscht."
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) ==
+               "Benutzer wurde erfolgreich gelöscht."
+
       assert_raise Ecto.NoResultsError, fn -> Whistle.Accounts.get_user!(user.id) end
     end
 
@@ -224,7 +234,11 @@ defmodule WhistleWeb.AdminControllerTest do
       assert Whistle.Accounts.get_user!(other_admin.id)
     end
 
-    test "admin cannot delete a super admin", %{conn: conn, admin: admin, super_admin: super_admin} do
+    test "admin cannot delete a super admin", %{
+      conn: conn,
+      admin: admin,
+      super_admin: super_admin
+    } do
       conn =
         conn
         |> log_in_user(admin)
