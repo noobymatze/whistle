@@ -80,6 +80,7 @@ defmodule WhistleWeb.Router do
 
     resources "/courses", CourseController, except: [:show]
     post "/courses/:id/release", CourseController, :release
+    get "/courses/:id/export", CourseController, :export
     delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
     get "/registrations", RegistrationController, :index
     get "/registrations/export", RegistrationController, :export

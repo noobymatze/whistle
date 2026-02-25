@@ -54,11 +54,21 @@ defmodule WhistleWeb.ClubController do
 
   def delete(conn, %{"id" => id}) do
     club = Clubs.get_club!(id)
-    {:ok, _club} = Clubs.delete_club(club)
 
-    conn
-    |> put_flash(:info, "Verein wurde erfolgreich gelöscht.")
-    |> redirect(to: ~p"/admin/clubs")
+    case Clubs.delete_club(club) do
+      {:ok, _club} ->
+        conn
+        |> put_flash(:info, "Verein wurde erfolgreich gelöscht.")
+        |> redirect(to: ~p"/admin/clubs")
+
+      {:error, _changeset} ->
+        conn
+        |> put_flash(
+          :error,
+          "Verein konnte nicht gelöscht werden. Möglicherweise sind noch Benutzer oder Kurse diesem Verein zugeordnet."
+        )
+        |> redirect(to: ~p"/admin/clubs/#{club}/edit")
+    end
   end
 
   defp get_association_options() do

@@ -266,13 +266,13 @@ defmodule WhistleWeb.RegistrationLive do
 
       <%= if !@is_open && @is_registration_passed do %>
         <div class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          Die Kursnameldung ist beendet. Sie wird im nächsten Jahr wieder freigegeben.
+          Die Kursanmeldung ist beendet. Sie wird im nächsten Jahr wieder freigegeben.
         </div>
       <% end %>
 
       <%= if !@is_open && !@is_registration_passed && @start_at do %>
         <div class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          Leider ist die Kursnameldung noch nicht freigegeben. Sie wird am {Calendar.strftime(
+          Leider ist die Kursanmeldung noch nicht freigegeben. Sie wird am {Calendar.strftime(
             @start_at,
             "%d.%m.%Y"
           )} geöffnet.
@@ -281,7 +281,7 @@ defmodule WhistleWeb.RegistrationLive do
 
       <%= if !@is_open && !@is_registration_passed && !@start_at do %>
         <div class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          Leider ist die Kursnameldung noch nicht freigegeben und ein Termin steht noch nicht fest.
+          Leider ist die Kursanmeldung noch nicht freigegeben und ein Termin steht noch nicht fest.
         </div>
       <% end %>
 

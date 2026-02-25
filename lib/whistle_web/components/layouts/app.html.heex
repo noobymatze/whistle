@@ -25,11 +25,18 @@
             </.link>
           </li>
           <%= if Whistle.Accounts.Role.can_access_admin?(@current_user) do %>
-            <li class="relative group">
-              <button class="text-[0.8125rem] cursor-pointer leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1">
+            <li class="relative" id="admin-menu">
+              <button
+                class="text-[0.8125rem] cursor-pointer leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1"
+                phx-click={JS.toggle(to: "#admin-dropdown")}
+                onclick="event.stopPropagation(); document.getElementById('admin-dropdown').classList.toggle('hidden');"
+              >
                 <.icon name="hero-cog-6-tooth" class="h-4 w-4" /> Administration
               </button>
-              <ul class="absolute left-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <ul
+                id="admin-dropdown"
+                class="hidden absolute left-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-20"
+              >
                 <li>
                   <.link
                     href={~p"/admin/courses"}
@@ -87,11 +94,17 @@
               </ul>
             </li>
           <% end %>
-          <li class="relative group">
-            <button class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1">
+          <li class="relative" id="profile-menu">
+            <button
+              class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700 flex items-center gap-1"
+              onclick="event.stopPropagation(); document.getElementById('profile-dropdown').classList.toggle('hidden');"
+            >
               <.icon name="hero-user-circle" class="h-4 w-4" /> Profil
             </button>
-            <ul class="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <ul
+              id="profile-dropdown"
+              class="hidden absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-20"
+            >
               <li>
                 <.link
                   href={~p"/users/settings"}
@@ -133,6 +146,13 @@
     </div>
   </div>
 </header>
+<script>
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', function() {
+    var dropdowns = document.querySelectorAll('#admin-dropdown, #profile-dropdown');
+    dropdowns.forEach(function(d) { d.classList.add('hidden'); });
+  });
+</script>
 <main class="px-4 py-20 sm:px-6 lg:px-8">
   <div class="mx-auto max-w-6xl">
     <.flash_group flash={@flash} />

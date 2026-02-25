@@ -17,6 +17,7 @@ defmodule Whistle.Accounts.User do
     field :birthday, :date
     field :club_id, :id
     field :role, :string, default: Role.default_role()
+    field :license_number, :string
 
     timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
@@ -150,7 +151,7 @@ defmodule Whistle.Accounts.User do
   """
   def role_changeset(user, attrs) do
     user
-    |> cast(attrs, [:role, :first_name, :last_name, :mobile, :phone, :birthday])
+    |> cast(attrs, [:role, :first_name, :last_name, :mobile, :phone, :birthday, :license_number])
     |> validate_role()
   end
 

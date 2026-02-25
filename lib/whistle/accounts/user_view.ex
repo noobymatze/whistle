@@ -12,6 +12,7 @@ defmodule Whistle.Accounts.UserView do
     field :role, :string
     field :confirmed_at, :naive_datetime
     field :club_id, :id
+    field :license_number, :string
     field :club_name, :string
     field :club_short_name, :string
 
