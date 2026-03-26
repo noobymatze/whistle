@@ -1,0 +1,58 @@
+services:
+  # PostgreSQL database for production
+  whistle_db:
+    image: postgres:17
+    restart: unless-stopped
+    env_file:
+      - .env.whistle
+    environment:
+      - TZ=Europe/Berlin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whistle"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # Whistle Phoenix application
+  whistle:
+    # Use the image built by GitHub Actions CI
+    # Update image name/tag in .env.whistle (WHISTLE_IMAGE variable)
+    image: ghcr.io/noobymatze/whistle:latest
+    restart: unless-stopped
+    env_file:
+      - .env.whistle
+    environment:
+      - TZ=Europe/Berlin
+    depends_on:
+      whistle_db:
+        condition: service_healthy
+    networks:
+      - internal
+      - web
+    # Only expose port if not using reverse proxy
+    # ports:
+    #   - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Caddy reverse proxy with automatic HTTPS
+
+networks:
+  # Internal network for app <-> db communication
+  internal:
+    driver: bridge
+  # External network for reverse proxy
+  web:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
