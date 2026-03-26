@@ -1105,7 +1105,9 @@ if Repo.aggregate(Whistle.Courses.Course, :count) == 0 do
     Exams.create_exam(
       f2026,
       Enum.map([mueller, schmidt, weber, fischer, wagner], & &1.id),
-      admin.id, title: "F-Prüfung Mai 2026 (Gruppe A)")
+      admin.id,
+      title: "F-Prüfung Mai 2026 (Gruppe A)"
+    )
 
   IO.puts("  Erstellt: #{exam_waiting.title} [#{exam_waiting.state}]")
 
@@ -1114,7 +1116,9 @@ if Repo.aggregate(Whistle.Courses.Course, :count) == 0 do
     Exams.create_exam(
       f2026,
       Enum.map([becker, hoffmann, schulz, braun, klein], & &1.id),
-      admin.id, title: "F-Prüfung Mai 2026 (Gruppe B)")
+      admin.id,
+      title: "F-Prüfung Mai 2026 (Gruppe B)"
+    )
 
   {:ok, exam_running} = Exams.update_exam_state(exam_running, "running")
   Exams.broadcast(exam_running.id, {:exam_state_changed, exam_running})
@@ -1136,7 +1140,9 @@ if Repo.aggregate(Whistle.Courses.Course, :count) == 0 do
     Exams.create_exam(
       j2026,
       Enum.map([fischer, wagner, becker, hoffmann, schulz], & &1.id),
-      admin.id, title: "J-Prüfung Mai 2026")
+      admin.id,
+      title: "J-Prüfung Mai 2026"
+    )
 
   IO.puts("  Erstellt: #{exam_j.title} [#{exam_j.state}]")
 

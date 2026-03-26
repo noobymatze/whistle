@@ -38,6 +38,13 @@ defmodule Whistle.Associations do
   def get_association!(id), do: Repo.get!(Association, id)
 
   @doc """
+  Gets a single association.
+
+  Returns `nil` if the Association does not exist.
+  """
+  def get_association(id), do: Repo.get(Association, id)
+
+  @doc """
   Creates a association.
 
   ## Examples

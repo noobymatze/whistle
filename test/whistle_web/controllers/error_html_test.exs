@@ -5,7 +5,10 @@ defmodule WhistleWeb.ErrorHTMLTest do
   import Phoenix.Template, only: [render_to_string: 4]
 
   test "renders 404.html" do
-    assert render_to_string(WhistleWeb.ErrorHTML, "404", "html", []) == "Not Found"
+    html = render_to_string(WhistleWeb.ErrorHTML, "404", "html", [])
+
+    assert html =~ "Seite nicht gefunden"
+    assert html =~ "Zur Startseite"
   end
 
   test "renders 500.html" do

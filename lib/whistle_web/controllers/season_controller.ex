@@ -27,31 +27,42 @@ defmodule WhistleWeb.SeasonController do
   end
 
   def edit(conn, %{"id" => id}) do
-    season = Seasons.get_season!(id)
-    changeset = Seasons.change_season(season)
-    render(conn, :edit, season: season, changeset: changeset)
+    with {:ok, id} <- parse_id(id),
+         %{} = season <- Seasons.get_season(id) do
+      changeset = Seasons.change_season(season)
+      render(conn, :edit, season: season, changeset: changeset)
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def update(conn, %{"id" => id, "season" => season_params}) do
-    season = Seasons.get_season!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = season <- Seasons.get_season(id) do
+      case Seasons.update_season(season, season_params) do
+        {:ok, season} ->
+          conn
+          |> put_flash(:info, "Saison wurde erfolgreich aktualisiert.")
+          |> redirect(to: ~p"/admin/seasons/#{season}/edit")
 
-    case Seasons.update_season(season, season_params) do
-      {:ok, season} ->
-        conn
-        |> put_flash(:info, "Saison wurde erfolgreich aktualisiert.")
-        |> redirect(to: ~p"/admin/seasons/#{season}/edit")
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, :edit, season: season, changeset: changeset)
+        {:error, %Ecto.Changeset{} = changeset} ->
+          render(conn, :edit, season: season, changeset: changeset)
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
   def delete(conn, %{"id" => id}) do
-    season = Seasons.get_season!(id)
-    {:ok, _season} = Seasons.delete_season(season)
+    with {:ok, id} <- parse_id(id),
+         %{} = season <- Seasons.get_season(id) do
+      {:ok, _season} = Seasons.delete_season(season)
 
-    conn
-    |> put_flash(:info, "Saison wurde erfolgreich gelöscht.")
-    |> redirect(to: ~p"/admin/seasons")
+      conn
+      |> put_flash(:info, "Saison wurde erfolgreich gelöscht.")
+      |> redirect(to: ~p"/admin/seasons")
+    else
+      _ -> render_not_found(conn)
+    end
   end
 end

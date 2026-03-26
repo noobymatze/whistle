@@ -76,87 +76,106 @@ defmodule WhistleWeb.QuestionController do
   end
 
   def edit(conn, %{"id" => id}) do
-    question = Exams.get_question_with_details!(id)
-    changeset = Exams.change_question(question)
+    with {:ok, id} <- parse_id(id),
+         %Question{} = question <- Exams.get_question_with_details(id) do
+      changeset = Exams.change_question(question)
 
-    existing_choice_changesets =
-      question.choices
-      |> Enum.map(&Exams.change_question_choice/1)
+      existing_choice_changesets =
+        question.choices
+        |> Enum.map(&Exams.change_question_choice/1)
 
-    choice_changesets =
-      if length(existing_choice_changesets) < 2 do
-        next_pos = length(existing_choice_changesets) + 1
-        existing_choice_changesets ++ [blank_choice_changeset(next_pos)]
-      else
-        existing_choice_changesets
-      end
+      choice_changesets =
+        if length(existing_choice_changesets) < 2 do
+          next_pos = length(existing_choice_changesets) + 1
+          existing_choice_changesets ++ [blank_choice_changeset(next_pos)]
+        else
+          existing_choice_changesets
+        end
 
-    course_types =
-      question.course_type_assignments
-      |> Enum.map(& &1.course_type)
+      course_types =
+        question.course_type_assignments
+        |> Enum.map(& &1.course_type)
 
-    render(conn, :edit,
-      question: question,
-      changeset: changeset,
-      choice_changesets: choice_changesets,
-      course_type_assignments: course_types,
-      types: Question.valid_types(),
-      difficulties: Question.valid_difficulties(),
-      statuses: Question.valid_statuses()
-    )
+      render(conn, :edit,
+        question: question,
+        changeset: changeset,
+        choice_changesets: choice_changesets,
+        course_type_assignments: course_types,
+        types: Question.valid_types(),
+        difficulties: Question.valid_difficulties(),
+        statuses: Question.valid_statuses()
+      )
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def update(conn, %{"id" => id, "question" => question_params} = params) do
-    question = Exams.get_question_with_details!(id)
+    with {:ok, id} <- parse_id(id),
+         %Question{} = question <- Exams.get_question_with_details(id) do
+      case Exams.update_question(question, question_params) do
+        {:ok, question} ->
+          save_choices(question, params["choices"] || %{})
+          save_course_types(question, params["course_types"] || [])
 
-    case Exams.update_question(question, question_params) do
-      {:ok, question} ->
-        save_choices(question, params["choices"] || %{})
-        save_course_types(question, params["course_types"] || [])
+          conn
+          |> put_flash(:info, "Frage wurde erfolgreich aktualisiert.")
+          |> redirect(to: ~p"/admin/questions/#{question}/edit")
 
-        conn
-        |> put_flash(:info, "Frage wurde erfolgreich aktualisiert.")
-        |> redirect(to: ~p"/admin/questions/#{question}/edit")
-
-      {:error, changeset} ->
-        render(conn, :edit,
-          question: question,
-          changeset: changeset,
-          choice_changesets: build_choice_changesets(params["choices"] || %{}),
-          course_type_assignments: params["course_types"] || [],
-          types: Question.valid_types(),
-          difficulties: Question.valid_difficulties(),
-          statuses: Question.valid_statuses(),
-          scoring_modes: Question.valid_scoring_modes()
-        )
+        {:error, changeset} ->
+          render(conn, :edit,
+            question: question,
+            changeset: changeset,
+            choice_changesets: build_choice_changesets(params["choices"] || %{}),
+            course_type_assignments: params["course_types"] || [],
+            types: Question.valid_types(),
+            difficulties: Question.valid_difficulties(),
+            statuses: Question.valid_statuses(),
+            scoring_modes: Question.valid_scoring_modes()
+          )
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
   def delete(conn, %{"id" => id}) do
-    question = Exams.get_question!(id)
-    {:ok, _} = Exams.delete_question(question)
+    with {:ok, id} <- parse_id(id),
+         %Question{} = question <- Exams.get_question(id) do
+      {:ok, _} = Exams.delete_question(question)
 
-    conn
-    |> put_flash(:info, "Frage wurde erfolgreich gelöscht.")
-    |> redirect(to: ~p"/admin/questions")
+      conn
+      |> put_flash(:info, "Frage wurde erfolgreich gelöscht.")
+      |> redirect(to: ~p"/admin/questions")
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def activate(conn, %{"id" => id}) do
-    question = Exams.get_question!(id)
-    {:ok, _} = Exams.update_question(question, %{status: "active"})
+    with {:ok, id} <- parse_id(id),
+         %Question{} = question <- Exams.get_question(id) do
+      {:ok, _} = Exams.update_question(question, %{status: "active"})
 
-    conn
-    |> put_flash(:info, "Frage wurde aktiviert.")
-    |> redirect(to: ~p"/admin/questions")
+      conn
+      |> put_flash(:info, "Frage wurde aktiviert.")
+      |> redirect(to: ~p"/admin/questions")
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def deactivate(conn, %{"id" => id}) do
-    question = Exams.get_question!(id)
-    {:ok, _} = Exams.update_question(question, %{status: "archived"})
+    with {:ok, id} <- parse_id(id),
+         %Question{} = question <- Exams.get_question(id) do
+      {:ok, _} = Exams.update_question(question, %{status: "archived"})
 
-    conn
-    |> put_flash(:info, "Frage wurde deaktiviert.")
-    |> redirect(to: ~p"/admin/questions")
+      conn
+      |> put_flash(:info, "Frage wurde deaktiviert.")
+      |> redirect(to: ~p"/admin/questions")
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   # ---------------------------------------------------------------------------

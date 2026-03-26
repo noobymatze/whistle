@@ -27,31 +27,42 @@ defmodule WhistleWeb.AssociationController do
   end
 
   def edit(conn, %{"id" => id}) do
-    association = Associations.get_association!(id)
-    changeset = Associations.change_association(association)
-    render(conn, :edit, association: association, changeset: changeset)
+    with {:ok, id} <- parse_id(id),
+         %{} = association <- Associations.get_association(id) do
+      changeset = Associations.change_association(association)
+      render(conn, :edit, association: association, changeset: changeset)
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def update(conn, %{"id" => id, "association" => association_params}) do
-    association = Associations.get_association!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = association <- Associations.get_association(id) do
+      case Associations.update_association(association, association_params) do
+        {:ok, association} ->
+          conn
+          |> put_flash(:info, "Verband wurde erfolgreich aktualisiert.")
+          |> redirect(to: ~p"/admin/associations/#{association}/edit")
 
-    case Associations.update_association(association, association_params) do
-      {:ok, association} ->
-        conn
-        |> put_flash(:info, "Verband wurde erfolgreich aktualisiert.")
-        |> redirect(to: ~p"/admin/associations/#{association}/edit")
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, :edit, association: association, changeset: changeset)
+        {:error, %Ecto.Changeset{} = changeset} ->
+          render(conn, :edit, association: association, changeset: changeset)
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
   def delete(conn, %{"id" => id}) do
-    association = Associations.get_association!(id)
-    {:ok, _association} = Associations.delete_association(association)
+    with {:ok, id} <- parse_id(id),
+         %{} = association <- Associations.get_association(id) do
+      {:ok, _association} = Associations.delete_association(association)
 
-    conn
-    |> put_flash(:info, "Verband wurde erfolgreich gelöscht.")
-    |> redirect(to: ~p"/admin/associations")
+      conn
+      |> put_flash(:info, "Verband wurde erfolgreich gelöscht.")
+      |> redirect(to: ~p"/admin/associations")
+    else
+      _ -> render_not_found(conn)
+    end
   end
 end

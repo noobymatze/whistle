@@ -228,22 +228,21 @@ defmodule WhistleWeb.Layouts do
         <.flash_group flash={@flash} />
       </div>
     <% else %>
-      <div class="relative min-h-screen overflow-hidden bg-base-200/45 text-base-content">
-        <header class="relative px-4 pt-4 sm:px-6 lg:px-8">
-          <div class="mx-auto flex max-w-6xl items-center justify-between rounded-[1.75rem] border border-base-300/70 bg-base-100/88 px-5 py-4 shadow-[0_16px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <div class="min-h-screen bg-base-200 text-base-content">
+        <header class="px-4 pt-6 sm:px-6 lg:px-8">
+          <div class="mx-auto flex max-w-sm items-center justify-between">
             <a
               href={~p"/"}
               class="text-sm font-semibold tracking-[0.2em] text-base-content/55 uppercase"
             >
               Whistle
             </a>
-
             <.theme_toggle />
           </div>
         </header>
 
-        <main class="relative px-4 py-16 sm:px-6 lg:px-8">
-          <div class="mx-auto max-w-2xl rounded-[2rem] border border-base-300/70 bg-base-100/92 p-6 shadow-[0_32px_80px_rgba(15,23,42,0.14)] backdrop-blur-xl sm:p-8">
+        <main class="px-4 py-12 sm:px-6 lg:px-8">
+          <div class="mx-auto max-w-sm rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm sm:p-8">
             <%= if @inner_block != [] do %>
               {render_slot(@inner_block)}
             <% else %>

@@ -1,31 +1,29 @@
-<div class="mx-auto max-w-sm">
-  <.header class="text-center">
-    Mit deinem Konto anmelden
-    <:subtitle>
-      Du hast noch kein Konto?
-      <.link navigate={~p"/users/register"} class="font-semibold text-brand hover:underline">
-        Registriere
+<.header class="text-center">
+  Anmelden
+  <:subtitle>
+    Noch kein Konto?
+    <.link navigate={~p"/users/register"} class="font-semibold text-brand hover:underline">
+      Jetzt registrieren
+    </.link>
+  </:subtitle>
+</.header>
+
+<.form :let={f} for={@conn.params["user"]} as={:user} action={~p"/users/log_in"} class="mt-4">
+  <div class="flex flex-col gap-2">
+    <.error :if={@error_message}>{@error_message}</.error>
+
+    <.input field={f[:username]} type="text" label="Benutzername" required autofocus />
+    <.input field={f[:password]} type="password" label="Passwort" required />
+
+    <div class="flex items-center justify-between mt-1">
+      <.input field={f[:remember_me]} type="checkbox" label="Angemeldet bleiben" />
+      <.link href={~p"/users/reset_password"} class="text-sm font-semibold">
+        Passwort vergessen?
       </.link>
-      dich jetzt.
-    </:subtitle>
-  </.header>
-
-  <.form :let={f} for={@conn.params["user"]} as={:user} action={~p"/users/log_in"}>
-    <div class="flex flex-col gap-2">
-      <.error :if={@error_message}>{@error_message}</.error>
-
-      <.input field={f[:username]} type="text" label="Benutzername" required />
-      <.input field={f[:password]} type="password" label="Passwort" required />
-
-      <div class="flex items-center justify-between">
-        <.input field={f[:remember_me]} type="checkbox" label="Angemeldet bleiben" />
-        <.link href={~p"/users/reset_password"} class="text-sm font-semibold">
-          Passwort vergessen?
-        </.link>
-      </div>
-      <.button phx-disable-with="Melden dich an..." class="w-full">
-        Anmelden <span aria-hidden="true">→</span>
-      </.button>
     </div>
-  </.form>
-</div>
+
+    <.button phx-disable-with="Wird angemeldet..." class="w-full mt-2">
+      Anmelden →
+    </.button>
+  </div>
+</.form>

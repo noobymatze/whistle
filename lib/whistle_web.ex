@@ -43,6 +43,7 @@ defmodule WhistleWeb do
       use Gettext, backend: WhistleWeb.Gettext
 
       import Plug.Conn
+      import WhistleWeb.ControllerHelpers
 
       unquote(verified_routes())
     end

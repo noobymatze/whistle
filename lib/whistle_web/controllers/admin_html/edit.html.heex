@@ -27,8 +27,12 @@
     <.input :if={@user} field={f[:email]} type="email" label="E-Mail" required />
 
     <div class="flex gap-2">
-      <div class="flex-1"><.input field={f[:first_name]} type="text" label="Vorname" required /></div>
-      <div class="flex-1"><.input field={f[:last_name]} type="text" label="Nachname" required /></div>
+      <div class="flex-1">
+        <.input field={f[:first_name]} type="text" label="Vorname" required />
+      </div>
+      <div class="flex-1">
+        <.input field={f[:last_name]} type="text" label="Nachname" required />
+      </div>
     </div>
     <.input field={f[:mobile]} type="text" label="Mobiltelefon" />
     <.input field={f[:phone]} type="text" label="Telefon" />

@@ -53,129 +53,145 @@ defmodule WhistleWeb.CourseController do
   end
 
   def edit(conn, %{"id" => id}) do
-    course = Courses.get_course!(id)
-    changeset = Courses.change_course(course)
-    types = Course.available_types()
-    clubs = get_club_options()
-    seasons = get_season_options()
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      changeset = Courses.change_course(course)
+      types = Course.available_types()
+      clubs = get_club_options()
+      seasons = get_season_options()
 
-    # Fetch registrations for this course
-    registrations =
-      Whistle.Registrations.list_registrations_view(include_unenrolled: true)
-      |> Enum.filter(fn r -> r.course_id == String.to_integer(id) end)
+      registrations =
+        Whistle.Registrations.list_registrations_view(include_unenrolled: true)
+        |> Enum.filter(fn r -> r.course_id == course.id end)
 
-    exams = Whistle.Exams.list_exams(course_id: course.id)
+      exams = Whistle.Exams.list_exams(course_id: course.id)
 
-    render(conn, :edit,
-      course: course,
-      changeset: changeset,
-      types: types,
-      clubs: clubs,
-      seasons: seasons,
-      registrations: registrations,
-      exams: exams
-    )
+      render(conn, :edit,
+        course: course,
+        changeset: changeset,
+        types: types,
+        clubs: clubs,
+        seasons: seasons,
+        registrations: registrations,
+        exams: exams
+      )
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def update(conn, %{"id" => id, "course" => course_params}) do
-    course = Courses.get_course!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      case Courses.update_course(course, course_params) do
+        {:ok, course} ->
+          conn
+          |> put_flash(:info, "Kurs wurde erfolgreich aktualisiert.")
+          |> redirect(to: ~p"/admin/courses/#{course}/edit")
 
-    case Courses.update_course(course, course_params) do
-      {:ok, course} ->
-        conn
-        |> put_flash(:info, "Kurs wurde erfolgreich aktualisiert.")
-        |> redirect(to: ~p"/admin/courses/#{course}/edit")
+        {:error, %Ecto.Changeset{} = changeset} ->
+          types = Course.available_types()
+          clubs = get_club_options()
+          seasons = get_season_options()
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        types = Course.available_types()
-        clubs = get_club_options()
-        seasons = get_season_options()
+          registrations =
+            Whistle.Registrations.list_registrations_view(include_unenrolled: true)
+            |> Enum.filter(fn r -> r.course_id == course.id end)
 
-        # Fetch registrations for this course
-        registrations =
-          Whistle.Registrations.list_registrations_view(include_unenrolled: true)
-          |> Enum.filter(fn r -> r.course_id == course.id end)
+          exams = Whistle.Exams.list_exams(course_id: course.id)
 
-        exams = Whistle.Exams.list_exams(course_id: course.id)
-
-        render(conn, :edit,
-          course: course,
-          changeset: changeset,
-          types: types,
-          clubs: clubs,
-          seasons: seasons,
-          registrations: registrations,
-          exams: exams
-        )
+          render(conn, :edit,
+            course: course,
+            changeset: changeset,
+            types: types,
+            clubs: clubs,
+            seasons: seasons,
+            registrations: registrations,
+            exams: exams
+          )
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
   def export(conn, %{"id" => id}) do
-    course = Courses.get_course!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      registrations =
+        Whistle.Registrations.list_registrations_view(include_unenrolled: true)
+        |> Enum.filter(fn r -> r.course_id == course.id end)
 
-    registrations =
-      Whistle.Registrations.list_registrations_view(include_unenrolled: true)
-      |> Enum.filter(fn r -> r.course_id == String.to_integer(id) end)
+      csv_content = generate_csv(registrations)
 
-    csv_content = generate_csv(registrations)
+      timestamp = Calendar.strftime(DateTime.now!("Europe/Berlin"), "%d%m%Y%H%M")
+      safe_name = String.replace(course.name, ~r/[^a-zA-Z0-9_\-äöüÄÖÜß ]/, "")
+      filename = "#{safe_name}-#{timestamp}.csv"
 
-    timestamp = Calendar.strftime(DateTime.now!("Europe/Berlin"), "%d%m%Y%H%M")
-    safe_name = String.replace(course.name, ~r/[^a-zA-Z0-9_\-äöüÄÖÜß ]/, "")
-    filename = "#{safe_name}-#{timestamp}.csv"
-
-    conn
-    |> put_resp_content_type("text/csv")
-    |> put_resp_header("content-disposition", "attachment; filename=\"#{filename}\"")
-    |> send_resp(200, csv_content)
+      conn
+      |> put_resp_content_type("text/csv")
+      |> put_resp_header("content-disposition", "attachment; filename=\"#{filename}\"")
+      |> send_resp(200, csv_content)
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def delete(conn, %{"id" => id}) do
-    course = Courses.get_course!(id)
-    {:ok, _course} = Courses.delete_course(course)
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      {:ok, _course} = Courses.delete_course(course)
 
-    conn
-    |> put_flash(:info, "Kurs wurde erfolgreich gelöscht.")
-    |> redirect(to: ~p"/admin/courses")
+      conn
+      |> put_flash(:info, "Kurs wurde erfolgreich gelöscht.")
+      |> redirect(to: ~p"/admin/courses")
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def release(conn, %{"id" => id}) do
-    course = Courses.get_course!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      case Courses.release_course(course) do
+        {:ok, _course} ->
+          conn
+          |> put_flash(:info, "Der Kurs #{course.name} wurde erfolgreich freigegeben.")
+          |> redirect(to: ~p"/admin/courses")
 
-    case Courses.release_course(course) do
-      {:ok, _course} ->
-        conn
-        |> put_flash(:info, "Der Kurs #{course.name} wurde erfolgreich freigegeben.")
-        |> redirect(to: ~p"/admin/courses")
-
-      {:error, _changeset} ->
-        conn
-        |> put_flash(:error, "Kurs konnte nicht freigegeben werden.")
-        |> redirect(to: ~p"/admin/courses")
+        {:error, _changeset} ->
+          conn
+          |> put_flash(:error, "Kurs konnte nicht freigegeben werden.")
+          |> redirect(to: ~p"/admin/courses")
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
   def sign_out_participant(conn, %{"id" => course_id, "user_id" => user_id}) do
-    admin_user = conn.assigns.current_user
+    with {:ok, course_id} <- parse_id(course_id),
+         {:ok, user_id} <- parse_id(user_id) do
+      admin_user = conn.assigns.current_user
 
-    case Whistle.Registrations.sign_out(
-           String.to_integer(course_id),
-           String.to_integer(user_id),
-           admin_user.id
-         ) do
-      {:ok, _registration} ->
-        conn
-        |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")
-        |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+      case Whistle.Registrations.sign_out(course_id, user_id, admin_user.id) do
+        {:ok, _registration} ->
+          conn
+          |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")
+          |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
 
-      {:error, :not_found} ->
-        conn
-        |> put_flash(:error, "Registrierung nicht gefunden.")
-        |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+        {:error, :not_found} ->
+          conn
+          |> put_flash(:error, "Registrierung nicht gefunden.")
+          |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
 
-      {:error, _changeset} ->
-        conn
-        |> put_flash(:error, "Teilnehmer konnte nicht abgemeldet werden.")
-        |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+        {:error, _changeset} ->
+          conn
+          |> put_flash(:error, "Teilnehmer konnte nicht abgemeldet werden.")
+          |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 

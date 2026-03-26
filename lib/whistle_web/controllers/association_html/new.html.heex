@@ -1,3 +1,8 @@
+<.breadcrumbs>
+  <:item navigate={~p"/admin/associations"}>Verbände</:item>
+  <:item>Neuer Verband</:item>
+</.breadcrumbs>
+
 <.header>
   Neuer Verband
   <:subtitle>
@@ -6,5 +11,3 @@
 </.header>
 
 <.association_form changeset={@changeset} action={~p"/admin/associations"} />
-
-<.back navigate={~p"/admin/associations"}>Zurück zur Übersicht</.back>

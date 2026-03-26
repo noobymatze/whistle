@@ -77,6 +77,13 @@ defmodule Whistle.Seasons do
   def get_season!(id), do: Repo.get!(Season, id)
 
   @doc """
+  Gets a single season.
+
+  Returns `nil` if the Season does not exist.
+  """
+  def get_season(id), do: Repo.get(Season, id)
+
+  @doc """
   Creates a season.
 
   ## Examples

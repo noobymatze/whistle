@@ -31,43 +31,53 @@ defmodule WhistleWeb.ClubController do
 
   @spec edit(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def edit(conn, %{"id" => id}) do
-    club = Clubs.get_club!(id)
-    associations = get_association_options()
-    changeset = Clubs.change_club(club)
-    render(conn, :edit, club: club, changeset: changeset, associations: associations)
+    with {:ok, id} <- parse_id(id),
+         %{} = club <- Clubs.get_club(id) do
+      associations = get_association_options()
+      changeset = Clubs.change_club(club)
+      render(conn, :edit, club: club, changeset: changeset, associations: associations)
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def update(conn, %{"id" => id, "club" => club_params}) do
-    club = Clubs.get_club!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = club <- Clubs.get_club(id) do
+      case Clubs.update_club(club, club_params) do
+        {:ok, club} ->
+          conn
+          |> put_flash(:info, "Verein wurde erfolgreich aktualisiert.")
+          |> redirect(to: ~p"/admin/clubs/#{club}/edit")
 
-    case Clubs.update_club(club, club_params) do
-      {:ok, club} ->
-        conn
-        |> put_flash(:info, "Verein wurde erfolgreich aktualisiert.")
-        |> redirect(to: ~p"/admin/clubs/#{club}/edit")
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        associations = get_association_options()
-        render(conn, :edit, club: club, changeset: changeset, associations: associations)
+        {:error, %Ecto.Changeset{} = changeset} ->
+          associations = get_association_options()
+          render(conn, :edit, club: club, changeset: changeset, associations: associations)
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
   def delete(conn, %{"id" => id}) do
-    club = Clubs.get_club!(id)
+    with {:ok, id} <- parse_id(id),
+         %{} = club <- Clubs.get_club(id) do
+      case Clubs.delete_club(club) do
+        {:ok, _club} ->
+          conn
+          |> put_flash(:info, "Verein wurde erfolgreich gelöscht.")
+          |> redirect(to: ~p"/admin/clubs")
 
-    case Clubs.delete_club(club) do
-      {:ok, _club} ->
-        conn
-        |> put_flash(:info, "Verein wurde erfolgreich gelöscht.")
-        |> redirect(to: ~p"/admin/clubs")
-
-      {:error, _changeset} ->
-        conn
-        |> put_flash(
-          :error,
-          "Verein konnte nicht gelöscht werden. Möglicherweise sind noch Benutzer oder Kurse diesem Verein zugeordnet."
-        )
-        |> redirect(to: ~p"/admin/clubs/#{club}/edit")
+        {:error, _changeset} ->
+          conn
+          |> put_flash(
+            :error,
+            "Verein konnte nicht gelöscht werden. Möglicherweise sind noch Benutzer oder Kurse diesem Verein zugeordnet."
+          )
+          |> redirect(to: ~p"/admin/clubs/#{club}/edit")
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
