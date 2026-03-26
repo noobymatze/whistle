@@ -15,10 +15,4 @@ defmodule WhistleWeb.QuestionHTML do
       {:error, _, _} -> Phoenix.HTML.raw(Phoenix.HTML.html_escape(markdown))
     end
   end
-
-  def form_hint(assigns) do
-    ~H"""
-    Pflichtfelder sind mit * markiert.
-    """
-  end
 end

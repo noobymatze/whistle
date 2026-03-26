@@ -78,12 +78,31 @@ defmodule Whistle.Exams do
   def get_question!(id), do: Repo.get!(Question, id)
 
   @doc """
+  Gets a single question.
+
+  Returns `nil` if the Question does not exist.
+  """
+  def get_question(id), do: Repo.get(Question, id)
+
+  @doc """
   Gets a single question with preloaded choices and course type assignments.
   """
   def get_question_with_details!(id) do
     Question
     |> Repo.get!(id)
     |> Repo.preload([:choices, :course_type_assignments])
+  end
+
+  @doc """
+  Gets a single question with preloaded choices and course type assignments.
+
+  Returns `nil` if the Question does not exist.
+  """
+  def get_question_with_details(id) do
+    case Repo.get(Question, id) do
+      nil -> nil
+      question -> Repo.preload(question, [:choices, :course_type_assignments])
+    end
   end
 
   @doc """
@@ -218,6 +237,17 @@ defmodule Whistle.Exams do
   end
 
   @doc """
+  Randomly selects questions for a course type according to its distribution.
+
+  Returns `{:ok, [question]}` or `{:error, {:not_enough_questions, difficulty, needed, available}}`.
+  """
+  def select_questions_for_course_type(course_type) do
+    distribution = get_distribution_for_course_type(course_type)
+    counts = calculate_difficulty_counts(distribution.question_count, distribution)
+    load_and_select_questions(course_type, counts)
+  end
+
+  @doc """
   Lists all configured distributions.
   """
   def list_distributions do
@@ -285,12 +315,31 @@ defmodule Whistle.Exams do
   def get_exam!(id), do: Repo.get!(Exam, id)
 
   @doc """
+  Gets a single exam.
+
+  Returns `nil` if the Exam does not exist.
+  """
+  def get_exam(id), do: Repo.get(Exam, id)
+
+  @doc """
   Gets an exam with participants and questions preloaded.
   """
   def get_exam_with_details!(id) do
     Exam
     |> Repo.get!(id)
     |> Repo.preload([:participants, questions: :choices])
+  end
+
+  @doc """
+  Gets an exam with participants and questions preloaded.
+
+  Returns `nil` if the Exam does not exist.
+  """
+  def get_exam_with_details(id) do
+    case Repo.get(Exam, id) do
+      nil -> nil
+      exam -> Repo.preload(exam, [:participants, questions: :choices])
+    end
   end
 
   @doc """
@@ -309,18 +358,22 @@ defmodule Whistle.Exams do
   - `{:not_enough_questions, difficulty, needed, available}` - not enough questions for a difficulty level
   """
   def create_exam(course, user_ids, created_by_user_id, opts \\ []) do
-    title = Keyword.get(opts, :title, "Exam #{course.name}")
     show_countdown = Keyword.get(opts, :show_countdown_to_participants, false)
+    preselected = Keyword.get(opts, :questions)
 
     Repo.transaction(fn ->
       distribution = get_distribution_for_course_type(course.type)
-
       question_count = distribution.question_count
-      counts = calculate_difficulty_counts(question_count, distribution)
 
-      questions = load_and_select_questions(course.type, counts)
+      questions_result =
+        if preselected do
+          {:ok, preselected}
+        else
+          counts = calculate_difficulty_counts(question_count, distribution)
+          load_and_select_questions(course.type, counts)
+        end
 
-      case questions do
+      case questions_result do
         {:error, reason} ->
           Repo.rollback(reason)
 
@@ -332,9 +385,8 @@ defmodule Whistle.Exams do
             |> Exam.changeset(%{
               course_id: course.id,
               course_type: course.type,
-              title: title,
               state: "waiting_room",
-              question_count: question_count,
+              question_count: length(selected_questions),
               duration_seconds: distribution.duration_seconds,
               pass_percentage: distribution.pass_percentage,
               show_countdown_to_participants: show_countdown,

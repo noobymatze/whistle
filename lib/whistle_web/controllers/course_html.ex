@@ -14,13 +14,4 @@ defmodule WhistleWeb.CourseHTML do
   attr :course, :map, default: nil
 
   def course_form(assigns)
-
-  @doc """
-  Returns a hint for usage of the form.
-  """
-  def form_hint(assigns) do
-    ~H"""
-    Verwende dieses Formular, um Kurse zu verwalten und anzulegen.
-    """
-  end
 end

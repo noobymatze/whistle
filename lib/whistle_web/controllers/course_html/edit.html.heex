@@ -1,6 +1,11 @@
+<.breadcrumbs>
+  <:item navigate={~p"/admin/courses"}>Kurse</:item>
+  <:item>Kurs bearbeiten</:item>
+</.breadcrumbs>
+
 <.header>
   Kurs bearbeiten
-  <:subtitle><.form_hint /></:subtitle>
+  <:subtitle>Verwende dieses Formular, um Kurse zu verwalten und anzulegen.</:subtitle>
 </.header>
 
 <.course_form
@@ -12,22 +17,20 @@
   course={@course}
 />
 
-<.back navigate={~p"/admin/courses"}>Zurück zur Übersicht</.back>
-
 <%= if @course.id do %>
   <%!-- Exams section --%>
   <div class="mt-16 mb-16">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">Exams</h2>
+      <h2 class="text-lg font-semibold">Tests</h2>
       <.link href={~p"/admin/courses/#{@course}/exams/new"}>
-        <.button>Exam erstellen</.button>
+        <.button>Test erstellen</.button>
       </.link>
     </div>
     <%= if Enum.empty?(@exams) do %>
-      <p class="text-sm text-gray-500 italic">Noch keine Exams für diesen Kurs.</p>
+      <p class="text-sm text-gray-500 italic">Noch keine Tests für diesen Kurs.</p>
     <% else %>
       <.table id="exams" rows={@exams} row_click={&JS.navigate(~p"/admin/exams/#{&1}")}>
-        <:col :let={exam} label="Titel">{exam.title}</:col>
+        <:col :let={exam} label="Typ">{exam.course_type}</:col>
         <:col :let={exam} label="Status">{exam.state}</:col>
         <:col :let={exam} label="Fragen">{exam.question_count}</:col>
         <:col :let={exam} label="Erstellt">

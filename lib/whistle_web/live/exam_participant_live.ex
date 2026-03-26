@@ -17,7 +17,7 @@ defmodule WhistleWeb.ExamParticipantLive do
     unless participant do
       {:ok,
        socket
-       |> put_flash(:error, "Du bist nicht für diesen Exam angemeldet.")
+       |> put_flash(:error, "Du bist nicht für diesen Test angemeldet.")
        |> push_navigate(to: ~p"/")}
     else
       if connected?(socket) do
@@ -226,7 +226,7 @@ defmodule WhistleWeb.ExamParticipantLive do
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
           <span class="text-2xl">📋</span>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">{@exam.title}</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Prüfung</h1>
         <p class="text-gray-600 text-lg">Der Test startet in wenigen Minuten.</p>
       </div>
       <div class="flex items-center gap-2 text-gray-500 text-sm">
@@ -421,29 +421,16 @@ defmodule WhistleWeb.ExamParticipantLive do
 
         <%!-- Navigation --%>
         <div class="mt-6 flex items-center justify-between gap-3">
-          <button
-            phx-click="prev"
-            disabled={@current_index == 0}
-            class="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
+          <.button phx-click="prev" disabled={@current_index == 0} class="flex-1 py-3">
             ← Zurück
-          </button>
+          </.button>
 
           <%= if @current_index < length(@questions) - 1 do %>
-            <button
-              phx-click="next"
-              class="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-500"
-            >
-              Weiter →
-            </button>
+            <.button phx-click="next" class="flex-1 py-3">Weiter →</.button>
           <% else %>
-            <button
-              phx-click="submit"
-              data-confirm="Test jetzt abgeben?"
-              class="flex-1 rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-500"
-            >
+            <.button phx-click="submit" data-confirm="Test jetzt abgeben?" class="flex-1 py-3">
               Abgeben ✓
-            </button>
+            </.button>
           <% end %>
         </div>
       <% end %>

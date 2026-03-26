@@ -349,6 +349,42 @@ defmodule WhistleWeb.CoreComponents do
   end
 
   @doc """
+  Renders breadcrumb navigation.
+
+  ## Examples
+
+      <.breadcrumbs>
+        <:item navigate={~p"/admin/courses"}>Kurse</:item>
+        <:item>Neuer Kurs</:item>
+      </.breadcrumbs>
+  """
+  slot :item, required: true do
+    attr :navigate, :any
+  end
+
+  def breadcrumbs(assigns) do
+    ~H"""
+    <nav aria-label="Breadcrumb" class="mb-4 pb-3 border-b border-base-200">
+      <ol class="flex flex-wrap items-center gap-2 text-sm text-base-content/65">
+        <li :for={{item, index} <- Enum.with_index(@item)} class="contents">
+          <.icon :if={index > 0} name="hero-chevron-right-mini" class="size-4 text-base-content/35" />
+          <.link
+            :if={item[:navigate]}
+            navigate={item[:navigate]}
+            class="font-medium transition hover:text-base-content"
+          >
+            {render_slot(item)}
+          </.link>
+          <span :if={!item[:navigate]} class="font-medium text-base-content">
+            {render_slot(item)}
+          </span>
+        </li>
+      </ol>
+    </nav>
+    """
+  end
+
+  @doc """
   Renders a date value formatted as DD.MM.YYYY.
   """
   attr :date, :any, required: true

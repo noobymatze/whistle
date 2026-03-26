@@ -123,76 +123,37 @@ defmodule WhistleWeb.ExamInstructorLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto px-4 py-8">
-      <div class="mb-6 flex items-start justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">{@exam.title}</h1>
-          <p class="mt-1 text-sm text-gray-500">
-            Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(
-              @exam.duration_seconds,
-              60
-            )} Minuten ·
-            Bestehensgrenze: {@exam.pass_percentage}%
-          </p>
-        </div>
-        <span class={[
-          "inline-flex rounded-full px-3 py-1 text-sm font-medium",
-          @exam.state == "waiting_room" && "bg-yellow-100 text-yellow-800",
-          @exam.state == "running" && "bg-green-100 text-green-800",
-          @exam.state == "paused" && "bg-orange-100 text-orange-800",
-          @exam.state == "finished" && "bg-gray-100 text-gray-600",
-          @exam.state == "canceled" && "bg-red-100 text-red-700"
-        ]}>
-          {state_label(@exam.state)}
-        </span>
-      </div>
+    <div class="max-w-3xl mx-auto">
+      <.header>
+        Test – {@exam.course_type}
+        <:subtitle>
+          Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(@exam.duration_seconds, 60)} Minuten · Bestehensgrenze: {@exam.pass_percentage}% ·
+          <span class={[
+            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+            @exam.state == "waiting_room" && "bg-yellow-100 text-yellow-800",
+            @exam.state == "running" && "bg-green-100 text-green-800",
+            @exam.state == "paused" && "bg-orange-100 text-orange-800",
+            @exam.state == "finished" && "bg-gray-100 text-gray-600",
+            @exam.state == "canceled" && "bg-red-100 text-red-700"
+          ]}>
+            {state_label(@exam.state)}
+          </span>
+        </:subtitle>
+      </.header>
 
       <%!-- Controls --%>
-      <div class="mb-8 flex flex-wrap gap-3">
+      <div class="mt-6 mb-8 flex flex-wrap gap-3">
         <%= if @exam.state == "waiting_room" do %>
-          <button
-            phx-click="start"
-            class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
-          >
-            ▶ Starten
-          </button>
-          <button
-            phx-click="cancel"
-            data-confirm="Exam wirklich abbrechen?"
-            class="rounded-md bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200"
-          >
-            Abbrechen
-          </button>
+          <.button phx-click="start">▶ Starten</.button>
+          <.button phx-click="cancel" data-confirm="Test wirklich abbrechen?">Abbrechen</.button>
         <% end %>
         <%= if @exam.state == "running" do %>
-          <button
-            phx-click="pause"
-            class="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400"
-          >
-            ⏸ Pausieren
-          </button>
-          <button
-            phx-click="finish"
-            data-confirm="Exam jetzt beenden?"
-            class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600"
-          >
-            ⏹ Beenden
-          </button>
+          <.button phx-click="pause">⏸ Pausieren</.button>
+          <.button phx-click="finish" data-confirm="Test jetzt beenden?">⏹ Beenden</.button>
         <% end %>
         <%= if @exam.state == "paused" do %>
-          <button
-            phx-click="resume"
-            class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
-          >
-            ▶ Fortsetzen
-          </button>
-          <button
-            phx-click="finish"
-            data-confirm="Exam jetzt beenden?"
-            class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600"
-          >
-            ⏹ Beenden
-          </button>
+          <.button phx-click="resume">▶ Fortsetzen</.button>
+          <.button phx-click="finish" data-confirm="Test jetzt beenden?">⏹ Beenden</.button>
         <% end %>
       </div>
 

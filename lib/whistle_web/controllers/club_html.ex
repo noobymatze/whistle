@@ -12,13 +12,4 @@ defmodule WhistleWeb.ClubHTML do
   attr :club, :map, default: nil
 
   def club_form(assigns)
-
-  @doc """
-  Returns a hint for usage of the form.
-  """
-  def form_hint(assigns) do
-    ~H"""
-    Verwende dieses Formular, um Vereine zu verwalten und neue Vereine anzulegen.
-    """
-  end
 end

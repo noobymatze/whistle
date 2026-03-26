@@ -92,7 +92,7 @@ defmodule WhistleWeb.Layouts do
                   <.nav_item
                     href={~p"/"}
                     icon="hero-home"
-                    label="Meine Anmeldungen"
+                    label="Kursanmeldung"
                     tone={:emerald}
                     active={path_active?(@current_path, {:exact, "/"})}
                   />
@@ -161,27 +161,34 @@ defmodule WhistleWeb.Layouts do
                 </div>
               </nav>
 
-              <div class="space-y-4 border-t border-base-300/70 px-4 py-4">
-                <div>
+              <div class="space-y-3 border-t border-base-300/70 px-4 py-4">
+                <div class="flex justify-center">
                   <.theme_toggle />
                 </div>
 
-                <div class="rounded-[1.4rem] border border-base-300/70 bg-base-200/70 p-3 shadow-sm">
-                  <div class="flex items-center gap-3">
-                    <span class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-base-100 ring-1 ring-base-300/80">
-                      <.icon name="hero-user-circle" class="size-7 text-base-content/55" />
+                <div class="rounded-[1.15rem] border border-base-300/70 bg-base-200/70 p-2.5 shadow-sm">
+                  <div class="flex items-center gap-2.5">
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-base-100 ring-1 ring-base-300/80">
+                      <.icon name="hero-user-circle" class="size-5.5 text-base-content/55" />
                     </span>
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-semibold">{@current_user.username}</p>
-                      <p class="text-xs text-base-content/55">{role_label(@current_user.role)}</p>
+                    <div class="min-w-0 flex-1 overflow-hidden">
+                      <p
+                        class="truncate text-xs font-semibold leading-tight"
+                        title={@current_user.username}
+                      >
+                        {@current_user.username}
+                      </p>
+                      <p class="truncate text-[0.7rem] leading-tight text-base-content/55">
+                        {role_label(@current_user.role)}
+                      </p>
                     </div>
                     <.link
                       href={~p"/users/log_out"}
                       method="delete"
-                      class="inline-flex size-10 items-center justify-center rounded-2xl border border-base-300/80 bg-base-100 text-base-content/65 transition hover:border-base-300 hover:text-base-content"
+                      class="inline-flex size-8.5 items-center justify-center rounded-xl border border-base-300/80 bg-base-100 text-base-content/65 transition hover:border-base-300 hover:text-base-content"
                       title="Abmelden"
                     >
-                      <.icon name="hero-arrow-right-start-on-rectangle" class="size-4" />
+                      <.icon name="hero-arrow-right-start-on-rectangle" class="size-3.5" />
                     </.link>
                   </div>
                 </div>
@@ -202,7 +209,7 @@ defmodule WhistleWeb.Layouts do
                   <.icon name="hero-bars-3" class="size-5" />
                 </button>
 
-                <span class="truncate text-sm font-semibold text-base-content/70">
+                <span class="min-w-0 flex-1 truncate px-3 text-right text-xs font-semibold text-base-content/70">
                   {@current_user.username}
                 </span>
               </div>
@@ -345,37 +352,47 @@ defmodule WhistleWeb.Layouts do
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  Provides a compact three-way theme selector based on themes defined in app.css.
 
   See <head> in root.html.heex which applies the theme before page load.
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
-
+    <div class="inline-flex items-center rounded-full border border-base-300/80 bg-base-200/75 p-0.75 shadow-sm">
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        type="button"
+        aria-label="Desktop-Design aktivieren"
+        title="Desktop"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
+        class="inline-flex size-9 items-center justify-center rounded-full text-base-content shadow-sm transition hover:text-base-content/90 bg-base-100 [[data-theme=light]_&]:bg-transparent [[data-theme=light]_&]:shadow-none [[data-theme=dark]_&]:bg-transparent [[data-theme=dark]_&]:shadow-none"
       >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-computer-desktop-micro" class="size-4" />
+        <span class="sr-only">Desktop</span>
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        type="button"
+        aria-label="Helles Design aktivieren"
+        title="Light"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
+        class="inline-flex size-9 items-center justify-center rounded-full text-base-content/65 transition hover:text-base-content/90 [[data-theme=light]_&]:bg-base-100 [[data-theme=light]_&]:text-base-content [[data-theme=light]_&]:shadow-sm"
       >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-sun-micro" class="size-4" />
+        <span class="sr-only">Light</span>
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        type="button"
+        aria-label="Dunkles Design aktivieren"
+        title="Dark"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
+        class="inline-flex size-9 items-center justify-center rounded-full text-base-content/65 transition hover:text-base-content/90 [[data-theme=dark]_&]:bg-base-100 [[data-theme=dark]_&]:text-base-content [[data-theme=dark]_&]:shadow-sm"
       >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-moon-micro" class="size-4" />
+        <span class="sr-only">Dark</span>
       </button>
     </div>
     """

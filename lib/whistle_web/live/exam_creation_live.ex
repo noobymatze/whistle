@@ -24,6 +24,13 @@ defmodule WhistleWeb.ExamCreationLive do
       selected_ids = MapSet.new(active_registrations, & &1.user_id)
 
       distribution = Exams.get_distribution_for_course_type(course.type)
+      questions_result = Exams.select_questions_for_course_type(course.type)
+
+      {selected_questions, questions_error} =
+        case questions_result do
+          {:ok, qs} -> {qs, nil}
+          {:error, reason} -> {[], reason}
+        end
 
       {:ok,
        socket
@@ -31,8 +38,8 @@ defmodule WhistleWeb.ExamCreationLive do
        |> assign(:active_registrations, active_registrations)
        |> assign(:selected_ids, selected_ids)
        |> assign(:distribution, distribution)
-       |> assign(:title, "Exam #{course.name}")
-       |> assign(:error, nil)
+       |> assign(:selected_questions, selected_questions)
+       |> assign(:error, format_questions_error(questions_error))
        |> assign(:creating, false)}
     end
   end
@@ -68,27 +75,23 @@ defmodule WhistleWeb.ExamCreationLive do
   end
 
   @impl true
-  def handle_event("update_title", %{"title" => title}, socket) do
-    {:noreply, assign(socket, :title, title)}
-  end
-
-  @impl true
   def handle_event("create_exam", _params, socket) do
     user = socket.assigns.current_user
     course = socket.assigns.course
     user_ids = MapSet.to_list(socket.assigns.selected_ids)
-    title = socket.assigns.title
 
     if Enum.empty?(user_ids) do
       {:noreply, assign(socket, :error, "Mindestens ein Teilnehmer muss ausgewählt sein.")}
     else
       socket = assign(socket, :creating, true)
 
-      case Exams.create_exam(course, user_ids, user.id, title: title) do
+      case Exams.create_exam(course, user_ids, user.id,
+             questions: socket.assigns.selected_questions
+           ) do
         {:ok, _exam} ->
           {:noreply,
            socket
-           |> put_flash(:info, "Exam wurde erfolgreich erstellt.")
+           |> put_flash(:info, "Test wurde erfolgreich erstellt.")
            |> push_navigate(to: ~p"/admin/courses/#{course}/edit")}
 
         {:error, {:not_enough_questions, difficulty, needed, available}} ->
@@ -104,73 +107,48 @@ defmodule WhistleWeb.ExamCreationLive do
           {:noreply,
            socket
            |> assign(:creating, false)
-           |> assign(:error, "Fehler beim Erstellen des Exams: #{inspect(reason)}")}
+           |> assign(:error, "Fehler beim Erstellen des Tests: #{inspect(reason)}")}
       end
     end
+  end
+
+  defp format_questions_error(nil), do: nil
+
+  defp format_questions_error({:not_enough_questions, difficulty, needed, available}) do
+    "Nicht genug Fragen (#{difficulty}): #{needed} benötigt, #{available} verfügbar."
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-2xl mx-auto px-4 py-8">
-      <div class="mb-6">
-        <.link href={~p"/admin/courses/#{@course}/edit"} class="text-sm text-blue-600 hover:underline">
-          ← Zurück zum Kurs
-        </.link>
-        <h1 class="mt-2 text-2xl font-bold text-gray-900">Exam erstellen</h1>
-        <p class="mt-1 text-sm text-gray-500">
-          Kurs: {@course.name} · Typ: {@course.type}
-        </p>
-      </div>
+    <.breadcrumbs>
+      <:item navigate={~p"/admin/courses"}>Kurse</:item>
+      <:item navigate={~p"/admin/courses/#{@course}/edit"}>{@course.name}</:item>
+      <:item>Test erstellen</:item>
+    </.breadcrumbs>
 
-      <%= if @error do %>
-        <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {@error}
-        </div>
-      <% end %>
+    <.header class="mt-4">
+      Test erstellen
+      <:subtitle>Kurs: {@course.name} · Typ: {@course.type}</:subtitle>
+    </.header>
 
-      <%!-- Exam title --%>
-      <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Titel</label>
-        <input
-          type="text"
-          value={@title}
-          phx-blur="update_title"
-          phx-value-title={@title}
-          name="title"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
+    <.error :if={@error}>{@error}</.error>
 
+    <div class="mt-6 space-y-8 max-w-2xl">
       <%!-- Distribution info --%>
-      <div class="mb-6 rounded-md bg-gray-50 border border-gray-200 px-4 py-3">
+      <div class="rounded-md bg-gray-50 border border-gray-200 px-4 py-3">
         <h3 class="text-sm font-semibold text-gray-700 mb-1">
           Fragenverteilung (Kurstyp {@course.type})
         </h3>
-        <% counts = Exams.calculate_difficulty_counts(@distribution.question_count, @distribution) %>
-        <dl class="grid grid-cols-3 gap-2 text-sm text-gray-600">
-          <div>
-            <dt class="font-medium">Einfach</dt>
-            <dd>{counts.low} Fragen ({@distribution.low_percentage}%)</dd>
-          </div>
-          <div>
-            <dt class="font-medium">Mittel</dt>
-            <dd>{counts.medium} Fragen ({@distribution.medium_percentage}%)</dd>
-          </div>
-          <div>
-            <dt class="font-medium">Schwer</dt>
-            <dd>{counts.high} Fragen ({@distribution.high_percentage}%)</dd>
-          </div>
-        </dl>
-        <p class="mt-2 text-xs text-gray-500">
-          Gesamt: {@distribution.question_count} Fragen ·
+        <p class="mt-1 text-xs text-gray-500">
+          {@distribution.question_count} Fragen ·
           Bestehensgrenze: {@distribution.pass_percentage}% ·
           Dauer: {div(@distribution.duration_seconds, 60)} Minuten
         </p>
       </div>
 
       <%!-- Participant selection --%>
-      <div class="mb-6">
+      <div>
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-sm font-semibold text-gray-700">
             Teilnehmende
@@ -178,17 +156,13 @@ defmodule WhistleWeb.ExamCreationLive do
               ({MapSet.size(@selected_ids)} von {length(@active_registrations)} ausgewählt)
             </span>
           </h3>
-          <button
-            type="button"
-            phx-click="toggle_all"
-            class="text-sm text-blue-600 hover:underline"
-          >
+          <.button type="button" phx-click="toggle_all">
             <%= if MapSet.size(@selected_ids) == length(@active_registrations) do %>
               Alle abwählen
             <% else %>
               Alle auswählen
             <% end %>
-          </button>
+          </.button>
         </div>
 
         <%= if Enum.empty?(@active_registrations) do %>
@@ -219,25 +193,43 @@ defmodule WhistleWeb.ExamCreationLive do
       </div>
 
       <%!-- Actions --%>
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          phx-click="create_exam"
-          disabled={@creating}
-          class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
+      <div>
+        <.button type="button" phx-click="create_exam" disabled={@creating}>
           <%= if @creating do %>
             Wird erstellt…
           <% else %>
-            Exam erstellen
+            Test erstellen
           <% end %>
-        </button>
-        <.link
-          href={~p"/admin/courses/#{@course}/edit"}
-          class="text-sm text-gray-600 hover:underline"
-        >
-          Abbrechen
-        </.link>
+        </.button>
+      </div>
+
+      <%!-- Selected questions preview --%>
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">
+          Ausgewählte Fragen
+          <span class="font-normal text-gray-500">({length(@selected_questions)} Fragen)</span>
+        </h3>
+        <div class="divide-y divide-gray-100 border border-gray-200 rounded-md overflow-hidden">
+          <%= for {q, i} <- Enum.with_index(@selected_questions, 1) do %>
+            <div class="flex items-center gap-3 px-4 py-2 text-sm">
+              <span class="text-gray-400 w-5 text-right flex-shrink-0">{i}</span>
+              <span class={[
+                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0",
+                q.difficulty == "low" && "bg-green-100 text-green-700",
+                q.difficulty == "medium" && "bg-yellow-100 text-yellow-700",
+                q.difficulty == "high" && "bg-red-100 text-red-700"
+              ]}>
+                {case q.difficulty do
+                  "low" -> "Einfach"
+                  "medium" -> "Mittel"
+                  "high" -> "Schwer"
+                  d -> d
+                end}
+              </span>
+              <span class="truncate text-gray-700">{q.body_markdown}</span>
+            </div>
+          <% end %>
+        </div>
       </div>
     </div>
     """

@@ -1,8 +1,13 @@
+<.breadcrumbs>
+  <:item navigate={~p"/admin/seasons"}>Saisons</:item>
+  <:item>Neue Saison</:item>
+</.breadcrumbs>
+
 <.header>
   Neue Saison
-  <:subtitle><.form_hint /></:subtitle>
+  <:subtitle>
+    Verwende dieses Formular, um Saisons zu verwalten/eine neue Saison anzulegen.
+  </:subtitle>
 </.header>
 
 <.season_form changeset={@changeset} action={~p"/admin/seasons"} />
-
-<.back navigate={~p"/admin/seasons"}>Zurück zur Übersicht</.back>

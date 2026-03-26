@@ -1,7 +1,12 @@
+<.breadcrumbs>
+  <:item navigate={~p"/admin/clubs"}>Vereine</:item>
+  <:item>Verein bearbeiten</:item>
+</.breadcrumbs>
+
 <.header>
   Verein bearbeiten
   <:subtitle>
-    <.form_hint />
+    Verwende dieses Formular, um Vereine zu verwalten und neue Vereine anzulegen.
   </:subtitle>
 </.header>
 
@@ -11,5 +16,3 @@
   action={~p"/admin/clubs/#{@club}"}
   club={@club}
 />
-
-<.back navigate={~p"/admin/clubs"}>Zurück zur Übersicht</.back>

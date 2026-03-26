@@ -7,7 +7,6 @@ defmodule Whistle.Exams.Exam do
   schema "exams" do
     field :course_id, :id
     field :course_type, :string
-    field :title, :string
     field :state, :string, default: "waiting_room"
     field :question_count, :integer
     field :duration_seconds, :integer
@@ -33,7 +32,6 @@ defmodule Whistle.Exams.Exam do
     |> cast(attrs, [
       :course_id,
       :course_type,
-      :title,
       :state,
       :question_count,
       :duration_seconds,
@@ -48,7 +46,6 @@ defmodule Whistle.Exams.Exam do
     |> validate_required([
       :course_id,
       :course_type,
-      :title,
       :state,
       :question_count,
       :duration_seconds,

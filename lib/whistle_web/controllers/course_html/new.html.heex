@@ -1,6 +1,11 @@
+<.breadcrumbs>
+  <:item navigate={~p"/admin/courses"}>Kurse</:item>
+  <:item>Neuer Kurs</:item>
+</.breadcrumbs>
+
 <.header>
   Neuer Kurs
-  <:subtitle><.form_hint /></:subtitle>
+  <:subtitle>Verwende dieses Formular, um Kurse zu verwalten und anzulegen.</:subtitle>
 </.header>
 
 <.course_form
@@ -10,5 +15,3 @@
   seasons={@seasons}
   action={~p"/admin/courses"}
 />
-
-<.back navigate={~p"/admin/courses"}>Zurück zur Übersicht</.back>

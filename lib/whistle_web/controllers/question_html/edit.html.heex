@@ -1,10 +1,15 @@
+<.breadcrumbs>
+  <:item navigate={~p"/admin/questions"}>Fragen</:item>
+  <:item>{if @question, do: "Frage bearbeiten", else: "Neue Frage"}</:item>
+</.breadcrumbs>
+
 <.header>
   <%= if @question do %>
     Frage bearbeiten
   <% else %>
     Neue Frage
   <% end %>
-  <:subtitle><.form_hint /></:subtitle>
+  <:subtitle>Pflichtfelder sind mit * markiert.</:subtitle>
 </.header>
 
 <.form
@@ -249,5 +254,3 @@
     <% end %>
   </div>
 </.form>
-
-<.back navigate={~p"/admin/questions"}>Zurück zur Übersicht</.back>
