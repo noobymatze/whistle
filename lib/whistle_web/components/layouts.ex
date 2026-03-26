@@ -235,7 +235,7 @@ defmodule WhistleWeb.Layouts do
               href={~p"/"}
               class="text-sm font-semibold tracking-[0.2em] text-base-content/55 uppercase"
             >
-              Whistle
+              Nordref
             </a>
             <.theme_toggle />
           </div>
