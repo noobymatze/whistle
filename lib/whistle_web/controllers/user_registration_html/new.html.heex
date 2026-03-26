@@ -21,8 +21,8 @@
       <.input field={f[:password]} type="password" label="Passwort" required />
 
       <div class="flex gap-2">
-        <.input class="flex-1" field={f[:first_name]} type="text" label="Vorname" required />
-        <.input class="flex-1" field={f[:last_name]} type="text" label="Nachname" required />
+        <div class="flex-1"><.input field={f[:first_name]} type="text" label="Vorname" required /></div>
+        <div class="flex-1"><.input field={f[:last_name]} type="text" label="Nachname" required /></div>
       </div>
       <.input field={f[:birthday]} type="date" label="Geburtsdatum" required />
 

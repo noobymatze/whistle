@@ -1,32 +1,37 @@
-<.header class="text-center">
+<.breadcrumbs>
+  <:item>Einstellungen</:item>
+</.breadcrumbs>
+
+<.header>
   Kontoeinstellungen
-  <:subtitle>Verwalte deine Account E-Mail und deine Passworteinstellungen.</:subtitle>
+  <:subtitle>Verwalte deine Account-E-Mail und dein Passwort.</:subtitle>
 </.header>
 
-<div class="space-y-12 divide-y">
+<div class="mt-8 space-y-10 max-w-lg">
+  <%!-- Username (read-only) --%>
   <div>
-    <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 rounded-lg">
-      <dt class="text-sm font-medium text-gray-500">
-        Benutzername
-      </dt>
-      <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-        {@current_user.username}
-      </dd>
-    </div>
-    <p class="mt-2 text-sm text-gray-600">
+    <.input
+      type="text"
+      name="username"
+      value={@current_user.username}
+      label="Benutzername"
+      disabled
+    />
+    <p class="mt-1 text-xs text-gray-500">
       Dein Benutzername wird für die Anmeldung verwendet und kann nicht geändert werden.
     </p>
   </div>
+
+  <%!-- Update email --%>
   <div>
+    <h2 class="text-sm font-semibold text-zinc-800 mb-3">E-Mail ändern</h2>
     <.form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
       <div class="flex flex-col gap-2">
         <.error :if={@email_changeset.action}>
           Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
         </.error>
-
         <.input field={f[:action]} type="hidden" name="action" value="update_email" />
-
-        <.input field={f[:email]} type="email" label="E-Mail" required />
+        <.input field={f[:email]} type="email" label="Neue E-Mail" required />
         <.input
           field={f[:current_password]}
           name="current_password"
@@ -35,27 +40,34 @@
           required
           id="current_password_for_email"
         />
-        <.button phx-disable-with="Wird aktualisiert...">E-Mail aktualisieren</.button>
+        <div class="mt-1">
+          <.button phx-disable-with="Wird aktualisiert...">E-Mail aktualisieren</.button>
+        </div>
       </div>
     </.form>
   </div>
+
+  <%!-- Update password --%>
   <div>
-    <.form :let={f} for={@password_changeset} action={~p"/users/settings"} id="update_password">
+    <h2 class="text-sm font-semibold text-zinc-800 mb-3">Passwort ändern</h2>
+    <.form
+      :let={f}
+      for={@password_changeset}
+      action={~p"/users/settings"}
+      id="update_password"
+    >
       <div class="flex flex-col gap-2">
         <.error :if={@password_changeset.action}>
           Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
         </.error>
-
         <.input field={f[:action]} type="hidden" name="action" value="update_password" />
-
         <.input field={f[:password]} type="password" label="Neues Passwort" required />
         <.input
           field={f[:password_confirmation]}
           type="password"
-          label="Bestätige neues Passwort"
+          label="Neues Passwort bestätigen"
           required
         />
-
         <.input
           field={f[:current_password]}
           name="current_password"
@@ -64,7 +76,9 @@
           id="current_password_for_password"
           required
         />
-        <.button phx-disable-with="Wird aktualisiert...">Passwort ändern</.button>
+        <div class="mt-1">
+          <.button phx-disable-with="Wird aktualisiert...">Passwort ändern</.button>
+        </div>
       </div>
     </.form>
   </div>

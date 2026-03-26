@@ -151,8 +151,23 @@ defmodule Whistle.Accounts.User do
   """
   def role_changeset(user, attrs) do
     user
-    |> cast(attrs, [:role, :first_name, :last_name, :mobile, :phone, :birthday, :license_number])
+    |> cast(attrs, [
+      :role,
+      :username,
+      :email,
+      :first_name,
+      :last_name,
+      :mobile,
+      :phone,
+      :birthday,
+      :license_number
+    ])
     |> validate_role()
+    |> validate_username(validate_username: true)
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_length(:email, max: 160)
+    |> unsafe_validate_unique(:email, Whistle.Repo)
+    |> unique_constraint(:email)
   end
 
   @doc """

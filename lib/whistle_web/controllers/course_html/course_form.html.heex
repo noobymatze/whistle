@@ -28,24 +28,9 @@
       label="Ausrichter"
     />
     <div class="flex flex-row gap-4 w-full">
-      <.input
-        class="flex-1"
-        field={f[:max_participants]}
-        type="number"
-        label="Maximale Teilnehmer"
-      />
-      <.input
-        class="flex-1"
-        field={f[:max_per_club]}
-        type="number"
-        label="Maximale Teilnehmer pro Verein"
-      />
-      <.input
-        class="flex-1"
-        field={f[:max_organizer_participants]}
-        type="number"
-        label="Maximale Teilnehmer für Ausrichter"
-      />
+      <div class="flex-1"><.input field={f[:max_participants]} type="number" label="Maximale Teilnehmer" /></div>
+      <div class="flex-1"><.input field={f[:max_per_club]} type="number" label="Maximale Teilnehmer pro Verein" /></div>
+      <div class="flex-1"><.input field={f[:max_organizer_participants]} type="number" label="Maximale Teilnehmer für Ausrichter" /></div>
     </div>
     <div class="mt-2 flex items-center gap-4">
       <.button>Speichern</.button>
