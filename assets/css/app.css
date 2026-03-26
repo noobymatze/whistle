@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/forms";
+@plugin "../vendor/phoenix-liveview.js";
+@plugin "../vendor/heroicons.js";
+
+@theme {
+  --color-brand: #FD4F00;
+}
+
+/* This file is for your main application CSS */
+
+/* ProseMirror editor */
+.ProseMirror {
+  min-height: 6rem;
+  outline: none;
+  padding: 0.5rem 0.75rem;
+}
+
+.ProseMirror p {
+  margin: 0;
+}
+
+.ProseMirror p + p {
+  margin-top: 0.5rem;
+}
+
+.prosemirror-wrapper {
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+}
+
+.prosemirror-wrapper:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px #6366f1;
+}

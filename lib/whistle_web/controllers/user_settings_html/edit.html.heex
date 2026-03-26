@@ -1,0 +1,76 @@
+<.header class="text-center">
+  Kontoeinstellungen
+  <:subtitle>Verwalte deine Account E-Mail und deine Passworteinstellungen.</:subtitle>
+</.header>
+
+<div class="space-y-12 divide-y">
+  <div>
+    <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 rounded-lg">
+      <dt class="text-sm font-medium text-gray-500">
+        Benutzername
+      </dt>
+      <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+        {@current_user.username}
+      </dd>
+    </div>
+    <p class="mt-2 text-sm text-gray-600">
+      Dein Benutzername wird für die Anmeldung verwendet und kann nicht geändert werden.
+    </p>
+  </div>
+  <div>
+    <.simple_form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
+      <.error :if={@email_changeset.action}>
+        Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+      </.error>
+
+      <.input field={f[:action]} type="hidden" name="action" value="update_email" />
+
+      <.input field={f[:email]} type="email" label="E-Mail" required />
+      <.input
+        field={f[:current_password]}
+        name="current_password"
+        type="password"
+        label="Aktuelles Passwort"
+        required
+        id="current_password_for_email"
+      />
+      <:actions>
+        <.button phx-disable-with="Wird aktualisiert...">E-Mail aktualisieren</.button>
+      </:actions>
+    </.simple_form>
+  </div>
+  <div>
+    <.simple_form
+      :let={f}
+      for={@password_changeset}
+      action={~p"/users/settings"}
+      id="update_password"
+    >
+      <.error :if={@password_changeset.action}>
+        Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+      </.error>
+
+      <.input field={f[:action]} type="hidden" name="action" value="update_password" />
+
+      <.input field={f[:password]} type="password" label="Neues Passwort" required />
+      <.input
+        field={f[:password_confirmation]}
+        type="password"
+        label="Bestätige neues Passwort"
+        required
+      />
+
+      <.input
+        field={f[:current_password]}
+        name="current_password"
+        type="password"
+        label="Aktuelles Passwort"
+        id="current_password_for_password"
+        required
+      />
+      <:actions>
+        <.button phx-disable-with="Wird aktualisiert...">Passwort ändern</.button>
+      </:actions>
+    </.simple_form>
+  </div>
+</div>

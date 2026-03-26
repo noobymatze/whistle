@@ -1,0 +1,23 @@
+<.simple_form :let={f} for={@changeset} action={@action}>
+  <.error :if={@changeset.action}>
+    Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+  </.error>
+  <.input field={f[:year]} type="number" label="Jahr" />
+  <.input field={f[:start]} type="date" label="Beginn" />
+  <.input field={f[:start_registration]} type="datetime-local" label="Start Kursanmeldung" />
+  <.input field={f[:end_registration]} type="datetime-local" label="Ende Kursanmeldung" />
+  <:actions>
+    <div class="flex items-center gap-4">
+      <.button>Speichern</.button>
+      <.link
+        :if={@season}
+        href={~p"/admin/seasons/#{@season}"}
+        method="delete"
+        data-confirm="Bist du dir sicher?"
+        class="text-sm font-semibold text-red-600 hover:text-red-700"
+      >
+        Löschen
+      </.link>
+    </div>
+  </:actions>
+</.simple_form>

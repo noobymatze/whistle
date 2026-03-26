@@ -1,0 +1,15 @@
+<.header>
+  Verein bearbeiten
+  <:subtitle>
+    <.form_hint />
+  </:subtitle>
+</.header>
+
+<.club_form
+  changeset={@changeset}
+  associations={@associations}
+  action={~p"/admin/clubs/#{@club}"}
+  club={@club}
+/>
+
+<.back navigate={~p"/admin/clubs"}>Zurück zur Übersicht</.back>

@@ -1,0 +1,91 @@
+<.header class="mb-2">
+  Fragen
+</.header>
+
+<div class="mb-6 flex items-start justify-between gap-4">
+  <form method="get" action={~p"/admin/questions"} class="flex items-center gap-3">
+    <select
+      name="status"
+      onchange="this.form.submit()"
+      class="rounded-md border border-gray-300 py-1 px-2 text-sm focus:border-blue-500 focus:outline-none"
+    >
+      <option value="">Alle Status</option>
+      <option value="draft" selected={"draft" == @filter_status}>Entwurf</option>
+      <option value="active" selected={"active" == @filter_status}>Aktiv</option>
+      <option value="archived" selected={"archived" == @filter_status}>Archiviert</option>
+    </select>
+    <select
+      name="course_type"
+      onchange="this.form.submit()"
+      class="rounded-md border border-gray-300 py-1 px-2 text-sm focus:border-blue-500 focus:outline-none"
+    >
+      <option value="">Alle Kurstypen</option>
+      <%= for ct <- @course_types do %>
+        <option value={ct} selected={ct == @filter_course_type}>{ct}</option>
+      <% end %>
+    </select>
+  </form>
+  <.link href={~p"/admin/questions/new"}>
+    <.button>Neue Frage</.button>
+  </.link>
+</div>
+
+<div class="space-y-3">
+  <%= for q <- @questions do %>
+    <% inactive = q.status != "active" %>
+    <a href={~p"/admin/questions/#{q}/edit"} class={[
+      "block rounded-lg border px-5 py-4 transition-colors",
+      inactive && "border-gray-200 bg-gray-50 opacity-60",
+      !inactive && "border-gray-200 bg-white shadow-sm hover:border-gray-300 cursor-pointer"
+    ]}>
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class={[
+            "text-sm leading-relaxed mb-2 prose prose-sm max-w-none",
+            inactive && "text-gray-500",
+            !inactive && "text-gray-900"
+          ]}>
+            {render_markdown(q.body_markdown)}
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+            <span class={!inactive && "font-medium text-gray-600"}>
+              {case q.type do
+                "single_choice" -> "Multiple-Choice"
+                "multiple_choice" -> "Multiple-Choice"
+                "text" -> "Text"
+                other -> other
+              end}
+            </span>
+            <span>·</span>
+            <span>
+              {case q.difficulty do
+                "low" -> "Einfach"
+                "medium" -> "Mittel"
+                "high" -> "Schwierig"
+                other -> other
+              end}
+            </span>
+            <%= if q.course_type_assignments != [] do %>
+              <span>·</span>
+              <span>{q.course_type_assignments |> Enum.map(& &1.course_type) |> Enum.join(", ")}</span>
+            <% end %>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 flex-shrink-0">
+          <%= if inactive do %>
+            <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-400">
+              {case q.status do
+                "draft" -> "Entwurf"
+                "archived" -> "Deaktiviert"
+                other -> other
+              end}
+            </span>
+          <% end %>
+        </div>
+      </div>
+    </a>
+  <% end %>
+  <%= if @questions == [] do %>
+    <p class="text-sm text-gray-500 py-8 text-center">Keine Fragen gefunden.</p>
+  <% end %>
+</div>

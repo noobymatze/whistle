@@ -1,0 +1,75 @@
+<.header class="mb-2">
+  Kursanmeldungen
+</.header>
+
+<div class="mb-6 flex items-end justify-between gap-4">
+  <form method="get" action={~p"/admin/registrations"} class="flex items-end gap-4">
+    <select
+      id="season_id"
+      name="season_id"
+      value={@selected_season_id || ""}
+      onchange="this.form.submit()"
+      class="rounded-md border border-gray-300 py-2 px-2 pr-12 text-sm focus:border-blue-500 focus:outline-none"
+    >
+      <option value="">Alle Saisons</option>
+      <%= for season <- @seasons do %>
+        <option
+          value={season.id}
+          selected={season.id == (@selected_season_id && String.to_integer(@selected_season_id))}
+        >
+          Saison {season.year}
+        </option>
+      <% end %>
+    </select>
+  </form>
+
+  <.link
+    href={
+      ~p"/admin/registrations/export?#{if @selected_season_id, do: [season_id: @selected_season_id], else: []}"
+    }
+    class="inline-flex items-center gap-2 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-5 w-5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+      />
+    </svg>
+    CSV exportieren
+  </.link>
+</div>
+
+<.table id="registrations" rows={@registrations}>
+  <:col :let={reg} label="Name">
+    {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
+    |> Enum.filter(& &1)
+    |> Enum.join(" ")}
+  </:col>
+  <:col :let={reg} label="Kurs">{reg.course_name}</:col>
+  <:col :let={reg} label="Ausrichter">{reg.organizer_name}</:col>
+  <:col :let={reg} label="Kurs Datum">
+    {if reg.course_date do
+      Calendar.strftime(reg.course_date, "%d.%m.%Y")
+    end}
+  </:col>
+  <:action :let={reg}>
+    <%= if Whistle.Accounts.Role.full_admin?(@current_user) && is_nil(reg.unenrolled_at) do %>
+      <.link
+        href={~p"/admin/registrations/#{reg.course_id}/#{reg.user_id}"}
+        method="delete"
+        data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"
+        class="underline"
+      >
+        Abmelden
+      </.link>
+    <% end %>
+  </:action>
+</.table>
