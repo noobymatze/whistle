@@ -84,7 +84,11 @@ defmodule Whistle.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "cmd npm --prefix assets ci"
+      ],
       "assets.build": ["compile", "tailwind whistle", "esbuild whistle"],
       "assets.deploy": [
         "tailwind whistle --minify",

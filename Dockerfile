@@ -22,7 +22,7 @@ FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential git \
+  && apt-get install -y --no-install-recommends build-essential git nodejs npm \
   && rm -rf /var/lib/apt/lists/*
 
 # prepare build dir
@@ -39,6 +39,9 @@ ENV MIX_ENV="prod"
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 RUN mkdir config
+
+# copy JavaScript dependency manifests before assets setup so Docker can cache npm installs
+COPY assets/package.json assets/package-lock.json ./assets/
 
 # copy compile-time config files before we compile dependencies
 # to ensure any relevant config change will trigger the dependencies
