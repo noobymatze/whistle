@@ -35,3 +35,5 @@ whistle-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Agent/browser automation artifacts
+/.playwright-cli/
