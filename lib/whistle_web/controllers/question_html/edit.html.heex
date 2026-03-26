@@ -7,7 +7,7 @@
   <:subtitle><.form_hint /></:subtitle>
 </.header>
 
-<.simple_form
+<.form
   :let={f}
   for={@changeset}
   action={if @question, do: ~p"/admin/questions/#{@question}", else: ~p"/admin/questions"}
@@ -38,7 +38,9 @@
           class="rounded border border-gray-300 py-0.5 pl-2 pr-6 text-xs text-zinc-700 focus:border-blue-500 focus:outline-none"
         >
           <%= for {label, val} <- [{"Multiple-Choice", "single_choice"}, {"Text", "text"}] do %>
-            <option value={val} selected={Phoenix.HTML.Form.input_value(f, :type) == val}>{label}</option>
+            <option value={val} selected={Phoenix.HTML.Form.input_value(f, :type) == val}>
+              {label}
+            </option>
           <% end %>
         </select>
         <select
@@ -46,7 +48,9 @@
           class="rounded border border-gray-300 py-0.5 pl-2 pr-6 text-xs text-zinc-700 focus:border-blue-500 focus:outline-none"
         >
           <%= for {label, val} <- [{"Einfach", "low"}, {"Mittel", "medium"}, {"Schwierig", "high"}] do %>
-            <option value={val} selected={Phoenix.HTML.Form.input_value(f, :difficulty) == val}>{label}</option>
+            <option value={val} selected={Phoenix.HTML.Form.input_value(f, :difficulty) == val}>
+              {label}
+            </option>
           <% end %>
         </select>
       </div>
@@ -60,9 +64,30 @@
     />
     <div class="prosemirror-wrapper">
       <div class="flex gap-1 border-b border-gray-200 px-2 py-1">
-        <button type="button" data-mark="bold" class="px-2 py-0.5 text-sm font-bold hover:bg-gray-100 rounded" title="Fett (Strg+B)">B</button>
-        <button type="button" data-mark="italic" class="px-2 py-0.5 text-sm italic hover:bg-gray-100 rounded" title="Kursiv (Strg+I)">I</button>
-        <button type="button" data-mark="underline" class="px-2 py-0.5 text-sm underline hover:bg-gray-100 rounded" title="Unterstrichen (Strg+U)">U</button>
+        <button
+          type="button"
+          data-mark="bold"
+          class="px-2 py-0.5 text-sm font-bold hover:bg-gray-100 rounded"
+          title="Fett (Strg+B)"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          data-mark="italic"
+          class="px-2 py-0.5 text-sm italic hover:bg-gray-100 rounded"
+          title="Kursiv (Strg+I)"
+        >
+          I
+        </button>
+        <button
+          type="button"
+          data-mark="underline"
+          class="px-2 py-0.5 text-sm underline hover:bg-gray-100 rounded"
+          title="Unterstrichen (Strg+U)"
+        >
+          U
+        </button>
       </div>
       <div data-prosemirror data-target="question_body_markdown"></div>
     </div>
@@ -86,17 +111,44 @@
           />
           <div class="prosemirror-wrapper">
             <div class="flex items-center gap-1 border-b border-gray-200 px-2 py-0.5">
-              <button type="button" data-mark="bold" class="px-2 py-0.5 text-xs font-bold hover:bg-gray-100 rounded">B</button>
-              <button type="button" data-mark="italic" class="px-2 py-0.5 text-xs italic hover:bg-gray-100 rounded">I</button>
-              <button type="button" data-mark="underline" class="px-2 py-0.5 text-xs underline hover:bg-gray-100 rounded">U</button>
+              <button
+                type="button"
+                data-mark="bold"
+                class="px-2 py-0.5 text-xs font-bold hover:bg-gray-100 rounded"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                data-mark="italic"
+                class="px-2 py-0.5 text-xs italic hover:bg-gray-100 rounded"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                data-mark="underline"
+                class="px-2 py-0.5 text-xs underline hover:bg-gray-100 rounded"
+              >
+                U
+              </button>
               <div class="ml-auto flex items-center gap-1.5">
                 <%!-- Correct toggle --%>
-                <label class={[
-                  "choice-correct-label flex items-center justify-center cursor-pointer transition-colors",
-                  is_correct && "text-green-500",
-                  !is_correct && "text-gray-300 hover:text-green-400"
-                ]} title="Korrekte Antwort">
-                  <input type="checkbox" name={"choices[#{idx}][is_correct]"} value="true" checked={is_correct} class="sr-only" />
+                <label
+                  class={[
+                    "choice-correct-label flex items-center justify-center cursor-pointer transition-colors",
+                    is_correct && "text-green-500",
+                    !is_correct && "text-gray-300 hover:text-green-400"
+                  ]}
+                  title="Korrekte Antwort"
+                >
+                  <input
+                    type="checkbox"
+                    name={"choices[#{idx}][is_correct]"}
+                    value="true"
+                    checked={is_correct}
+                    class="sr-only"
+                  />
                   <.icon name="hero-check-circle-solid" class="h-5 w-5" />
                 </label>
                 <%!-- Remove --%>
@@ -126,7 +178,9 @@
 
   <%!-- Explanation --%>
   <div>
-    <label class="block text-sm font-semibold leading-6 text-zinc-800 mb-1">Erklärung (optional)</label>
+    <label class="block text-sm font-semibold leading-6 text-zinc-800 mb-1">
+      Erklärung (optional)
+    </label>
     <input
       type="hidden"
       id="question_explanation_markdown"
@@ -135,48 +189,65 @@
     />
     <div class="prosemirror-wrapper">
       <div class="flex gap-1 border-b border-gray-200 px-2 py-1">
-        <button type="button" data-mark="bold" class="px-2 py-0.5 text-sm font-bold hover:bg-gray-100 rounded">B</button>
-        <button type="button" data-mark="italic" class="px-2 py-0.5 text-sm italic hover:bg-gray-100 rounded">I</button>
-        <button type="button" data-mark="underline" class="px-2 py-0.5 text-sm underline hover:bg-gray-100 rounded">U</button>
+        <button
+          type="button"
+          data-mark="bold"
+          class="px-2 py-0.5 text-sm font-bold hover:bg-gray-100 rounded"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          data-mark="italic"
+          class="px-2 py-0.5 text-sm italic hover:bg-gray-100 rounded"
+        >
+          I
+        </button>
+        <button
+          type="button"
+          data-mark="underline"
+          class="px-2 py-0.5 text-sm underline hover:bg-gray-100 rounded"
+        >
+          U
+        </button>
       </div>
       <div data-prosemirror data-target="question_explanation_markdown"></div>
     </div>
   </div>
 
-  <:actions>
-    <div class="flex items-center justify-between w-full">
-      <div class="flex items-center gap-2">
-        <.button type="submit">Speichern</.button>
-        <%= if @question do %>
-          <%= if @question.status == "active" do %>
-            <.link
-              href={~p"/admin/questions/#{@question}/deactivate"}
-              method="post"
-              data-confirm="Frage deaktivieren?"
-            >
-              <.button type="button" class="bg-red-600 hover:bg-red-500">Deaktivieren</.button>
-            </.link>
-          <% else %>
-            <.link
-              href={~p"/admin/questions/#{@question}/activate"}
-              method="post"
-            >
-              <.button type="button" class="bg-green-600 hover:bg-green-500">Aktivieren</.button>
-            </.link>
-          <% end %>
-        <% end %>
-      </div>
+  <div class="flex items-center justify-between w-full">
+    <div class="flex items-center gap-2">
+      <.button type="submit">Speichern</.button>
       <%= if @question do %>
-        <.link
-          href={~p"/admin/questions/#{@question}"}
-          method="delete"
-          data-confirm="Frage wirklich löschen?"
-        >
-          <.button type="button" class="bg-white border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400">Löschen</.button>
-        </.link>
+        <%= if @question.status == "active" do %>
+          <.action_link
+            href={~p"/admin/questions/#{@question}/deactivate"}
+            method="post"
+            data-confirm="Frage deaktivieren?"
+          >
+            Deaktivieren
+          </.action_link>
+        <% else %>
+          <.action_link
+            href={~p"/admin/questions/#{@question}/activate"}
+            method="post"
+            tone={:success}
+          >
+            Aktivieren
+          </.action_link>
+        <% end %>
       <% end %>
     </div>
-  </:actions>
-</.simple_form>
+    <%= if @question do %>
+      <.action_link
+        href={~p"/admin/questions/#{@question}"}
+        method="delete"
+        data-confirm="Frage wirklich löschen?"
+      >
+        Löschen
+      </.action_link>
+    <% end %>
+  </div>
+</.form>
 
 <.back navigate={~p"/admin/questions"}>Zurück zur Übersicht</.back>

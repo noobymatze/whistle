@@ -1,9 +1,9 @@
-<.simple_form :let={f} for={@changeset} action={@action}>
-  <.error :if={@changeset.action}>
-    Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
-  </.error>
-  <.input field={f[:unenrolled_at]} type="datetime-local" label="Abmeldung um" />
-  <:actions>
+<.form :let={f} for={@changeset} action={@action}>
+  <div class="flex flex-col gap-2">
+    <.error :if={@changeset.action}>
+      Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+    </.error>
+    <.input field={f[:unenrolled_at]} type="datetime-local" label="Abmeldung um" />
     <.button>Anmeldung speichern</.button>
-  </:actions>
-</.simple_form>
+  </div>
+</.form>

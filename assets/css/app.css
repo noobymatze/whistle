@@ -1,11 +1,98 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "../css";
+@source "../js";
+@source "../../lib/whistle_web";
+@source "../../lib/whistle";
 
 @plugin "@tailwindcss/forms";
-@plugin "../vendor/phoenix-liveview.js";
 @plugin "../vendor/heroicons.js";
+@plugin "../vendor/daisyui.js" {
+  themes: false;
+}
+
+@plugin "../vendor/daisyui-theme.js" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: oklch(100% 0 0);
+  --color-base-200: oklch(97.2% 0.004 50.176);
+  --color-base-300: oklch(92.4% 0.008 56.314);
+  --color-base-content: oklch(27.8% 0.019 257.271);
+  --color-primary: oklch(68% 0.206 38.72);
+  --color-primary-content: oklch(98% 0.016 73.684);
+  --color-secondary: oklch(51% 0.036 257.417);
+  --color-secondary-content: oklch(97% 0.006 286.033);
+  --color-accent: oklch(71% 0.133 181.912);
+  --color-accent-content: oklch(24% 0.041 190.225);
+  --color-neutral: oklch(33% 0.021 264.051);
+  --color-neutral-content: oklch(97% 0.006 286.033);
+  --color-info: oklch(70% 0.143 236.063);
+  --color-info-content: oklch(22% 0.033 243.157);
+  --color-success: oklch(74% 0.145 163.223);
+  --color-success-content: oklch(25% 0.053 160.568);
+  --color-warning: oklch(82% 0.173 82.978);
+  --color-warning-content: oklch(31% 0.07 58.318);
+  --color-error: oklch(66% 0.213 24.354);
+  --color-error-content: oklch(97% 0.013 17.38);
+  --radius-selector: 0.55rem;
+  --radius-field: 0.8rem;
+  --radius-box: 1.15rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "../vendor/daisyui-theme.js" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: oklch(24% 0.018 264.02);
+  --color-base-200: oklch(20% 0.015 264.03);
+  --color-base-300: oklch(27% 0.017 264.04);
+  --color-base-content: oklch(95.5% 0.008 286.033);
+  --color-primary: oklch(72% 0.19 38.72);
+  --color-primary-content: oklch(20% 0.033 33.91);
+  --color-secondary: oklch(66% 0.045 257.417);
+  --color-secondary-content: oklch(96% 0.008 286.033);
+  --color-accent: oklch(76% 0.127 181.912);
+  --color-accent-content: oklch(21% 0.032 188.416);
+  --color-neutral: oklch(16% 0.008 264.02);
+  --color-neutral-content: oklch(94% 0.01 286.033);
+  --color-info: oklch(76% 0.132 236.063);
+  --color-info-content: oklch(23% 0.038 243.157);
+  --color-success: oklch(77% 0.142 163.223);
+  --color-success-content: oklch(24% 0.051 160.568);
+  --color-warning: oklch(84% 0.164 82.978);
+  --color-warning-content: oklch(25% 0.064 58.318);
+  --color-error: oklch(69% 0.199 24.354);
+  --color-error-content: oklch(21% 0.048 22.216);
+  --radius-selector: 0.55rem;
+  --radius-field: 0.8rem;
+  --radius-box: 1.15rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
 
 @theme {
   --color-brand: #FD4F00;
+}
+
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+[data-phx-session], [data-phx-teleported-src] { display: contents }
+
+[phx-click], [phx-click] button, button[phx-click] {
+  cursor: pointer;
 }
 
 /* This file is for your main application CSS */

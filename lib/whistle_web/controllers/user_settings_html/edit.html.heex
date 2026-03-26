@@ -18,59 +18,54 @@
     </p>
   </div>
   <div>
-    <.simple_form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
-      <.error :if={@email_changeset.action}>
-        Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
-      </.error>
+    <.form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
+      <div class="flex flex-col gap-2">
+        <.error :if={@email_changeset.action}>
+          Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+        </.error>
 
-      <.input field={f[:action]} type="hidden" name="action" value="update_email" />
+        <.input field={f[:action]} type="hidden" name="action" value="update_email" />
 
-      <.input field={f[:email]} type="email" label="E-Mail" required />
-      <.input
-        field={f[:current_password]}
-        name="current_password"
-        type="password"
-        label="Aktuelles Passwort"
-        required
-        id="current_password_for_email"
-      />
-      <:actions>
+        <.input field={f[:email]} type="email" label="E-Mail" required />
+        <.input
+          field={f[:current_password]}
+          name="current_password"
+          type="password"
+          label="Aktuelles Passwort"
+          required
+          id="current_password_for_email"
+        />
         <.button phx-disable-with="Wird aktualisiert...">E-Mail aktualisieren</.button>
-      </:actions>
-    </.simple_form>
+      </div>
+    </.form>
   </div>
   <div>
-    <.simple_form
-      :let={f}
-      for={@password_changeset}
-      action={~p"/users/settings"}
-      id="update_password"
-    >
-      <.error :if={@password_changeset.action}>
-        Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
-      </.error>
+    <.form :let={f} for={@password_changeset} action={~p"/users/settings"} id="update_password">
+      <div class="flex flex-col gap-2">
+        <.error :if={@password_changeset.action}>
+          Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
+        </.error>
 
-      <.input field={f[:action]} type="hidden" name="action" value="update_password" />
+        <.input field={f[:action]} type="hidden" name="action" value="update_password" />
 
-      <.input field={f[:password]} type="password" label="Neues Passwort" required />
-      <.input
-        field={f[:password_confirmation]}
-        type="password"
-        label="Bestätige neues Passwort"
-        required
-      />
+        <.input field={f[:password]} type="password" label="Neues Passwort" required />
+        <.input
+          field={f[:password_confirmation]}
+          type="password"
+          label="Bestätige neues Passwort"
+          required
+        />
 
-      <.input
-        field={f[:current_password]}
-        name="current_password"
-        type="password"
-        label="Aktuelles Passwort"
-        id="current_password_for_password"
-        required
-      />
-      <:actions>
+        <.input
+          field={f[:current_password]}
+          name="current_password"
+          type="password"
+          label="Aktuelles Passwort"
+          id="current_password_for_password"
+          required
+        />
         <.button phx-disable-with="Wird aktualisiert...">Passwort ändern</.button>
-      </:actions>
-    </.simple_form>
+      </div>
+    </.form>
   </div>
 </div>

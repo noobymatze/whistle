@@ -117,6 +117,35 @@ defmodule WhistleWeb.CoreComponents do
   end
 
   @doc """
+  Renders a compact action link for secondary admin actions.
+
+  ## Examples
+
+      <.action_link href={~p"/posts/1"} method="delete" data-confirm="Delete?">
+        Löschen
+      </.action_link>
+  """
+  attr :tone, :atom, values: [:danger, :primary, :success], default: :danger
+  attr :rest, :global, include: ~w(href navigate patch method data-confirm)
+  slot :inner_block, required: true
+
+  def action_link(assigns) do
+    tone_classes = %{
+      danger: "text-red-600 hover:text-red-700",
+      primary: "text-blue-600 hover:text-blue-700",
+      success: "text-emerald-600 hover:text-emerald-700"
+    }
+
+    assigns = assign(assigns, :tone_class, Map.fetch!(tone_classes, assigns.tone))
+
+    ~H"""
+    <.link class={["text-sm font-semibold transition", @tone_class]} {@rest}>
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
+  @doc """
   Renders an input with label and error messages.
 
   A `Phoenix.HTML.FormField` may be passed as argument,
@@ -295,8 +324,70 @@ defmodule WhistleWeb.CoreComponents do
     """
   end
 
-  # Helper used by inputs to generate form errors
-  defp error(assigns) do
+  @doc """
+  Renders a back navigation link.
+
+  ## Examples
+
+      <.back navigate={~p"/posts"}>Back to posts</.back>
+  """
+  attr :navigate, :any, required: true
+  slot :inner_block, required: true
+
+  def back(assigns) do
+    ~H"""
+    <div class="mt-6">
+      <.link
+        navigate={@navigate}
+        class="flex items-center gap-1 text-sm font-semibold hover:underline"
+      >
+        <.icon name="hero-arrow-left" class="size-3" />
+        {render_slot(@inner_block)}
+      </.link>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a date value formatted as DD.MM.YYYY.
+  """
+  attr :date, :any, required: true
+
+  def date(%{date: nil} = assigns) do
+    ~H"""
+    <span>–</span>
+    """
+  end
+
+  def date(assigns) do
+    ~H"""
+    <span>{Calendar.strftime(@date, "%d.%m.%Y")}</span>
+    """
+  end
+
+  @doc """
+  Renders a datetime value formatted as DD.MM.YYYY HH:MM.
+  """
+  attr :datetime, :any, required: true
+
+  def datetime(%{datetime: nil} = assigns) do
+    ~H"""
+    <span>–</span>
+    """
+  end
+
+  def datetime(assigns) do
+    ~H"""
+    <span>{Calendar.strftime(@datetime, "%d.%m.%Y %H:%M")}</span>
+    """
+  end
+
+  @doc """
+  Renders an error message.
+  """
+  slot :inner_block, required: true
+
+  def error(assigns) do
     ~H"""
     <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
       <.icon name="hero-exclamation-circle" class="size-5" />
@@ -308,13 +399,18 @@ defmodule WhistleWeb.CoreComponents do
   @doc """
   Renders a header with title.
   """
+  attr :class, :any, default: nil
+  attr :rest, :global
   slot :inner_block, required: true
   slot :subtitle
   slot :actions
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
+    <header
+      class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4", @class]}
+      {@rest}
+    >
       <div>
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}

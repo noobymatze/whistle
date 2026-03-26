@@ -80,7 +80,9 @@ defmodule WhistleWeb.ExamParticipantLive do
 
   @impl true
   def handle_info({:exam_scored, _exam}, socket) do
-    participant = Exams.get_exam_participant(socket.assigns.exam.id, socket.assigns.current_user.id)
+    participant =
+      Exams.get_exam_participant(socket.assigns.exam.id, socket.assigns.current_user.id)
+
     {:noreply, assign(socket, :participant, participant)}
   end
 
@@ -228,9 +230,20 @@ defmodule WhistleWeb.ExamParticipantLive do
         <p class="text-gray-600 text-lg">Der Test startet in wenigen Minuten.</p>
       </div>
       <div class="flex items-center gap-2 text-gray-500 text-sm">
-        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        <svg
+          class="animate-spin h-4 w-4"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+          </circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          >
+          </path>
         </svg>
         Bitte Seite offen lassen
       </div>
@@ -291,7 +304,9 @@ defmodule WhistleWeb.ExamParticipantLive do
       <%= if @participant.score != nil do %>
         <.result_card participant={@participant} />
       <% else %>
-        <p class="text-gray-500">Deine Antworten wurden erfolgreich übermittelt. Das Ergebnis wird in Kürze berechnet.</p>
+        <p class="text-gray-500">
+          Deine Antworten wurden erfolgreich übermittelt. Das Ergebnis wird in Kürze berechnet.
+        </p>
       <% end %>
     </div>
     """
@@ -363,8 +378,10 @@ defmodule WhistleWeb.ExamParticipantLive do
             class={[
               "w-7 h-7 rounded text-xs font-medium",
               i == @current_index && "bg-blue-600 text-white",
-              i != @current_index && Map.has_key?(@answers_map, Enum.at(@questions, i).id) && "bg-green-100 text-green-700",
-              i != @current_index && !Map.has_key?(@answers_map, Enum.at(@questions, i).id) && "bg-gray-100 text-gray-600"
+              i != @current_index && Map.has_key?(@answers_map, Enum.at(@questions, i).id) &&
+                "bg-green-100 text-green-700",
+              i != @current_index && !Map.has_key?(@answers_map, Enum.at(@questions, i).id) &&
+                "bg-gray-100 text-gray-600"
             ]}
           >
             {i + 1}
@@ -382,7 +399,8 @@ defmodule WhistleWeb.ExamParticipantLive do
           <%!-- Choices --%>
           <div class="space-y-3">
             <%= for choice <- current_q.choices do %>
-              <% selected = MapSet.member?(Map.get(@answers_map, current_q.id, MapSet.new()), choice.id) %>
+              <% selected =
+                MapSet.member?(Map.get(@answers_map, current_q.id, MapSet.new()), choice.id) %>
               <button
                 type="button"
                 phx-click="select_choice"
@@ -391,7 +409,8 @@ defmodule WhistleWeb.ExamParticipantLive do
                 class={[
                   "w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-colors",
                   selected && "border-blue-500 bg-blue-50 text-blue-900",
-                  !selected && "border-gray-200 bg-white text-gray-800 hover:border-gray-300 active:bg-gray-50"
+                  !selected &&
+                    "border-gray-200 bg-white text-gray-800 hover:border-gray-300 active:bg-gray-50"
                 ]}
               >
                 {render_markdown(choice.body_markdown)}

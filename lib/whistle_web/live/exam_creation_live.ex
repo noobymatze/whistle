@@ -144,7 +144,9 @@ defmodule WhistleWeb.ExamCreationLive do
 
       <%!-- Distribution info --%>
       <div class="mb-6 rounded-md bg-gray-50 border border-gray-200 px-4 py-3">
-        <h3 class="text-sm font-semibold text-gray-700 mb-1">Fragenverteilung (Kurstyp {@course.type})</h3>
+        <h3 class="text-sm font-semibold text-gray-700 mb-1">
+          Fragenverteilung (Kurstyp {@course.type})
+        </h3>
         <% counts = Exams.calculate_difficulty_counts(@distribution.question_count, @distribution) %>
         <dl class="grid grid-cols-3 gap-2 text-sm text-gray-600">
           <div>

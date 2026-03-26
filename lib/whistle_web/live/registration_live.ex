@@ -330,7 +330,7 @@ defmodule WhistleWeb.RegistrationLive do
                     <% selected = MapSet.member?(@selected_courses, course.id) or already_registered %>
 
                     <div
-                      class={"rounded-lg border p-4 shadow-sm cursor-pointer transition-all relative " <>
+                      class={"rounded-lg border border-zinc-200 p-4 shadow-sm cursor-pointer transition-all relative " <>
                              if(disabled, do: "bg-zinc-100 opacity-50 cursor-not-allowed", else: "bg-white hover:shadow-md") <>
                              if(selected, do: " ring-2 ring-blue-500", else: "")}
                       phx-click={unless disabled, do: "toggle_course"}

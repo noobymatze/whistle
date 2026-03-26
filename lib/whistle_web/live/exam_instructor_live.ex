@@ -128,9 +128,10 @@ defmodule WhistleWeb.ExamInstructorLive do
         <div>
           <h1 class="text-2xl font-bold text-gray-900">{@exam.title}</h1>
           <p class="mt-1 text-sm text-gray-500">
-            Typ: {@exam.course_type} ·
-            {@exam.question_count} Fragen ·
-            {div(@exam.duration_seconds, 60)} Minuten ·
+            Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(
+              @exam.duration_seconds,
+              60
+            )} Minuten ·
             Bestehensgrenze: {@exam.pass_percentage}%
           </p>
         </div>
@@ -149,26 +150,47 @@ defmodule WhistleWeb.ExamInstructorLive do
       <%!-- Controls --%>
       <div class="mb-8 flex flex-wrap gap-3">
         <%= if @exam.state == "waiting_room" do %>
-          <button phx-click="start" class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500">
+          <button
+            phx-click="start"
+            class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
+          >
             ▶ Starten
           </button>
-          <button phx-click="cancel" data-confirm="Exam wirklich abbrechen?" class="rounded-md bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200">
+          <button
+            phx-click="cancel"
+            data-confirm="Exam wirklich abbrechen?"
+            class="rounded-md bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200"
+          >
             Abbrechen
           </button>
         <% end %>
         <%= if @exam.state == "running" do %>
-          <button phx-click="pause" class="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400">
+          <button
+            phx-click="pause"
+            class="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400"
+          >
             ⏸ Pausieren
           </button>
-          <button phx-click="finish" data-confirm="Exam jetzt beenden?" class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600">
+          <button
+            phx-click="finish"
+            data-confirm="Exam jetzt beenden?"
+            class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600"
+          >
             ⏹ Beenden
           </button>
         <% end %>
         <%= if @exam.state == "paused" do %>
-          <button phx-click="resume" class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500">
+          <button
+            phx-click="resume"
+            class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
+          >
             ▶ Fortsetzen
           </button>
-          <button phx-click="finish" data-confirm="Exam jetzt beenden?" class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600">
+          <button
+            phx-click="finish"
+            data-confirm="Exam jetzt beenden?"
+            class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600"
+          >
             ⏹ Beenden
           </button>
         <% end %>

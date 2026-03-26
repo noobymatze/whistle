@@ -13,9 +13,7 @@ defmodule Whistle.Exams.ExamTimer do
   @registry Whistle.Exams.ExamTimerRegistry
 
   def start_link({exam_id, duration_seconds}) do
-    GenServer.start_link(__MODULE__, {exam_id, duration_seconds},
-      name: via(exam_id)
-    )
+    GenServer.start_link(__MODULE__, {exam_id, duration_seconds}, name: via(exam_id))
   end
 
   def start_timer(exam_id, duration_seconds) do

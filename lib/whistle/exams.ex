@@ -174,7 +174,8 @@ defmodule Whistle.Exams do
 
   Replaces all existing assignments with the given list of course types.
   """
-  def set_question_course_types(%Question{} = question, course_types) when is_list(course_types) do
+  def set_question_course_types(%Question{} = question, course_types)
+      when is_list(course_types) do
     Repo.transaction(fn ->
       from(qct in QuestionCourseType, where: qct.question_id == ^question.id)
       |> Repo.delete_all()
@@ -320,7 +321,9 @@ defmodule Whistle.Exams do
       questions = load_and_select_questions(course.type, counts)
 
       case questions do
-        {:error, reason} -> Repo.rollback(reason)
+        {:error, reason} ->
+          Repo.rollback(reason)
+
         {:ok, selected_questions} ->
           now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
@@ -550,7 +553,10 @@ defmodule Whistle.Exams do
 
           choice_ids =
             if answer do
-              answer |> Repo.preload(:answer_choices) |> Map.get(:answer_choices) |> Enum.map(& &1.exam_question_choice_id)
+              answer
+              |> Repo.preload(:answer_choices)
+              |> Map.get(:answer_choices)
+              |> Enum.map(& &1.exam_question_choice_id)
             else
               []
             end
@@ -600,7 +606,8 @@ defmodule Whistle.Exams do
     end
   end
 
-  defp issue_license_with_retry(_user_id, _season_id, _license_type, 0), do: {:error, :max_retries}
+  defp issue_license_with_retry(_user_id, _season_id, _license_type, 0),
+    do: {:error, :max_retries}
 
   defp issue_license_with_retry(user_id, season_id, license_type, retries) do
     number = :rand.uniform(9_000_000) + 1_000_000
@@ -641,7 +648,10 @@ defmodule Whistle.Exams do
     Enum.each(exam.participants, fn participant ->
       if participant.state not in ["submitted", "timed_out"] do
         participant
-        |> ExamParticipant.changeset(%{state: "timed_out", submitted_at: NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)})
+        |> ExamParticipant.changeset(%{
+          state: "timed_out",
+          submitted_at: NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+        })
         |> Repo.update!()
       end
     end)
@@ -674,7 +684,11 @@ defmodule Whistle.Exams do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp load_and_select_questions(course_type, %{low: low_count, medium: medium_count, high: high_count}) do
+  defp load_and_select_questions(course_type, %{
+         low: low_count,
+         medium: medium_count,
+         high: high_count
+       }) do
     low_questions = fetch_questions_for(course_type, "low")
     medium_questions = fetch_questions_for(course_type, "medium")
     high_questions = fetch_questions_for(course_type, "high")

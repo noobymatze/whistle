@@ -2,10 +2,11 @@ import Config
 
 # Configure your database
 config :whistle, Whistle.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: "ref",
+  password: "sql",
+  port: 5437,
   hostname: "localhost",
-  database: "whistle_dev",
+  database: "ref",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

@@ -1,11 +1,9 @@
 <div class="mx-auto max-w-sm">
   <.header class="text-center">Konto bestätigen</.header>
 
-  <.simple_form for={@conn.params["user"]} as={:user} action={~p"/users/confirm/#{@token}"}>
-    <:actions>
-      <.button class="w-full">Mein Konto bestätigen</.button>
-    </:actions>
-  </.simple_form>
+  <.form for={@conn.params["user"]} as={:user} action={~p"/users/confirm/#{@token}"}>
+    <.button class="w-full">Mein Konto bestätigen</.button>
+  </.form>
 
   <p class="text-center mt-4">
     <.link href={~p"/users/register"}>Registrieren</.link>

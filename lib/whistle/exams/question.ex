@@ -52,9 +52,14 @@ defmodule Whistle.Exams.Question do
 
   defp derive_scoring_mode(changeset) do
     case get_field(changeset, :type) do
-      "multiple_choice" -> put_change(changeset, :scoring_mode, "partial_credit")
-      type when type in ["single_choice", "text"] -> put_change(changeset, :scoring_mode, "exact_match")
-      _ -> changeset
+      "multiple_choice" ->
+        put_change(changeset, :scoring_mode, "partial_credit")
+
+      type when type in ["single_choice", "text"] ->
+        put_change(changeset, :scoring_mode, "exact_match")
+
+      _ ->
+        changeset
     end
   end
 end

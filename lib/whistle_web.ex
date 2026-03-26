@@ -38,7 +38,7 @@ defmodule WhistleWeb do
 
   def controller do
     quote do
-      use Phoenix.Controller, formats: [:html, :json]
+      use Phoenix.Controller, formats: [:html, :json], layouts: [html: WhistleWeb.Layouts]
 
       use Gettext, backend: WhistleWeb.Gettext
 
@@ -50,7 +50,7 @@ defmodule WhistleWeb do
 
   def live_view do
     quote do
-      use Phoenix.LiveView
+      use Phoenix.LiveView, layout: {WhistleWeb.Layouts, :app}
 
       unquote(html_helpers())
     end

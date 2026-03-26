@@ -6,10 +6,11 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :whistle, Whistle.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: "ref",
+  password: "sql",
+  port: 5438,
   hostname: "localhost",
-  database: "whistle_test#{System.get_env("MIX_TEST_PARTITION")}",
+  database: "ref_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 

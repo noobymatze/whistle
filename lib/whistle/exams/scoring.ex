@@ -46,8 +46,12 @@ defmodule Whistle.Exams.Scoring do
 
         raw =
           cond do
-            total_correct == 0 -> 0.0
-            total_wrong == 0 -> correct_selected / total_correct
+            total_correct == 0 ->
+              0.0
+
+            total_wrong == 0 ->
+              correct_selected / total_correct
+
             true ->
               correct_selected / total_correct - wrong_selected / total_wrong
           end
