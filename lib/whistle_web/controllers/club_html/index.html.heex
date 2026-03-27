@@ -16,7 +16,9 @@
     >
       <div class="min-w-0 flex-1">
         <div class="truncate text-sm font-medium">{club.name}</div>
-        <div :if={club.short_name} class="mt-0.5 text-xs text-base-content/55">{club.short_name}</div>
+        <div :if={club.short_name} class="mt-0.5 text-xs text-base-content/55">
+          {club.short_name}
+        </div>
       </div>
       <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
     </.link>

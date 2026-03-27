@@ -9,6 +9,7 @@ defmodule WhistleWeb.RegistrationController do
     current_user = conn.assigns.current_user
     current_season = Seasons.get_current_season()
     all_seasons = Seasons.list_seasons()
+
     selected_season_id =
       case params["season_id"] do
         nil -> current_season && to_string(current_season.id)
