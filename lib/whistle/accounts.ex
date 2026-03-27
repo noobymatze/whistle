@@ -158,12 +158,21 @@ defmodule Whistle.Accounts do
   already verified that `admin` is allowed to assign the requested role before
   calling this function.
   """
-  def create_user_as_admin(attrs, _admin) do
+  def create_user_as_admin(attrs, admin) do
     role = Map.get(attrs, "role") || Map.get(attrs, :role) || Role.default_role()
+
+    # CLUB_ADMIN always creates users within their own club.
+    club_id =
+      if admin.role == "CLUB_ADMIN" do
+        admin.club_id
+      else
+        Map.get(attrs, "club_id") || Map.get(attrs, :club_id)
+      end
 
     %User{}
     |> User.registration_changeset(attrs)
     |> Ecto.Changeset.put_change(:role, role)
+    |> Ecto.Changeset.put_change(:club_id, club_id)
     |> Repo.insert()
   end
 
