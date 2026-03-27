@@ -8,7 +8,12 @@ defmodule WhistleWeb.CourseController do
 
   def index(conn, params) do
     current_season = Seasons.get_current_season()
-    selected_season_id = params["season_id"] || (current_season && to_string(current_season.id))
+    selected_season_id =
+      case params["season_id"] do
+        nil -> current_season && to_string(current_season.id)
+        "" -> nil
+        id -> id
+      end
 
     all_seasons = Seasons.list_seasons()
 

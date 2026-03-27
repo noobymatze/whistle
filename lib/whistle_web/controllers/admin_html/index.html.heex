@@ -1,23 +1,40 @@
 <.header>
   Benutzer
+  <:actions>
+    <.button navigate={~p"/admin/users/new"}>Neuer Benutzer</.button>
+  </:actions>
 </.header>
 
-<div class="mb-6 flex justify-end">
-  <.link href={~p"/admin/users/new"}>
-    <.button>Neuer Benutzer</.button>
-  </.link>
+<div class="space-y-2">
+  <%= if @users == [] do %>
+    <p class="py-10 text-center text-sm text-base-content/50">Keine Benutzer gefunden.</p>
+  <% else %>
+    <%= for user <- @users do %>
+      <% navigable = can_manage_user?(@current_user, user) %>
+      <.link
+        :if={navigable}
+        navigate={~p"/admin/users/#{user}/edit"}
+        class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300 cursor-pointer"
+      >
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-sm font-medium">{user.username}</div>
+          <div class="mt-0.5 text-xs text-base-content/55">
+            {[user.email, user.club_name] |> Enum.filter(& &1) |> Enum.join(" · ")}
+          </div>
+        </div>
+        <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
+      </.link>
+      <div
+        :if={!navigable}
+        class="flex items-center gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3"
+      >
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-sm font-medium">{user.username}</div>
+          <div class="mt-0.5 text-xs text-base-content/55">
+            {[user.email, user.club_name] |> Enum.filter(& &1) |> Enum.join(" · ")}
+          </div>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
 </div>
-
-<.table
-  id="users"
-  rows={@users}
-  row_click={
-    fn user ->
-      can_manage_user?(@current_user, user) && JS.navigate(~p"/admin/users/#{user}/edit")
-    end
-  }
->
-  <:col :let={user} label="Benutzername">{user.username}</:col>
-  <:col :let={user} label="E-Mail">{user.email}</:col>
-  <:col :let={user} label="Verein">{user.club_name}</:col>
-</.table>

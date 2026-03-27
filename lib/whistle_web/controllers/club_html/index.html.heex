@@ -1,14 +1,24 @@
 <.header>
   Vereine
+  <:actions>
+    <.button navigate={~p"/admin/clubs/new"}>Neuer Verein</.button>
+  </:actions>
 </.header>
 
-<div class="mb-6 flex justify-end">
-  <.link href={~p"/admin/clubs/new"}>
-    <.button>Neuer Verein</.button>
-  </.link>
+<div class="space-y-2">
+  <%= if @clubs == [] do %>
+    <p class="py-10 text-center text-sm text-base-content/50">Keine Vereine gefunden.</p>
+  <% else %>
+    <.link
+      :for={club <- @clubs}
+      navigate={~p"/admin/clubs/#{club}/edit"}
+      class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300 cursor-pointer"
+    >
+      <div class="min-w-0 flex-1">
+        <div class="truncate text-sm font-medium">{club.name}</div>
+        <div :if={club.short_name} class="mt-0.5 text-xs text-base-content/55">{club.short_name}</div>
+      </div>
+      <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
+    </.link>
+  <% end %>
 </div>
-
-<.table id="clubs" rows={@clubs} row_click={&JS.navigate(~p"/admin/clubs/#{&1}/edit")}>
-  <:col :let={club} label="Name">{club.name}</:col>
-  <:col :let={club} label="Kurzname">{club.short_name}</:col>
-</.table>

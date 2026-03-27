@@ -1,17 +1,21 @@
 <.header>
   Verbände
+  <:actions>
+    <.button navigate={~p"/admin/associations/new"}>Neuer Verband</.button>
+  </:actions>
 </.header>
 
-<div class="mb-6 flex justify-end">
-  <.link href={~p"/admin/associations/new"}>
-    <.button>Neuer Verband</.button>
-  </.link>
+<div class="space-y-2">
+  <%= if @associations == [] do %>
+    <p class="py-10 text-center text-sm text-base-content/50">Keine Verbände gefunden.</p>
+  <% else %>
+    <.link
+      :for={association <- @associations}
+      navigate={~p"/admin/associations/#{association}/edit"}
+      class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300 cursor-pointer"
+    >
+      <div class="text-sm font-medium">{association.name}</div>
+      <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
+    </.link>
+  <% end %>
 </div>
-
-<.table
-  id="associations"
-  rows={@associations}
-  row_click={&JS.navigate(~p"/admin/associations/#{&1}/edit")}
->
-  <:col :let={association} label="Name">{association.name}</:col>
-</.table>

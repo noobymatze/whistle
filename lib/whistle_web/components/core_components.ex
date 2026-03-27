@@ -548,6 +548,7 @@ defmodule WhistleWeb.CoreComponents do
     """
   end
 
+
   @doc """
   Renders a [Heroicon](https://heroicons.com).
 

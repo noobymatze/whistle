@@ -1,20 +1,32 @@
 <.header>
   Saisons
+  <:actions>
+    <.button navigate={~p"/admin/seasons/new"}>Neue Saison</.button>
+  </:actions>
 </.header>
 
-<div class="mb-6 flex justify-end">
-  <.link href={~p"/admin/seasons/new"}>
-    <.button>Neue Saison</.button>
-  </.link>
+<div class="space-y-2">
+  <%= if @seasons == [] do %>
+    <p class="py-10 text-center text-sm text-base-content/50">Keine Saisons gefunden.</p>
+  <% else %>
+    <.link
+      :for={season <- @seasons}
+      navigate={~p"/admin/seasons/#{season}/edit"}
+      class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300 cursor-pointer"
+    >
+      <div class="min-w-0 flex-1">
+        <div class="text-sm font-medium">Saison {season.year}</div>
+        <div class="mt-0.5 text-xs text-base-content/55">
+          {[
+            season.start && "Beginn #{Calendar.strftime(season.start, "%d.%m.%Y")}",
+            season.start_registration &&
+              "Anmeldung #{Calendar.strftime(season.start_registration, "%d.%m.%Y")}–#{season.end_registration && Calendar.strftime(season.end_registration, "%d.%m.%Y")}"
+          ]
+          |> Enum.filter(& &1)
+          |> Enum.join(" · ")}
+        </div>
+      </div>
+      <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
+    </.link>
+  <% end %>
 </div>
-
-<.table id="seasons" rows={@seasons} row_click={&JS.navigate(~p"/admin/seasons/#{&1}/edit")}>
-  <:col :let={season} label="Jahr">{season.year}</:col>
-  <:col :let={season} label="Beginn"><.date date={season.start} /></:col>
-  <:col :let={season} label="Start Kursanmeldung">
-    <.datetime datetime={season.start_registration} />
-  </:col>
-  <:col :let={season} label="Ende Kursanmeldung">
-    <.datetime datetime={season.end_registration} />
-  </:col>
-</.table>
