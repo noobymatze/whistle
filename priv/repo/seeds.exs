@@ -119,7 +119,59 @@ admin =
     role: "ADMIN"
   })
 
-IO.puts("  Admin: #{admin.email}")
+IO.puts("  admin        (ADMIN):       #{admin.email}")
+
+super_admin =
+  Seeds.Helpers.create_user!(%{
+    username: "superadmin",
+    email: "superadmin@nordref.de",
+    first_name: "Super",
+    last_name: "Admin",
+    birthday: ~D[1975-06-15],
+    club_id: hsv.id,
+    role: "SUPER_ADMIN"
+  })
+
+IO.puts("  superadmin   (SUPER_ADMIN): #{super_admin.email}")
+
+club_admin =
+  Seeds.Helpers.create_user!(%{
+    username: "clubadmin",
+    email: "clubadmin@nordref.de",
+    first_name: "Vereins",
+    last_name: "Admin",
+    birthday: ~D[1982-03-20],
+    club_id: hsv.id,
+    role: "CLUB_ADMIN"
+  })
+
+IO.puts("  clubadmin    (CLUB_ADMIN):  #{club_admin.email}")
+
+instructor =
+  Seeds.Helpers.create_user!(%{
+    username: "instructor",
+    email: "instructor@nordref.de",
+    first_name: "Max",
+    last_name: "Ausbilder",
+    birthday: ~D[1988-09-10],
+    club_id: st_pauli.id,
+    role: "INSTRUCTOR"
+  })
+
+IO.puts("  instructor   (INSTRUCTOR):  #{instructor.email}")
+
+regular_user =
+  Seeds.Helpers.create_user!(%{
+    username: "user",
+    email: "user@nordref.de",
+    first_name: "Hans",
+    last_name: "Mitglied",
+    birthday: ~D[1995-04-05],
+    club_id: altona.id,
+    role: "USER"
+  })
+
+IO.puts("  user         (USER):        #{regular_user.email}")
 
 # ---------------------------------------------------------------------------
 # 4. Regular users (participants for courses/exams)
