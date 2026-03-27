@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "whistle",
+  "project_id": "f03e7cae-6e50-4740-a16b-4ffff8e9275d"
+}
