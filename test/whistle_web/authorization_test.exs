@@ -214,9 +214,12 @@ defmodule WhistleWeb.AuthorizationTest do
       assert redirected_to(conn) == "/"
     end
 
-    test "cannot delete a registration", %{conn: conn} do
-      conn = delete(conn, ~p"/admin/registrations/1/2")
-      assert redirected_to(conn) == "/"
+    test "sign-out (delete registration) is allowed – not a true delete", %{conn: conn} do
+      # RegistrationController.delete is a sign-out action, not a destructive
+      # delete. CLUB_ADMIN must be able to reach it (404 = action reached,
+      # no authorization redirect).
+      conn = delete(conn, ~p"/admin/registrations/999999/999999")
+      assert redirected_to(conn) == "/admin/registrations"
     end
   end
 

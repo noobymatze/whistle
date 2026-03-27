@@ -153,6 +153,21 @@ defmodule Whistle.Accounts do
   end
 
   @doc """
+  Creates a user on behalf of an admin, applying the requested role in the
+  same changeset so no partial record is ever persisted. The caller must have
+  already verified that `admin` is allowed to assign the requested role before
+  calling this function.
+  """
+  def create_user_as_admin(attrs, _admin) do
+    role = Map.get(attrs, "role") || Map.get(attrs, :role) || Role.default_role()
+
+    %User{}
+    |> User.registration_changeset(attrs)
+    |> Ecto.Changeset.put_change(:role, role)
+    |> Repo.insert()
+  end
+
+  @doc """
   Updates the club for a user.
 
   """

@@ -51,7 +51,10 @@
           </div>
         </div>
         <.action_link
-          :if={Whistle.Accounts.Role.full_admin?(@current_user) && is_nil(reg.unenrolled_at)}
+          :if={
+            Whistle.Accounts.Role.can_access_club_area?(@current_user) &&
+              is_nil(reg.unenrolled_at)
+          }
           href={~p"/admin/registrations/#{reg.course_id}/#{reg.user_id}"}
           method="delete"
           data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"

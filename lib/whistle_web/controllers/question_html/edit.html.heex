@@ -243,7 +243,7 @@
         <% end %>
       <% end %>
     </div>
-    <%= if @question do %>
+    <%= if @question && Whistle.Accounts.Role.can_delete?(@current_user) do %>
       <.action_link
         href={~p"/admin/questions/#{@question}"}
         method="delete"

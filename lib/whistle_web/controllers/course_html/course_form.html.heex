@@ -54,7 +54,7 @@
         Freigeben
       </.action_link>
       <.action_link
-        :if={@course}
+        :if={@course && Whistle.Accounts.Role.can_delete?(@current_user)}
         href={~p"/admin/courses/#{@course}"}
         method="delete"
         data-confirm="Bist du dir sicher?"

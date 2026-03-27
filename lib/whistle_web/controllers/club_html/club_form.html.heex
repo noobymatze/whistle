@@ -15,7 +15,7 @@
     <div class="mt-2 flex items-center gap-4">
       <.button>Speichern</.button>
       <.action_link
-        :if={@club}
+        :if={@club && Whistle.Accounts.Role.can_delete?(@current_user)}
         href={~p"/admin/clubs/#{@club}"}
         method="delete"
         data-confirm="Bist du dir sicher?"

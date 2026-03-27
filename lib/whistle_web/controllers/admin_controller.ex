@@ -2,13 +2,22 @@ defmodule WhistleWeb.AdminController do
   use WhistleWeb, :controller
 
   alias Whistle.Accounts
+  alias Whistle.Accounts.Role
 
   plug WhistleWeb.Plugs.RequireRole, club_area: true
   plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
 
   def index(conn, _params) do
-    users = Accounts.list_users()
-    render(conn, :index, users: users, current_user: conn.assigns.current_user)
+    current_user = conn.assigns.current_user
+
+    users =
+      if Role.can_access_global_area?(current_user) do
+        Accounts.list_users()
+      else
+        Accounts.list_manageable_users(current_user)
+      end
+
+    render(conn, :index, users: users, current_user: current_user)
   end
 
   def new(conn, _params) do
@@ -24,40 +33,38 @@ defmodule WhistleWeb.AdminController do
   end
 
   def create(conn, %{"user" => user_params}) do
-    case Accounts.register_user(user_params) do
-      {:ok, user} ->
-        # Update role if specified
-        if role = user_params["role"] do
-          case Accounts.update_user_role(user, role, conn.assigns.current_user) do
-            {:ok, _user} ->
-              conn
-              |> put_flash(:info, "Benutzer erfolgreich erstellt.")
-              |> redirect(to: ~p"/admin/users")
+    current_user = conn.assigns.current_user
+    requested_role = user_params["role"]
 
-            {:error, :unauthorized} ->
-              conn
-              |> put_flash(:error, "Du hast keine Berechtigung, diese Rolle zuzuweisen.")
-              |> redirect(to: ~p"/admin/users/new")
+    # Verify role assignment is permitted before touching the database.
+    if requested_role && not Role.can_assign_role?(current_user, requested_role) do
+      assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
 
-            {:error, changeset} ->
-              assignable_roles =
-                WhistleWeb.RoleComponents.assignable_roles(conn.assigns.current_user)
-
-              render(conn, :edit,
-                user: nil,
-                changeset: changeset,
-                assignable_roles: assignable_roles
-              )
-          end
-        else
+      conn
+      |> put_flash(:error, "Du hast keine Berechtigung, diese Rolle zuzuweisen.")
+      |> render(:edit,
+        user: nil,
+        changeset: Accounts.change_user_registration(%Whistle.Accounts.User{}),
+        assignable_roles: assignable_roles,
+        current_user: current_user
+      )
+    else
+      case Accounts.create_user_as_admin(user_params, current_user) do
+        {:ok, _user} ->
           conn
           |> put_flash(:info, "Benutzer erfolgreich erstellt.")
           |> redirect(to: ~p"/admin/users")
-        end
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        assignable_roles = WhistleWeb.RoleComponents.assignable_roles(conn.assigns.current_user)
-        render(conn, :edit, user: nil, changeset: changeset, assignable_roles: assignable_roles)
+        {:error, %Ecto.Changeset{} = changeset} ->
+          assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
+
+          render(conn, :edit,
+            user: nil,
+            changeset: changeset,
+            assignable_roles: assignable_roles,
+            current_user: current_user
+          )
+      end
     end
   end
 

@@ -109,7 +109,10 @@
             </div>
           </div>
           <.action_link
-            :if={is_nil(reg.unenrolled_at)}
+            :if={
+              is_nil(reg.unenrolled_at) &&
+                Whistle.Accounts.Role.can_access_course_area?(@current_user)
+            }
             href={~p"/admin/courses/#{@course}/registrations/#{reg.user_id}/sign-out"}
             method="delete"
             data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"

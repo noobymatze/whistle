@@ -10,7 +10,7 @@
     <div class="mt-2 flex items-center gap-4">
       <.button>Speichern</.button>
       <.action_link
-        :if={@season}
+        :if={@season && Whistle.Accounts.Role.can_delete?(@current_user)}
         href={~p"/admin/seasons/#{@season}"}
         method="delete"
         data-confirm="Bist du dir sicher?"

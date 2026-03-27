@@ -52,7 +52,7 @@
         {if @user, do: "Speichern", else: "Benutzer erstellen"}
       </.button>
       <.action_link
-        :if={@user}
+        :if={@user && Whistle.Accounts.Role.can_delete?(@current_user)}
         href={~p"/admin/users/#{@user}"}
         method="delete"
         data-confirm={"Möchtest du den Benutzer \"#{@user.username}\" wirklich löschen?"}
