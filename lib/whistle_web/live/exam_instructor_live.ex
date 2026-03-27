@@ -14,7 +14,7 @@ defmodule WhistleWeb.ExamInstructorLive do
   def mount(%{"id" => exam_id}, _session, socket) do
     user = socket.assigns.current_user
 
-    unless Role.admin?(user) do
+    unless Role.can_access_course_area?(user) do
       {:ok, push_navigate(socket, to: ~p"/")}
     else
       exam = Exams.get_exam_with_details!(exam_id)

@@ -5,7 +5,8 @@ defmodule WhistleWeb.QuestionController do
   alias Whistle.Exams.Question
   alias Whistle.Exams.QuestionChoice
 
-  plug WhistleWeb.Plugs.RequireRole, admin: true
+  plug WhistleWeb.Plugs.RequireRole, course_area: true
+  plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
 
   def index(conn, params) do
     status = params["status"]

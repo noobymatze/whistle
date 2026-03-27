@@ -18,6 +18,21 @@ defmodule WhistleWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Requires INSTRUCTOR, ADMIN, or SUPER_ADMIN (course management area)
+  pipeline :require_course_area do
+    plug WhistleWeb.Plugs.RequireRole, course_area: true
+  end
+
+  # Requires CLUB_ADMIN, ADMIN, or SUPER_ADMIN (club-scoped user/registration area)
+  pipeline :require_club_area do
+    plug WhistleWeb.Plugs.RequireRole, club_area: true
+  end
+
+  # Requires ADMIN or SUPER_ADMIN (global admin area)
+  pipeline :require_global_area do
+    plug WhistleWeb.Plugs.RequireRole, global_area: true
+  end
+
   scope "/", WhistleWeb do
     pipe_through :browser
   end
@@ -75,9 +90,9 @@ defmodule WhistleWeb.Router do
     live "/", RegistrationLive
   end
 
-  # Admin routes - only require authentication, not club selection
+  # Course-area admin routes: INSTRUCTOR, ADMIN, SUPER_ADMIN
   scope "/admin", WhistleWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :require_authenticated_user, :require_course_area]
 
     resources "/courses", CourseController, except: [:show, :edit]
     get "/courses/:id/edit", CourseController, :edit
@@ -86,27 +101,45 @@ defmodule WhistleWeb.Router do
     post "/courses/:id/release", CourseController, :release
     get "/courses/:id/export", CourseController, :export
     delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
-    get "/registrations", RegistrationController, :index
-    get "/registrations/export", RegistrationController, :export
-    delete "/registrations/:course_id/:user_id", RegistrationController, :delete
-    get "/users", AdminController, :index
-    resources "/users", AdminController, only: [:new, :create, :edit, :update, :delete]
-    resources "/clubs", ClubController, except: [:show]
-    resources "/associations", AssociationController, except: [:show]
-    resources "/seasons", SeasonController, except: [:show]
     resources "/questions", QuestionController, except: [:show]
     post "/questions/:id/activate", QuestionController, :activate
     post "/questions/:id/deactivate", QuestionController, :deactivate
   end
 
-  # My Courses route and exam creation
+  # Club-area admin routes: CLUB_ADMIN, ADMIN, SUPER_ADMIN
+  scope "/admin", WhistleWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_club_area]
+
+    get "/registrations", RegistrationController, :index
+    get "/registrations/export", RegistrationController, :export
+    delete "/registrations/:course_id/:user_id", RegistrationController, :delete
+    get "/users", AdminController, :index
+    resources "/users", AdminController, only: [:new, :create, :edit, :update, :delete]
+  end
+
+  # Global admin routes: ADMIN, SUPER_ADMIN
+  scope "/admin", WhistleWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_global_area]
+
+    resources "/clubs", ClubController, except: [:show]
+    resources "/associations", AssociationController, except: [:show]
+    resources "/seasons", SeasonController, except: [:show]
+  end
+
+  # My Courses and exam participant (any authenticated user)
   scope "/", WhistleWeb do
     pipe_through [:browser, :require_authenticated_user]
 
     live "/my-courses", MyCoursesLive
+    live "/exams/:id", ExamParticipantLive
+  end
+
+  # Exam admin LiveViews: INSTRUCTOR, ADMIN, SUPER_ADMIN
+  scope "/", WhistleWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_course_area]
+
     live "/admin/courses/:course_id/exams/new", ExamCreationLive
     live "/admin/exams/:id", ExamInstructorLive
-    live "/exams/:id", ExamParticipantLive
   end
 
   scope "/", WhistleWeb do

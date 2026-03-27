@@ -52,7 +52,6 @@ defmodule Whistle.Accounts.User do
       :username,
       :password,
       :club_id,
-      :role,
       :first_name,
       :last_name,
       :mobile,
@@ -63,7 +62,6 @@ defmodule Whistle.Accounts.User do
     |> validate_email(opts)
     |> validate_username(opts)
     |> validate_password(opts)
-    |> validate_role()
   end
 
   defp validate_email(changeset, _opts) do

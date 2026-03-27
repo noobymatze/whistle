@@ -12,7 +12,7 @@ defmodule WhistleWeb.ExamCreationLive do
   def mount(%{"course_id" => course_id}, _session, socket) do
     user = socket.assigns.current_user
 
-    unless Role.admin?(user) do
+    unless Role.can_access_course_area?(user) do
       {:ok, push_navigate(socket, to: ~p"/")}
     else
       course = Courses.get_course!(course_id)

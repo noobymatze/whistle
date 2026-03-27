@@ -4,6 +4,9 @@ defmodule WhistleWeb.SeasonController do
   alias Whistle.Seasons
   alias Whistle.Seasons.Season
 
+  plug WhistleWeb.Plugs.RequireRole, global_area: true
+  plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
+
   def index(conn, _params) do
     seasons = Seasons.list_seasons()
     render(conn, :index, seasons: seasons)

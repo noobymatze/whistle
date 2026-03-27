@@ -6,6 +6,9 @@ defmodule WhistleWeb.CourseController do
   alias Whistle.Courses.Course
   alias Whistle.Seasons
 
+  plug WhistleWeb.Plugs.RequireRole, course_area: true
+  plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
+
   def index(conn, params) do
     current_season = Seasons.get_current_season()
 

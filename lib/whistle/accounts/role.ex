@@ -171,6 +171,41 @@ defmodule Whistle.Accounts.Role do
   end
 
   @doc """
+  Checks if a user may perform destructive delete actions.
+  Only SUPER_ADMIN may delete records.
+  """
+  def can_delete?(%{role: "SUPER_ADMIN"}), do: true
+  def can_delete?(_), do: false
+
+  @doc """
+  Checks if a user can access the course management area.
+  Allowed: SUPER_ADMIN, ADMIN, INSTRUCTOR.
+  CLUB_ADMIN is intentionally excluded – club admins manage users/registrations,
+  not the course catalogue itself.
+  """
+  def can_access_course_area?(%{role: role}) do
+    role in ["SUPER_ADMIN", "ADMIN", "INSTRUCTOR"]
+  end
+
+  @doc """
+  Checks if a user can access the club-scoped admin area
+  (users and registrations).
+  Allowed: SUPER_ADMIN, ADMIN, CLUB_ADMIN.
+  """
+  def can_access_club_area?(%{role: role}) do
+    role in ["SUPER_ADMIN", "ADMIN", "CLUB_ADMIN"]
+  end
+
+  @doc """
+  Checks if a user can access the global admin area
+  (clubs, associations, seasons).
+  Allowed: SUPER_ADMIN, ADMIN.
+  """
+  def can_access_global_area?(%{role: role}) do
+    role in ["SUPER_ADMIN", "ADMIN"]
+  end
+
+  @doc """
   Returns a human-readable description of the role.
   """
   def role_description("SUPER_ADMIN"), do: "Super Administrator"

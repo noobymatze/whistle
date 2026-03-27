@@ -36,6 +36,15 @@ defmodule WhistleWeb.Plugs.RequireRole do
         opts[:full_admin] ->
           Role.full_admin?(user)
 
+        opts[:course_area] ->
+          Role.can_access_course_area?(user)
+
+        opts[:club_area] ->
+          Role.can_access_club_area?(user)
+
+        opts[:global_area] ->
+          Role.can_access_global_area?(user)
+
         opts[:role] ->
           Role.has_role?(user, opts[:role])
 

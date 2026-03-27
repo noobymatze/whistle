@@ -627,17 +627,17 @@ defmodule Whistle.AccountsTest do
       assert user.role == "USER"
     end
 
-    test "register_user validates role when provided" do
-      {:error, changeset} = Accounts.register_user(valid_user_attributes(%{role: "INVALID_ROLE"}))
-
-      assert "must be one of: SUPER_ADMIN, ADMIN, CLUB_ADMIN, INSTRUCTOR, USER" in errors_on(
-               changeset
-             ).role
+    test "register_user ignores a provided role and always uses default" do
+      # Role is stripped from public registration to prevent privilege escalation.
+      {:ok, user} = Accounts.register_user(valid_user_attributes(%{role: "ADMIN"}))
+      assert user.role == "USER"
     end
 
-    test "register_user accepts valid roles" do
-      {:ok, user} = Accounts.register_user(valid_user_attributes(%{role: "ADMIN"}))
-      assert user.role == "ADMIN"
+    test "register_user ignores an invalid role param (no validation error)" do
+      # Since role is not cast, invalid values are silently dropped and the
+      # user is created with the default role.
+      {:ok, user} = Accounts.register_user(valid_user_attributes(%{role: "INVALID_ROLE"}))
+      assert user.role == "USER"
     end
 
     test "super admin can assign any role", %{super_admin: super_admin, user: user} do

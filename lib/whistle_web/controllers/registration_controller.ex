@@ -5,6 +5,9 @@ defmodule WhistleWeb.RegistrationController do
   alias Whistle.Registrations
   alias Whistle.Seasons
 
+  plug WhistleWeb.Plugs.RequireRole, club_area: true
+  plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
+
   def index(conn, params) do
     current_user = conn.assigns.current_user
     current_season = Seasons.get_current_season()

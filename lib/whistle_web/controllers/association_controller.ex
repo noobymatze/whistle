@@ -4,6 +4,9 @@ defmodule WhistleWeb.AssociationController do
   alias Whistle.Associations
   alias Whistle.Associations.Association
 
+  plug WhistleWeb.Plugs.RequireRole, global_area: true
+  plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
+
   def index(conn, _params) do
     associations = Associations.list_associations()
     render(conn, :index, associations: associations)

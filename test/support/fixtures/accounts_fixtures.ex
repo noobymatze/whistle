@@ -33,11 +33,26 @@ defmodule Whistle.AccountsFixtures do
           %{}
       end
 
+    # Extract role before passing attrs to register_user (registration_changeset
+    # intentionally does not accept :role to prevent privilege escalation).
+    role = Map.get(attrs, :role) || Map.get(attrs, "role")
+    attrs_without_role = Map.drop(attrs, [:role, "role"])
+
     {:ok, user} =
-      attrs
+      attrs_without_role
       |> Enum.into(default_attrs)
       |> valid_user_attributes()
       |> Whistle.Accounts.register_user()
+
+    # Apply role if explicitly requested (test-only path via update_user_role)
+    user =
+      if role && role != Whistle.Accounts.Role.default_role() do
+        super_admin = %{role: "SUPER_ADMIN"}
+        {:ok, updated} = Whistle.Accounts.update_user_role(user, role, super_admin)
+        updated
+      else
+        user
+      end
 
     user
   end

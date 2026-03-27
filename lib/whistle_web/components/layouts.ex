@@ -105,9 +105,12 @@ defmodule WhistleWeb.Layouts do
                   />
                 </div>
 
-                <div :if={Role.admin?(@current_user)} class="space-y-1">
+                <div
+                  :if={Role.can_access_course_area?(@current_user)}
+                  class="space-y-1"
+                >
                   <p class="px-3 text-[0.68rem] font-semibold uppercase text-base-content/38">
-                    Administration
+                    Kursverwaltung
                   </p>
                   <.nav_item
                     href={~p"/admin/courses"}
@@ -117,6 +120,22 @@ defmodule WhistleWeb.Layouts do
                     active={path_active?(@current_path, ["/admin/courses", "/admin/exams"])}
                   />
                   <.nav_item
+                    href={~p"/admin/questions"}
+                    icon="hero-question-mark-circle"
+                    label="Fragen"
+                    tone={:violet}
+                    active={path_active?(@current_path, "/admin/questions")}
+                  />
+                </div>
+
+                <div
+                  :if={Role.can_access_club_area?(@current_user)}
+                  class="space-y-1"
+                >
+                  <p class="px-3 text-[0.68rem] font-semibold uppercase text-base-content/38">
+                    Vereinsverwaltung
+                  </p>
+                  <.nav_item
                     href={~p"/admin/registrations"}
                     icon="hero-clipboard-document-list"
                     label="Anmeldungen"
@@ -124,18 +143,27 @@ defmodule WhistleWeb.Layouts do
                     active={path_active?(@current_path, "/admin/registrations")}
                   />
                   <.nav_item
+                    href={~p"/admin/users"}
+                    icon="hero-users"
+                    label="Benutzer"
+                    tone={:violet}
+                    active={path_active?(@current_path, "/admin/users")}
+                  />
+                </div>
+
+                <div
+                  :if={Role.can_access_global_area?(@current_user)}
+                  class="space-y-1"
+                >
+                  <p class="px-3 text-[0.68rem] font-semibold uppercase text-base-content/38">
+                    Systemverwaltung
+                  </p>
+                  <.nav_item
                     href={~p"/admin/seasons"}
                     icon="hero-calendar"
                     label="Saisons"
                     tone={:amber}
                     active={path_active?(@current_path, "/admin/seasons")}
-                  />
-                  <.nav_item
-                    href={~p"/admin/questions"}
-                    icon="hero-question-mark-circle"
-                    label="Fragen"
-                    tone={:violet}
-                    active={path_active?(@current_path, "/admin/questions")}
                   />
                   <.nav_item
                     href={~p"/admin/clubs"}
@@ -150,13 +178,6 @@ defmodule WhistleWeb.Layouts do
                     label="Verbände"
                     tone={:blue}
                     active={path_active?(@current_path, "/admin/associations")}
-                  />
-                  <.nav_item
-                    href={~p"/admin/users"}
-                    icon="hero-users"
-                    label="Benutzer"
-                    tone={:violet}
-                    active={path_active?(@current_path, "/admin/users")}
                   />
                 </div>
               </nav>
