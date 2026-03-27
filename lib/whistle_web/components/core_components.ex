@@ -548,7 +548,6 @@ defmodule WhistleWeb.CoreComponents do
     """
   end
 
-
   @doc """
   Renders a tab bar.
 
@@ -575,7 +574,8 @@ defmodule WhistleWeb.CoreComponents do
           class={[
             "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
             tab[:active] && "border-primary text-primary",
-            !tab[:active] && "border-transparent text-base-content/60 hover:text-base-content hover:border-base-300"
+            !tab[:active] &&
+              "border-transparent text-base-content/60 hover:text-base-content hover:border-base-300"
           ]}
         >
           {tab[:label]}

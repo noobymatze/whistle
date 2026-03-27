@@ -8,9 +8,17 @@
 </.header>
 
 <.tabs>
-  <:tab label="Kursdaten" navigate={~p"/admin/courses/#{@course}/edit"} active={@tab == :kursdaten} />
+  <:tab
+    label="Kursdaten"
+    navigate={~p"/admin/courses/#{@course}/edit"}
+    active={@tab == :kursdaten}
+  />
   <:tab label="Tests" navigate={~p"/admin/courses/#{@course}/tests"} active={@tab == :tests} />
-  <:tab label="Teilnehmer" navigate={~p"/admin/courses/#{@course}/teilnehmer"} active={@tab == :teilnehmer} />
+  <:tab
+    label="Teilnehmer"
+    navigate={~p"/admin/courses/#{@course}/teilnehmer"}
+    active={@tab == :teilnehmer}
+  />
 </.tabs>
 
 <%= if @tab == :kursdaten do %>
@@ -29,7 +37,9 @@
     <.button navigate={~p"/admin/courses/#{@course}/exams/new"}>Test erstellen</.button>
   </div>
   <%= if Enum.empty?(@exams) do %>
-    <p class="py-10 text-center text-sm text-base-content/50">Noch keine Tests für diesen Kurs.</p>
+    <p class="py-10 text-center text-sm text-base-content/50">
+      Noch keine Tests für diesen Kurs.
+    </p>
   <% else %>
     <div class="space-y-2">
       <.link
@@ -40,8 +50,11 @@
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium">{exam.course_type}</div>
           <div class="mt-0.5 text-xs text-base-content/55">
-            {[exam.state, "#{exam.question_count} Fragen",
-              Calendar.strftime(exam.created_at, "%d.%m.%Y %H:%M")]
+            {[
+              exam.state,
+              "#{exam.question_count} Fragen",
+              Calendar.strftime(exam.created_at, "%d.%m.%Y %H:%M")
+            ]
             |> Enum.filter(& &1)
             |> Enum.join(" · ")}
           </div>
@@ -54,23 +67,25 @@
 
 <%= if @tab == :teilnehmer do %>
   <%= if Enum.empty?(@registrations) do %>
-    <p class="py-10 text-center text-sm text-base-content/50">Noch keine Anmeldungen für diesen Kurs.</p>
+    <p class="py-10 text-center text-sm text-base-content/50">
+      Noch keine Anmeldungen für diesen Kurs.
+    </p>
   <% else %>
-  <div class="flex items-center justify-between mb-4">
-    <p class="text-sm text-base-content/60">{length(@registrations)} Anmeldung(en)</p>
-    <div class="flex items-center gap-2">
-      <.button href={~p"/admin/courses/#{@course}/export"}>
-        <.icon name="hero-arrow-down-tray" class="size-4" /> CSV
-      </.button>
-      <.button
-        variant="primary"
-        href={"mailto:?bcc=#{@registrations |> Enum.filter(fn r -> is_nil(r.unenrolled_at) end) |> Enum.map(& &1.user_email) |> Enum.join(";")}"}
-      >
-        <.icon name="hero-envelope" class="size-4" /> Mail an alle
-      </.button>
+    <div class="flex items-center justify-between mb-4">
+      <p class="text-sm text-base-content/60">{length(@registrations)} Anmeldung(en)</p>
+      <div class="flex items-center gap-2">
+        <.button href={~p"/admin/courses/#{@course}/export"}>
+          <.icon name="hero-arrow-down-tray" class="size-4" /> CSV
+        </.button>
+        <.button
+          variant="primary"
+          href={"mailto:?bcc=#{@registrations |> Enum.filter(fn r -> is_nil(r.unenrolled_at) end) |> Enum.map(& &1.user_email) |> Enum.join(";")}"}
+        >
+          <.icon name="hero-envelope" class="size-4" /> Mail an alle
+        </.button>
+      </div>
     </div>
-  </div>
-  <div class="space-y-2">
+    <div class="space-y-2">
       <%= for reg <- @registrations do %>
         <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
           <div class="min-w-0 flex-1">
@@ -104,6 +119,6 @@
           </.action_link>
         </div>
       <% end %>
-  </div>
+    </div>
   <% end %>
 <% end %>
