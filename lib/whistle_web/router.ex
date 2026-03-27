@@ -131,6 +131,7 @@ defmodule WhistleWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live "/my-courses", MyCoursesLive
+    live "/my-exams", MyExamsLive
     live "/exams/:id", ExamParticipantLive
   end
 

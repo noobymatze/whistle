@@ -99,9 +99,16 @@ defmodule WhistleWeb.Layouts do
                   <.nav_item
                     href={~p"/my-courses"}
                     icon="hero-academic-cap"
-                    label="Meine Kurse & Tests"
+                    label="Meine Kurse"
                     tone={:blue}
                     active={path_active?(@current_path, "/my-courses")}
+                  />
+                  <.nav_item
+                    href={~p"/my-exams"}
+                    icon="hero-clipboard-document-list"
+                    label="Meine Tests"
+                    tone={:blue}
+                    active={path_active?(@current_path, "/my-exams")}
                   />
                 </div>
 
