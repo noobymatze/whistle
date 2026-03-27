@@ -142,7 +142,6 @@ defmodule WhistleWeb.ExamCreationLive do
         </h3>
         <p class="mt-1 text-xs text-gray-500">
           {@distribution.question_count} Fragen ·
-          Bestehensgrenze: {@distribution.pass_percentage}% ·
           Dauer: {div(@distribution.duration_seconds, 60)} Minuten
         </p>
       </div>

@@ -127,7 +127,7 @@ defmodule WhistleWeb.ExamInstructorLive do
       <.header>
         Test – {@exam.course_type}
         <:subtitle>
-          Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(@exam.duration_seconds, 60)} Minuten · Bestehensgrenze: {@exam.pass_percentage}% ·
+          Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(@exam.duration_seconds, 60)} Minuten ·
           <span class={[
             "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
             @exam.state == "waiting_room" && "bg-yellow-100 text-yellow-800",
