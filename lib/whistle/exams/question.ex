@@ -15,6 +15,7 @@ defmodule Whistle.Exams.Question do
     field :status, :string, default: "draft"
     field :scoring_mode, :string
     field :nordref_reference, :string
+    field :points, :integer, default: 1
     field :created_by, :id
 
     has_many :choices, Whistle.Exams.QuestionChoice,
@@ -41,6 +42,7 @@ defmodule Whistle.Exams.Question do
       :explanation_markdown,
       :status,
       :nordref_reference,
+      :points,
       :created_by
     ])
     |> validate_required([:type, :difficulty, :body_markdown, :status])

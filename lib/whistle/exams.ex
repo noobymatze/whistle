@@ -388,7 +388,10 @@ defmodule Whistle.Exams do
               state: "waiting_room",
               question_count: length(selected_questions),
               duration_seconds: distribution.duration_seconds,
-              pass_percentage: distribution.pass_percentage,
+              l1_threshold: distribution.l1_threshold,
+              l2_threshold: distribution.l2_threshold,
+              l3_threshold: distribution.l3_threshold,
+              pass_threshold: distribution.pass_threshold,
               show_countdown_to_participants: show_countdown,
               created_by: created_by_user_id
             })
@@ -619,21 +622,25 @@ defmodule Whistle.Exams do
       result =
         Whistle.Exams.Scoring.compute_total(
           question_answer_pairs,
-          exam.pass_percentage
+          exam
         )
 
-      license_decision = if result.passed, do: "granted", else: "denied"
+      passed = result.outcome in [:l3_pass, :l2_pass, :l1_eligible]
+      license_decision = if passed, do: "granted", else: "denied"
 
       participant
       |> ExamParticipant.changeset(%{
-        score: result.score,
-        max_score: result.max_score,
-        passed: result.passed,
-        license_decision: license_decision
+        score: result.achieved_points,
+        max_score: result.max_points,
+        passed: passed,
+        license_decision: license_decision,
+        achieved_points: result.achieved_points,
+        max_points: result.max_points,
+        exam_outcome: Atom.to_string(result.outcome)
       })
       |> Repo.update!()
 
-      if result.passed do
+      if passed do
         issue_provisional_license(participant, exam)
       end
     end)
@@ -787,7 +794,7 @@ defmodule Whistle.Exams do
           body_markdown: question.body_markdown,
           explanation_markdown: question.explanation_markdown,
           scoring_mode: question.scoring_mode,
-          points: 1,
+          points: question.points || 1,
           created_at: now
         })
         |> Repo.insert()

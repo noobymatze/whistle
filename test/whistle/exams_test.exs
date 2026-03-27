@@ -157,12 +157,15 @@ defmodule Whistle.ExamsTest do
                  low_percentage: 40,
                  medium_percentage: 40,
                  high_percentage: 20,
-                 pass_percentage: 80,
+                 l3_threshold: 18,
+                 l2_threshold: 24,
+                 l1_threshold: 28,
                  duration_seconds: 2400
                })
 
       assert dist.question_count == 25
       assert dist.low_percentage == 40
+      assert dist.l1_threshold == 28
     end
 
     test "upsert_distribution/1 updates an existing distribution" do
@@ -172,7 +175,6 @@ defmodule Whistle.ExamsTest do
         low_percentage: 50,
         medium_percentage: 30,
         high_percentage: 20,
-        pass_percentage: 75,
         duration_seconds: 3600
       })
 
@@ -183,7 +185,6 @@ defmodule Whistle.ExamsTest do
                  low_percentage: 50,
                  medium_percentage: 30,
                  high_percentage: 20,
-                 pass_percentage: 75,
                  duration_seconds: 3600
                })
 
@@ -198,7 +199,6 @@ defmodule Whistle.ExamsTest do
                  low_percentage: 50,
                  medium_percentage: 50,
                  high_percentage: 20,
-                 pass_percentage: 75,
                  duration_seconds: 3600
                })
 
@@ -304,10 +304,11 @@ defmodule Whistle.ExamsTest do
       exam_with_details = Exams.get_exam_with_details!(exam.id)
       participant = hd(exam_with_details.participants)
 
-      assert participant.score != nil
-      assert participant.max_score != nil
+      assert participant.achieved_points != nil
+      assert participant.max_points != nil
       assert participant.passed != nil
       assert participant.license_decision in ["granted", "denied"]
+      assert participant.exam_outcome in ["l3_pass", "l2_pass", "l1_eligible", "fail", "not_applicable"]
     end
 
     test "participant with no answers fails", %{exam: exam} do
@@ -317,9 +318,10 @@ defmodule Whistle.ExamsTest do
       participant = hd(exam_with_details.participants)
 
       # No answers submitted → score should be 0
-      assert Decimal.compare(participant.score, Decimal.new(0)) == :eq
+      assert participant.achieved_points == 0
       refute participant.passed
       assert participant.license_decision == "denied"
+      assert participant.exam_outcome == "fail"
     end
   end
 

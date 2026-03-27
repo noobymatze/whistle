@@ -10,13 +10,19 @@ defmodule Whistle.Exams.Exam do
     field :state, :string, default: "waiting_room"
     field :question_count, :integer
     field :duration_seconds, :integer
-    field :pass_percentage, :integer
     field :show_countdown_to_participants, :boolean, default: false
     field :started_at, :naive_datetime
     field :paused_at, :naive_datetime
     field :ended_at, :naive_datetime
     field :remaining_seconds, :integer
     field :created_by, :id
+
+    # Threshold snapshot (from distribution at exam creation time)
+    # F-course: l1/l2/l3 bands; G-course: pass_threshold
+    field :l1_threshold, :integer
+    field :l2_threshold, :integer
+    field :l3_threshold, :integer
+    field :pass_threshold, :integer
 
     has_many :participants, Whistle.Exams.ExamParticipant, foreign_key: :exam_id
     has_many :questions, Whistle.Exams.ExamQuestion, foreign_key: :exam_id
@@ -35,25 +41,26 @@ defmodule Whistle.Exams.Exam do
       :state,
       :question_count,
       :duration_seconds,
-      :pass_percentage,
       :show_countdown_to_participants,
       :started_at,
       :paused_at,
       :ended_at,
       :remaining_seconds,
-      :created_by
+      :created_by,
+      :l1_threshold,
+      :l2_threshold,
+      :l3_threshold,
+      :pass_threshold
     ])
     |> validate_required([
       :course_id,
       :course_type,
       :state,
       :question_count,
-      :duration_seconds,
-      :pass_percentage
+      :duration_seconds
     ])
     |> validate_inclusion(:state, @valid_states)
     |> validate_number(:question_count, greater_than: 0)
     |> validate_number(:duration_seconds, greater_than: 0)
-    |> validate_number(:pass_percentage, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
   end
 end

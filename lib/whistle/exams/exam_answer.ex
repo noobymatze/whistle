@@ -10,7 +10,7 @@ defmodule Whistle.Exams.ExamAnswer do
     field :question_type, :string
     field :text_answer, :string
     field :is_correct, :boolean
-    field :awarded_points, :decimal
+    field :awarded_points, :integer
     field :answered_at, :naive_datetime
 
     has_many :answer_choices, Whistle.Exams.ExamAnswerChoice, foreign_key: :exam_answer_id

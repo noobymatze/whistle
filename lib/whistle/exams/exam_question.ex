@@ -11,7 +11,7 @@ defmodule Whistle.Exams.ExamQuestion do
     field :body_markdown, :string
     field :explanation_markdown, :string
     field :scoring_mode, :string
-    field :points, :decimal, default: 1
+    field :points, :integer, default: 1
 
     has_many :choices, Whistle.Exams.ExamQuestionChoice,
       foreign_key: :exam_question_id,
