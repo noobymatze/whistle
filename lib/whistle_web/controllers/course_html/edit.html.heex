@@ -1,104 +1,109 @@
 <.breadcrumbs>
   <:item navigate={~p"/admin/courses"}>Kurse</:item>
-  <:item>Kurs bearbeiten</:item>
+  <:item>{@course.name}</:item>
 </.breadcrumbs>
 
 <.header>
-  Kurs bearbeiten
-  <:subtitle>Verwende dieses Formular, um Kurse zu verwalten und anzulegen.</:subtitle>
+  {@course.name}
 </.header>
 
-<.course_form
-  changeset={@changeset}
-  types={@types}
-  clubs={@clubs}
-  seasons={@seasons}
-  action={~p"/admin/courses/#{@course}"}
-  course={@course}
-/>
+<.tabs>
+  <:tab label="Kursdaten" navigate={~p"/admin/courses/#{@course}/edit"} active={@tab == :kursdaten} />
+  <:tab label="Tests" navigate={~p"/admin/courses/#{@course}/tests"} active={@tab == :tests} />
+  <:tab label="Teilnehmer" navigate={~p"/admin/courses/#{@course}/teilnehmer"} active={@tab == :teilnehmer} />
+</.tabs>
 
-<%= if @course.id do %>
-  <%!-- Exams section --%>
-  <div class="mt-16 mb-16">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">Tests</h2>
-      <.link href={~p"/admin/courses/#{@course}/exams/new"}>
-        <.button>Test erstellen</.button>
-      </.link>
-    </div>
-    <%= if Enum.empty?(@exams) do %>
-      <p class="text-sm text-gray-500 italic">Noch keine Tests für diesen Kurs.</p>
-    <% else %>
-      <.table id="exams" rows={@exams} row_click={&JS.navigate(~p"/admin/exams/#{&1}")}>
-        <:col :let={exam} label="Typ">{exam.course_type}</:col>
-        <:col :let={exam} label="Status">{exam.state}</:col>
-        <:col :let={exam} label="Fragen">{exam.question_count}</:col>
-        <:col :let={exam} label="Erstellt">
-          {Calendar.strftime(exam.created_at, "%d.%m.%Y %H:%M")}
-        </:col>
-      </.table>
-    <% end %>
-  </div>
+<%= if @tab == :kursdaten do %>
+  <.course_form
+    changeset={@changeset}
+    types={@types}
+    clubs={@clubs}
+    seasons={@seasons}
+    action={~p"/admin/courses/#{@course}"}
+    course={@course}
+  />
 <% end %>
 
-<%= if @course.id do %>
-  <div class="mt-24">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">Teilnehmer</h2>
-      <div class="flex items-center gap-2">
-        <%= if length(@registrations) > 0 do %>
-          <.link
-            href={~p"/admin/courses/#{@course}/export"}
-            class="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-          >
-            <.icon name="hero-arrow-down-tray" class="h-4 w-4" /> CSV exportieren
-          </.link>
-          <.link
-            href={"mailto:?bcc=#{@registrations |> Enum.filter(fn r -> is_nil(r.unenrolled_at) end) |> Enum.map(& &1.user_email) |> Enum.join(";")}"}
-            class="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
-          >
-            <.icon name="hero-envelope" class="h-4 w-4" /> Sende Mail an alle
-          </.link>
-        <% end %>
-      </div>
+<%= if @tab == :tests do %>
+  <div class="flex justify-end mb-4">
+    <.button navigate={~p"/admin/courses/#{@course}/exams/new"}>Test erstellen</.button>
+  </div>
+  <%= if Enum.empty?(@exams) do %>
+    <p class="py-10 text-center text-sm text-base-content/50">Noch keine Tests für diesen Kurs.</p>
+  <% else %>
+    <div class="space-y-2">
+      <.link
+        :for={exam <- @exams}
+        navigate={~p"/admin/exams/#{exam}"}
+        class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300"
+      >
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-medium">{exam.course_type}</div>
+          <div class="mt-0.5 text-xs text-base-content/55">
+            {[exam.state, "#{exam.question_count} Fragen",
+              Calendar.strftime(exam.created_at, "%d.%m.%Y %H:%M")]
+            |> Enum.filter(& &1)
+            |> Enum.join(" · ")}
+          </div>
+        </div>
+        <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
+      </.link>
     </div>
+  <% end %>
+<% end %>
 
-    <.table id="registrations" rows={@registrations}>
-      <:col :let={reg} label="Name">
-        {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
-        |> Enum.filter(& &1)
-        |> Enum.join(" ")}
-      </:col>
-
-      <:col :let={reg} label="E-Mail">
-        {reg.user_email}
-      </:col>
-
-      <:col :let={reg} label="Abgemeldet">
-        <%= if reg.unenrolled_at do %>
-          <% datum = Calendar.strftime(reg.unenrolled_at, "%d.%m.%Y %H:%M") %>
-          <%= if reg.course_date && Date.compare(Date.add(reg.course_date, -7), NaiveDateTime.to_date(reg.unenrolled_at)) == :gt do %>
-            {datum}
-            <br />
-            <span class="text-red-600">(&lt; 1 Woche vor Beginn)</span>
-          <% else %>
-            {datum}
-          <% end %>
-        <% end %>
-      </:col>
-
-      <:action :let={reg}>
-        <%= if is_nil(reg.unenrolled_at) do %>
-          <.link
+<%= if @tab == :teilnehmer do %>
+  <%= if Enum.empty?(@registrations) do %>
+    <p class="py-10 text-center text-sm text-base-content/50">Noch keine Anmeldungen für diesen Kurs.</p>
+  <% else %>
+  <div class="flex items-center justify-between mb-4">
+    <p class="text-sm text-base-content/60">{length(@registrations)} Anmeldung(en)</p>
+    <div class="flex items-center gap-2">
+      <.button href={~p"/admin/courses/#{@course}/export"}>
+        <.icon name="hero-arrow-down-tray" class="size-4" /> CSV
+      </.button>
+      <.button
+        variant="primary"
+        href={"mailto:?bcc=#{@registrations |> Enum.filter(fn r -> is_nil(r.unenrolled_at) end) |> Enum.map(& &1.user_email) |> Enum.join(";")}"}
+      >
+        <.icon name="hero-envelope" class="size-4" /> Mail an alle
+      </.button>
+    </div>
+  </div>
+  <div class="space-y-2">
+      <%= for reg <- @registrations do %>
+        <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm font-medium">
+              {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
+              |> Enum.filter(& &1)
+              |> Enum.join(" ")}
+            </div>
+            <div class="mt-0.5 text-xs text-base-content/55">
+              <%= if reg.unenrolled_at do %>
+                <% datum = Calendar.strftime(reg.unenrolled_at, "%d.%m.%Y %H:%M") %>
+                <%= if reg.course_date && Date.compare(Date.add(reg.course_date, -7), NaiveDateTime.to_date(reg.unenrolled_at)) == :gt do %>
+                  Abgemeldet {datum}
+                  <span class="ml-1 text-error font-medium">&lt; 1 Woche vor Beginn</span>
+                <% else %>
+                  Abgemeldet {datum}
+                <% end %>
+              <% else %>
+                {reg.user_email}
+              <% end %>
+            </div>
+          </div>
+          <.action_link
+            :if={is_nil(reg.unenrolled_at)}
             href={~p"/admin/courses/#{@course}/registrations/#{reg.user_id}/sign-out"}
             method="delete"
             data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"
-            class="text-sm font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
+            tone={:danger}
           >
             Abmelden
-          </.link>
-        <% end %>
-      </:action>
-    </.table>
+          </.action_link>
+        </div>
+      <% end %>
   </div>
+  <% end %>
 <% end %>

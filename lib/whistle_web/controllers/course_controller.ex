@@ -65,20 +65,45 @@ defmodule WhistleWeb.CourseController do
       clubs = get_club_options()
       seasons = get_season_options()
 
-      registrations =
-        Whistle.Registrations.list_registrations_view(include_unenrolled: true)
-        |> Enum.filter(fn r -> r.course_id == course.id end)
-
-      exams = Whistle.Exams.list_exams(course_id: course.id)
-
       render(conn, :edit,
+        tab: :kursdaten,
         course: course,
         changeset: changeset,
         types: types,
         clubs: clubs,
-        seasons: seasons,
-        registrations: registrations,
+        seasons: seasons
+      )
+    else
+      _ -> render_not_found(conn)
+    end
+  end
+
+  def tests(conn, %{"id" => id}) do
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      exams = Whistle.Exams.list_exams(course_id: course.id)
+
+      render(conn, :edit,
+        tab: :tests,
+        course: course,
         exams: exams
+      )
+    else
+      _ -> render_not_found(conn)
+    end
+  end
+
+  def teilnehmer(conn, %{"id" => id}) do
+    with {:ok, id} <- parse_id(id),
+         %{} = course <- Courses.get_course(id) do
+      registrations =
+        Whistle.Registrations.list_registrations_view(include_unenrolled: true)
+        |> Enum.filter(fn r -> r.course_id == course.id end)
+
+      render(conn, :edit,
+        tab: :teilnehmer,
+        course: course,
+        registrations: registrations
       )
     else
       _ -> render_not_found(conn)
@@ -99,20 +124,13 @@ defmodule WhistleWeb.CourseController do
           clubs = get_club_options()
           seasons = get_season_options()
 
-          registrations =
-            Whistle.Registrations.list_registrations_view(include_unenrolled: true)
-            |> Enum.filter(fn r -> r.course_id == course.id end)
-
-          exams = Whistle.Exams.list_exams(course_id: course.id)
-
           render(conn, :edit,
+            tab: :kursdaten,
             course: course,
             changeset: changeset,
             types: types,
             clubs: clubs,
-            seasons: seasons,
-            registrations: registrations,
-            exams: exams
+            seasons: seasons
           )
       end
     else
@@ -183,17 +201,17 @@ defmodule WhistleWeb.CourseController do
         {:ok, _registration} ->
           conn
           |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")
-          |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+          |> redirect(to: ~p"/admin/courses/#{course_id}/teilnehmer")
 
         {:error, :not_found} ->
           conn
           |> put_flash(:error, "Registrierung nicht gefunden.")
-          |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+          |> redirect(to: ~p"/admin/courses/#{course_id}/teilnehmer")
 
         {:error, _changeset} ->
           conn
           |> put_flash(:error, "Teilnehmer konnte nicht abgemeldet werden.")
-          |> redirect(to: ~p"/admin/courses/#{course_id}/edit")
+          |> redirect(to: ~p"/admin/courses/#{course_id}/teilnehmer")
       end
     else
       _ -> render_not_found(conn)

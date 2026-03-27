@@ -550,6 +550,42 @@ defmodule WhistleWeb.CoreComponents do
 
 
   @doc """
+  Renders a tab bar.
+
+  ## Examples
+
+      <.tabs>
+        <:tab label="Kursdaten" navigate={~p"/admin/courses/1/edit"} active={@tab == :kursdaten} />
+        <:tab label="Tests" navigate={~p"/admin/courses/1/tests"} active={@tab == :tests} />
+      </.tabs>
+  """
+  slot :tab, required: true do
+    attr :label, :string, required: true
+    attr :navigate, :any
+    attr :active, :boolean
+  end
+
+  def tabs(assigns) do
+    ~H"""
+    <div class="border-b border-base-200 mb-6">
+      <nav class="-mb-px flex gap-1">
+        <.link
+          :for={tab <- @tab}
+          navigate={tab[:navigate]}
+          class={[
+            "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+            tab[:active] && "border-primary text-primary",
+            !tab[:active] && "border-transparent text-base-content/60 hover:text-base-content hover:border-base-300"
+          ]}
+        >
+          {tab[:label]}
+        </.link>
+      </nav>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a [Heroicon](https://heroicons.com).
 
   Heroicons come in three styles – outline, solid, and mini.

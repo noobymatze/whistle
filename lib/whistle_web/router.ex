@@ -79,7 +79,10 @@ defmodule WhistleWeb.Router do
   scope "/admin", WhistleWeb do
     pipe_through [:browser, :require_authenticated_user]
 
-    resources "/courses", CourseController, except: [:show]
+    resources "/courses", CourseController, except: [:show, :edit]
+    get "/courses/:id/edit", CourseController, :edit
+    get "/courses/:id/tests", CourseController, :tests
+    get "/courses/:id/teilnehmer", CourseController, :teilnehmer
     post "/courses/:id/release", CourseController, :release
     get "/courses/:id/export", CourseController, :export
     delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
