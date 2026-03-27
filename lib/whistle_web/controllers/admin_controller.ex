@@ -3,6 +3,7 @@ defmodule WhistleWeb.AdminController do
 
   alias Whistle.Accounts
   alias Whistle.Accounts.Role
+  alias Whistle.Clubs
 
   plug WhistleWeb.Plugs.RequireRole, club_area: true
   plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
@@ -21,14 +22,17 @@ defmodule WhistleWeb.AdminController do
   end
 
   def new(conn, _params) do
+    current_user = conn.assigns.current_user
     changeset = Accounts.change_user_registration(%Whistle.Accounts.User{})
-    assignable_roles = WhistleWeb.RoleComponents.assignable_roles(conn.assigns.current_user)
+    clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
+    assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
 
     render(conn, :edit,
       user: nil,
       changeset: changeset,
       assignable_roles: assignable_roles,
-      current_user: conn.assigns.current_user
+      clubs: clubs,
+      current_user: current_user
     )
   end
 
@@ -39,6 +43,7 @@ defmodule WhistleWeb.AdminController do
     # Verify role assignment is permitted before touching the database.
     if requested_role && not Role.can_assign_role?(current_user, requested_role) do
       assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
+      clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
 
       conn
       |> put_flash(:error, "Du hast keine Berechtigung, diese Rolle zuzuweisen.")
@@ -46,6 +51,7 @@ defmodule WhistleWeb.AdminController do
         user: nil,
         changeset: Accounts.change_user_registration(%Whistle.Accounts.User{}),
         assignable_roles: assignable_roles,
+        clubs: clubs,
         current_user: current_user
       )
     else
@@ -57,11 +63,13 @@ defmodule WhistleWeb.AdminController do
 
         {:error, %Ecto.Changeset{} = changeset} ->
           assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
+          clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
 
           render(conn, :edit,
             user: nil,
             changeset: changeset,
             assignable_roles: assignable_roles,
+            clubs: clubs,
             current_user: current_user
           )
       end
@@ -72,14 +80,17 @@ defmodule WhistleWeb.AdminController do
     with {:ok, id} <- parse_id(id),
          %{} = user <- Accounts.get_user(id) do
       if Accounts.can_manage_user?(conn.assigns.current_user, user) do
+        current_user = conn.assigns.current_user
         changeset = Accounts.change_user_role(user)
-        assignable_roles = WhistleWeb.RoleComponents.assignable_roles(conn.assigns.current_user)
+        assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
+        clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
 
         render(conn, :edit,
           user: user,
           changeset: changeset,
           assignable_roles: assignable_roles,
-          current_user: conn.assigns.current_user
+          clubs: clubs,
+          current_user: current_user
         )
       else
         conn
@@ -141,13 +152,16 @@ defmodule WhistleWeb.AdminController do
             |> redirect(to: ~p"/admin/users/#{user}/edit")
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            assignable_roles =
-              WhistleWeb.RoleComponents.assignable_roles(conn.assigns.current_user)
+            current_user = conn.assigns.current_user
+            assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
+            clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
 
             render(conn, :edit,
               user: user,
               changeset: changeset,
-              assignable_roles: assignable_roles
+              assignable_roles: assignable_roles,
+              clubs: clubs,
+              current_user: current_user
             )
         end
       else
@@ -158,5 +172,9 @@ defmodule WhistleWeb.AdminController do
     else
       _ -> render_not_found(conn)
     end
+  end
+
+  defp clubs_for_select do
+    Clubs.list_clubs() |> Enum.map(&{&1.name, &1.id})
   end
 end

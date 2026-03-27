@@ -151,6 +151,7 @@ defmodule Whistle.Accounts.User do
     user
     |> cast(attrs, [
       :role,
+      :club_id,
       :username,
       :email,
       :first_name,

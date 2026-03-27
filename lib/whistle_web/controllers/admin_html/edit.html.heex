@@ -20,12 +20,6 @@
       Oops, es ist etwas schiefgegangen, bitte schaue dir die Fehler an.
     </.error>
 
-    <.input :if={!@user} field={f[:email]} type="email" label="E-Mail" required />
-    <.input :if={!@user} field={f[:password]} type="password" label="Passwort" required />
-    <.input :if={!@user} field={f[:username]} type="text" label="Benutzername" required />
-    <.input :if={@user} field={f[:username]} type="text" label="Benutzername" required />
-    <.input :if={@user} field={f[:email]} type="email" label="E-Mail" required />
-
     <div class="flex gap-2">
       <div class="flex-1">
         <.input field={f[:first_name]} type="text" label="Vorname" required />
@@ -34,10 +28,25 @@
         <.input field={f[:last_name]} type="text" label="Nachname" required />
       </div>
     </div>
+
+    <.input :if={!@user} field={f[:email]} type="email" label="E-Mail" required />
+    <.input :if={!@user} field={f[:password]} type="password" label="Passwort" required />
+    <.input :if={!@user} field={f[:username]} type="text" label="Benutzername" required />
+    <.input :if={@user} field={f[:username]} type="text" label="Benutzername" required />
+    <.input :if={@user} field={f[:email]} type="email" label="E-Mail" required />
     <.input field={f[:mobile]} type="text" label="Mobiltelefon" />
     <.input field={f[:phone]} type="text" label="Telefon" />
     <.input field={f[:birthday]} type="date" label="Geburtstag" required />
     <.input field={f[:license_number]} type="text" label="Lizenznummer" />
+
+    <.input
+      :if={Whistle.Accounts.Role.can_access_global_area?(@current_user)}
+      field={f[:club_id]}
+      type="select"
+      label="Verein"
+      options={@clubs}
+      prompt="Kein Verein"
+    />
 
     <.input
       field={f[:role]}
