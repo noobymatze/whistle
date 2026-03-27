@@ -503,26 +503,20 @@ defmodule Whistle.Accounts do
   def list_manageable_users(manager) do
     case manager.role do
       "SUPER_ADMIN" ->
-        # Super admin can manage everyone except other super admins
-        from(u in User, where: u.role != "SUPER_ADMIN")
+        from(u in UserView, where: u.role != "SUPER_ADMIN")
         |> Repo.all()
 
       "ADMIN" ->
-        # Admin can manage everyone except super admins and other admins
-        from(u in User, where: u.role not in ["SUPER_ADMIN", "ADMIN"])
+        from(u in UserView, where: u.role not in ["SUPER_ADMIN", "ADMIN"])
         |> Repo.all()
 
       "CLUB_ADMIN" ->
-        # Club admin can only manage users in their club with lower roles
-        from(u in User,
-          where:
-            u.club_id == ^manager.club_id and
-              u.role in ["INSTRUCTOR", "USER"]
+        from(u in UserView,
+          where: u.club_id == ^manager.club_id and u.role in ["INSTRUCTOR", "USER"]
         )
         |> Repo.all()
 
       _ ->
-        # Other roles cannot manage users
         []
     end
   end
