@@ -14,8 +14,15 @@ defmodule Whistle.Accounts.UserNotifier do
       |> subject(subject)
       |> text_body(body)
 
-    with {:ok, _metadata} <- Mailer.deliver(email) do
-      {:ok, email}
+    try do
+      with {:ok, _metadata} <- Mailer.deliver(email) do
+        {:ok, email}
+      end
+    rescue
+      e ->
+        require Logger
+        Logger.error("Failed to deliver email to #{recipient}: #{Exception.message(e)}")
+        {:error, :delivery_failed}
     end
   end
 

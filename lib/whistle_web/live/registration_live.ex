@@ -172,8 +172,8 @@ defmodule WhistleWeb.RegistrationLive do
   defp group_courses_by_date(courses) do
     courses
     |> Enum.group_by(& &1.date)
-    |> Enum.sort_by(fn {date, _} -> date end, {:asc, Date})
     |> Enum.reject(fn {date, _} -> is_nil(date) end)
+    |> Enum.sort_by(fn {date, _} -> date end, {:asc, Date})
   end
 
   defp get_selected_course_types(courses_by_date, selected_courses) do

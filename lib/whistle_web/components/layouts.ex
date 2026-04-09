@@ -189,7 +189,7 @@ defmodule WhistleWeb.Layouts do
                 </div>
               </nav>
 
-              <div class="space-y-3 border-t border-base-300/70 px-4 py-4">
+              <div class="shrink-0 space-y-3 border-t border-base-300/70 px-4 py-4">
                 <div class="flex justify-center">
                   <.theme_toggle />
                 </div>

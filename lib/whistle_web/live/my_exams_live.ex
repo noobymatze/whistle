@@ -77,7 +77,8 @@ defmodule WhistleWeb.MyExamsLive do
                 </div>
               <% end %>
 
-              <%= if {label, kind} = outcome_label(exam.exam_outcome) do %>
+              <%= if result = outcome_label(exam.exam_outcome) do %>
+                <% {label, kind} = result %>
                 <div class="text-sm mb-3">
                   <span class={if kind == :pass, do: "text-green-700 font-medium", else: "text-red-700 font-medium"}>
                     {label}
