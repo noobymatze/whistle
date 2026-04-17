@@ -10,6 +10,8 @@ defmodule Whistle.Registrations do
   alias Whistle.Registrations.RegistrationView
   alias Whistle.Courses
   alias Whistle.Courses.Course
+  alias Whistle.Courses.CourseDate
+  alias Whistle.Courses.CourseDateSelection
   alias Whistle.Accounts.User
   alias __MODULE__.Register
 
@@ -67,42 +69,152 @@ defmodule Whistle.Registrations do
       {:error, :not_available}
 
   """
-  def enroll_one(user, course, registered_by_user_id \\ nil) do
+  def enroll_one(user, course, registered_by_user_id \\ nil, date_ids \\ nil) do
     Repo.transaction(fn ->
-      # Lock the course to prevent concurrent registrations from exceeding capacity
-      _locked_course = Courses.get_and_lock_course(course.id)
-
-      cond do
-        not Register.seat_available?(user, course, registrations_for_course(course)) ->
-          Repo.rollback({:not_available, course})
-
-        not Register.allowed?(user, course) ->
-          Repo.rollback({:not_allowed, course})
-
-        true ->
-          # Check if there's an unenrolled registration to reactivate
-          case find_unenrolled_registration(user.id, course.id) do
-            nil ->
-              # Create new registration
-              attrs = %{
-                user_id: user.id,
-                course_id: course.id,
-                registered_by: registered_by_user_id
-              }
-
-              case create_registration(attrs) do
-                {:ok, registration} -> registration
-                {:error, changeset} -> Repo.rollback(changeset)
-              end
-
-            unenrolled_registration ->
-              # Reactivate existing registration
-              case reenroll_registration(unenrolled_registration) do
-                {:ok, registration} -> registration
-                {:error, changeset} -> Repo.rollback(changeset)
-              end
-          end
+      if course.online do
+        enroll_online(user, course, registered_by_user_id, date_ids)
+      else
+        enroll_offline(user, course, registered_by_user_id)
       end
+    end)
+  end
+
+  defp enroll_offline(user, course, registered_by_user_id) do
+    # Lock the course to prevent concurrent registrations from exceeding capacity
+    _locked_course = Courses.get_and_lock_course(course.id)
+
+    cond do
+      not Register.seat_available?(user, course, registrations_for_course(course)) ->
+        Repo.rollback({:not_available, course})
+
+      not Register.allowed?(user, course) ->
+        Repo.rollback({:not_allowed, course})
+
+      true ->
+        persist_registration(user, course, registered_by_user_id)
+    end
+  end
+
+  defp enroll_online(user, course, registered_by_user_id, date_ids) do
+    with {:ok, {mandatory, elective}} <- validate_date_selection(course, date_ids),
+         _ = lock_course_dates([mandatory.id, elective.id]),
+         :ok <- check_date_capacity(mandatory),
+         :ok <- check_date_capacity(elective),
+         :ok <- check_date_club_limit(user, course, mandatory),
+         :ok <- check_date_club_limit(user, course, elective),
+         :ok <- check_allowed_online(user, course) do
+      registration = persist_registration(user, course, registered_by_user_id)
+      replace_date_selections(registration, [mandatory.id, elective.id])
+      registration
+    else
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  defp validate_date_selection(_course, date_ids) when not is_list(date_ids) or date_ids == [] do
+    {:error, {:invalid_selection, :date_ids_required}}
+  end
+
+  defp validate_date_selection(course, date_ids) do
+    dates = Repo.all(from d in CourseDate, where: d.id in ^date_ids)
+
+    wrong_course = Enum.find(dates, fn d -> d.course_id != course.id end)
+
+    mandatory = Enum.filter(dates, &(&1.kind == :mandatory))
+    elective = Enum.filter(dates, &(&1.kind == :elective))
+
+    cond do
+      wrong_course != nil ->
+        {:error, {:invalid_selection, :date_belongs_to_other_course}}
+
+      length(mandatory) != 1 ->
+        {:error, {:invalid_selection, :must_select_exactly_one_mandatory}}
+
+      length(elective) != 1 ->
+        {:error, {:invalid_selection, :must_select_exactly_one_elective}}
+
+      true ->
+        {:ok, {hd(mandatory), hd(elective)}}
+    end
+  end
+
+  defp lock_course_dates(date_ids) do
+    Repo.all(from d in CourseDate, where: d.id in ^date_ids, lock: "FOR UPDATE")
+  end
+
+  defp check_date_capacity(%CourseDate{id: id, course_id: course_id} = date) do
+    count =
+      Repo.one(
+        from s in CourseDateSelection,
+          join: r in Registration,
+          on: r.id == s.registration_id,
+          where: s.course_date_id == ^id and is_nil(r.unenrolled_at),
+          select: count(s.id)
+      )
+
+    course = Courses.get_course!(course_id)
+
+    if count >= course.max_participants do
+      {:error, {:not_available, date}}
+    else
+      :ok
+    end
+  end
+
+  defp check_date_club_limit(%User{club_id: club_id}, course, %CourseDate{id: id} = date) do
+    count =
+      Repo.one(
+        from s in CourseDateSelection,
+          join: r in Registration,
+          on: r.id == s.registration_id,
+          join: u in Whistle.Accounts.User,
+          on: u.id == r.user_id,
+          where: s.course_date_id == ^id and is_nil(r.unenrolled_at) and u.club_id == ^club_id,
+          select: count(s.id)
+      )
+
+    if count >= course.max_per_club do
+      {:error, {:not_available, date}}
+    else
+      :ok
+    end
+  end
+
+  defp check_allowed_online(user, course) do
+    if Register.allowed?(user, course) do
+      :ok
+    else
+      {:error, {:not_allowed, course}}
+    end
+  end
+
+  defp persist_registration(user, course, registered_by_user_id) do
+    case find_unenrolled_registration(user.id, course.id) do
+      nil ->
+        attrs = %{user_id: user.id, course_id: course.id, registered_by: registered_by_user_id}
+
+        case create_registration(attrs) do
+          {:ok, registration} -> registration
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+
+      unenrolled ->
+        case reenroll_registration(unenrolled) do
+          {:ok, registration} -> registration
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+    end
+  end
+
+  defp replace_date_selections(registration, date_ids) do
+    Repo.delete_all(
+      from s in CourseDateSelection, where: s.registration_id == ^registration.id
+    )
+
+    Enum.each(date_ids, fn date_id ->
+      %CourseDateSelection{}
+      |> CourseDateSelection.changeset(%{registration_id: registration.id, course_date_id: date_id})
+      |> Repo.insert!()
     end)
   end
 
