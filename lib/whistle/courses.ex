@@ -247,11 +247,13 @@ defmodule Whistle.Courses do
   def list_date_selections_for_registration(registration_id) do
     query =
       from s in CourseDateSelection,
+        join: r in Registration,
+        on: r.id == s.registration_id,
         join: d in CourseDate,
         on: d.id == s.course_date_id,
         left_join: t in CourseDateTopic,
         on: t.id == d.course_date_topic_id,
-        where: s.registration_id == ^registration_id,
+        where: s.registration_id == ^registration_id and is_nil(r.unenrolled_at),
         order_by: [asc: d.kind, asc: d.date, asc: d.time],
         select: %{date: d, topic: t}
 
@@ -261,8 +263,11 @@ defmodule Whistle.Courses do
   def list_all_date_selections do
     query =
       from s in CourseDateSelection,
+        join: r in Registration,
+        on: r.id == s.registration_id,
         join: d in CourseDate,
         on: d.id == s.course_date_id,
+        where: is_nil(r.unenrolled_at),
         select: {s.registration_id, d}
 
     query
@@ -277,7 +282,7 @@ defmodule Whistle.Courses do
         on: r.id == s.registration_id,
         join: d in CourseDate,
         on: d.id == s.course_date_id,
-        where: r.course_id == ^course_id,
+        where: r.course_id == ^course_id and is_nil(r.unenrolled_at),
         select: {r.id, d}
 
     query

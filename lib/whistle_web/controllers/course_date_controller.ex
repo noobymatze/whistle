@@ -24,21 +24,28 @@ defmodule WhistleWeb.CourseDateController do
   def delete(conn, %{"course_id" => course_id, "id" => id}) do
     course = Courses.get_course!(course_id)
     date = Courses.get_course_date!(id)
-    affected = Courses.count_selections_for_date(date)
 
-    if affected > 0 do
+    if date.course_id != course.id do
       conn
-      |> put_flash(
-        :error,
-        "Termin kann nicht gelöscht werden: #{affected} Teilnehmer #{if affected == 1, do: "hat", else: "haben"} diesen Termin gewählt. Bitte zuerst die betroffenen Anmeldungen abmelden."
-      )
+      |> put_flash(:error, "Termin gehört nicht zu diesem Kurs.")
       |> redirect(to: ~p"/admin/courses/#{course}/edit")
     else
-      {:ok, _} = Courses.delete_course_date(date)
+      affected = Courses.count_selections_for_date(date)
 
-      conn
-      |> put_flash(:info, "Termin wurde gelöscht.")
-      |> redirect(to: ~p"/admin/courses/#{course}/edit")
+      if affected > 0 do
+        conn
+        |> put_flash(
+          :error,
+          "Termin kann nicht gelöscht werden: #{affected} Teilnehmer #{if affected == 1, do: "hat", else: "haben"} diesen Termin gewählt. Bitte zuerst die betroffenen Anmeldungen abmelden."
+        )
+        |> redirect(to: ~p"/admin/courses/#{course}/edit")
+      else
+        {:ok, _} = Courses.delete_course_date(date)
+
+        conn
+        |> put_flash(:info, "Termin wurde gelöscht.")
+        |> redirect(to: ~p"/admin/courses/#{course}/edit")
+      end
     end
   end
 end

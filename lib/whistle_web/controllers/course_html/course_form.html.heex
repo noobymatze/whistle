@@ -19,14 +19,19 @@
       label="Saison"
       required
     />
-    <.input field={f[:date]} type="date" label="Datum" />
-    <.input
-      field={f[:organizer_id]}
-      options={@clubs}
-      prompt="Kein Ausrichter"
-      type="select"
-      label="Ausrichter"
-    />
+    <%= if Ecto.Changeset.get_field(@changeset, :type) == "F" do %>
+      <.input field={f[:online]} type="checkbox" label="Online-Kurs" />
+    <% end %>
+    <%= if !Ecto.Changeset.get_field(@changeset, :online) && (!@course || !@course.online) do %>
+      <.input field={f[:date]} type="date" label="Datum" />
+      <.input
+        field={f[:organizer_id]}
+        options={@clubs}
+        prompt="Kein Ausrichter"
+        type="select"
+        label="Ausrichter"
+      />
+    <% end %>
     <div class="flex flex-row gap-4 w-full">
       <div class="flex-1">
         <.input field={f[:max_participants]} type="number" label="Maximale Teilnehmer" />
@@ -34,13 +39,15 @@
       <div class="flex-1">
         <.input field={f[:max_per_club]} type="number" label="Maximale Teilnehmer pro Verein" />
       </div>
-      <div class="flex-1">
-        <.input
-          field={f[:max_organizer_participants]}
-          type="number"
-          label="Maximale Teilnehmer für Ausrichter"
-        />
-      </div>
+      <%= if !Ecto.Changeset.get_field(@changeset, :online) && (!@course || !@course.online) do %>
+        <div class="flex-1">
+          <.input
+            field={f[:max_organizer_participants]}
+            type="number"
+            label="Maximale Teilnehmer für Ausrichter"
+          />
+        </div>
+      <% end %>
     </div>
     <div class="mt-2 flex items-center gap-4">
       <.button>Speichern</.button>
@@ -64,3 +71,140 @@
     </div>
   </div>
 </.form>
+
+<%= if @course && @course.online do %>
+  <div class="mt-8">
+    <h3 class="text-lg font-semibold mb-4">Termine</h3>
+
+    <div class="mb-6">
+      <h4 class="text-sm font-medium text-base-content/70 mb-2 uppercase tracking-wide">
+        Pflichttermine
+      </h4>
+      <div class="space-y-2 mb-3">
+        <%= for date <- Enum.filter(@course_dates, &(&1.kind == :mandatory)) do %>
+          <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
+            <div class="text-sm font-medium">
+              {Calendar.strftime(date.date, "%d.%m.%Y")} &middot; {Time.to_string(date.time) |> String.slice(0, 5)} Uhr
+            </div>
+            <.action_link
+              href={~p"/admin/courses/#{@course}/dates/#{date}"}
+              method="delete"
+              data-confirm="Termin wirklich löschen?"
+              tone={:danger}
+            >
+              Löschen
+            </.action_link>
+          </div>
+        <% end %>
+      </div>
+      <form action={~p"/admin/courses/#{@course}/dates"} method="post" class="flex items-end gap-2">
+        <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+        <input type="hidden" name="course_date[kind]" value="mandatory" />
+        <input type="hidden" name="course_date[course_id]" value={@course.id} />
+        <div>
+          <label class="block text-xs font-medium mb-1">Datum</label>
+          <input
+            type="date"
+            name="course_date[date]"
+            required
+            class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1">Uhrzeit</label>
+          <input
+            type="time"
+            name="course_date[time]"
+            required
+            class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
+          />
+        </div>
+        <.button type="submit">Hinzufügen</.button>
+      </form>
+    </div>
+
+    <div>
+      <h4 class="text-sm font-medium text-base-content/70 mb-2 uppercase tracking-wide">
+        Wahlpflichttermine
+      </h4>
+
+      <%= for topic <- @course_date_topics do %>
+        <div class="mb-4 rounded-xl border border-base-200 bg-base-50 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium">{topic.name}</span>
+            <.action_link
+              href={~p"/admin/courses/#{@course}/topics/#{topic}"}
+              method="delete"
+              data-confirm={"Thema '#{topic.name}' und alle zugehörigen Termine löschen?"}
+              tone={:danger}
+            >
+              Löschen
+            </.action_link>
+          </div>
+          <div class="space-y-2 mb-2">
+            <%= for date <- Enum.filter(@course_dates, &(&1.kind == :elective && &1.course_date_topic_id == topic.id)) do %>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-base-200 bg-base-100 px-3 py-2">
+                <div class="text-sm">
+                  {Calendar.strftime(date.date, "%d.%m.%Y")} &middot; {Time.to_string(date.time) |> String.slice(0, 5)} Uhr
+                </div>
+                <.action_link
+                  href={~p"/admin/courses/#{@course}/dates/#{date}"}
+                  method="delete"
+                  data-confirm="Termin wirklich löschen?"
+                  tone={:danger}
+                >
+                  Löschen
+                </.action_link>
+              </div>
+            <% end %>
+          </div>
+          <form
+            action={~p"/admin/courses/#{@course}/dates"}
+            method="post"
+            class="flex items-end gap-2"
+          >
+            <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+            <input type="hidden" name="course_date[kind]" value="elective" />
+            <input type="hidden" name="course_date[course_id]" value={@course.id} />
+            <input type="hidden" name="course_date[course_date_topic_id]" value={topic.id} />
+            <div>
+              <label class="block text-xs font-medium mb-1">Datum</label>
+              <input
+                type="date"
+                name="course_date[date]"
+                required
+                class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1">Uhrzeit</label>
+              <input
+                type="time"
+                name="course_date[time]"
+                required
+                class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <.button type="submit">Hinzufügen</.button>
+          </form>
+        </div>
+      <% end %>
+
+      <form action={~p"/admin/courses/#{@course}/topics"} method="post" class="flex items-end gap-2 mt-2">
+        <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+        <input type="hidden" name="course_date_topic[course_id]" value={@course.id} />
+        <div class="flex-1">
+          <label class="block text-xs font-medium mb-1">Neues Thema</label>
+          <input
+            type="text"
+            name="course_date_topic[name]"
+            required
+            placeholder="z.B. Zitronentarte"
+            class="w-full rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
+          />
+        </div>
+        <.button type="submit">Thema anlegen</.button>
+      </form>
+    </div>
+  </div>
+<% end %>
