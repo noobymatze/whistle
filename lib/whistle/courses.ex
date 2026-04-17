@@ -9,7 +9,9 @@ defmodule Whistle.Courses do
   alias Whistle.Courses.Course
   alias Whistle.Courses.CourseDate
   alias Whistle.Courses.CourseDateTopic
+  alias Whistle.Courses.CourseDateSelection
   alias Whistle.Courses.CourseView
+  alias Whistle.Registrations.Registration
 
   @doc """
   Returns the list of courses.
@@ -145,6 +147,18 @@ defmodule Whistle.Courses do
     Repo.all(from d in CourseDate, where: d.course_id == ^course_id, order_by: [asc: d.date, asc: d.time])
   end
 
+  def list_course_dates_with_topics(%Course{id: course_id}) do
+    query =
+      from d in CourseDate,
+        left_join: t in CourseDateTopic,
+        on: t.id == d.course_date_topic_id,
+        where: d.course_id == ^course_id,
+        order_by: [asc: d.date, asc: d.time],
+        preload: [topic: t]
+
+    Repo.all(query)
+  end
+
   def get_course_date!(id), do: Repo.get!(CourseDate, id)
 
   def create_course_date(attrs) do
@@ -157,6 +171,28 @@ defmodule Whistle.Courses do
     course_date
     |> CourseDate.changeset(attrs)
     |> Repo.update()
+  end
+
+  def count_selections_for_date(%CourseDate{id: id}) do
+    Repo.one(
+      from s in CourseDateSelection,
+        join: r in Whistle.Registrations.Registration,
+        on: r.id == s.registration_id,
+        where: s.course_date_id == ^id and is_nil(r.unenrolled_at),
+        select: count(s.id)
+    )
+  end
+
+  def count_selections_for_topic(%CourseDateTopic{id: id}) do
+    Repo.one(
+      from s in CourseDateSelection,
+        join: d in CourseDate,
+        on: d.id == s.course_date_id,
+        join: r in Whistle.Registrations.Registration,
+        on: r.id == s.registration_id,
+        where: d.course_date_topic_id == ^id and is_nil(r.unenrolled_at),
+        select: count(s.id)
+    )
   end
 
   def delete_course_date(%CourseDate{} = course_date) do
@@ -203,6 +239,50 @@ defmodule Whistle.Courses do
       released_at: Whistle.Timezone.now_local() |> NaiveDateTime.truncate(:second)
     )
     |> Repo.update()
+  end
+
+  @doc """
+  Returns a map of registration_id => [CourseDate] for an online course.
+  """
+  def list_date_selections_for_registration(registration_id) do
+    query =
+      from s in CourseDateSelection,
+        join: d in CourseDate,
+        on: d.id == s.course_date_id,
+        left_join: t in CourseDateTopic,
+        on: t.id == d.course_date_topic_id,
+        where: s.registration_id == ^registration_id,
+        order_by: [asc: d.kind, asc: d.date, asc: d.time],
+        select: %{date: d, topic: t}
+
+    Repo.all(query)
+  end
+
+  def list_all_date_selections do
+    query =
+      from s in CourseDateSelection,
+        join: d in CourseDate,
+        on: d.id == s.course_date_id,
+        select: {s.registration_id, d}
+
+    query
+    |> Repo.all()
+    |> Enum.group_by(fn {reg_id, _} -> reg_id end, fn {_, date} -> date end)
+  end
+
+  def list_date_selections_for_course(%Course{id: course_id}) do
+    query =
+      from s in CourseDateSelection,
+        join: r in Registration,
+        on: r.id == s.registration_id,
+        join: d in CourseDate,
+        on: d.id == s.course_date_id,
+        where: r.course_id == ^course_id,
+        select: {r.id, d}
+
+    query
+    |> Repo.all()
+    |> Enum.group_by(fn {reg_id, _} -> reg_id end, fn {_, date} -> date end)
   end
 
   @doc """

@@ -2,6 +2,7 @@ defmodule WhistleWeb.RegistrationController do
   use WhistleWeb, :controller
 
   alias Whistle.Accounts.Role
+  alias Whistle.Courses
   alias Whistle.Registrations
   alias Whistle.Seasons
 
@@ -86,9 +87,10 @@ defmodule WhistleWeb.RegistrationController do
     filter_opts = Keyword.put(filter_opts, :include_unenrolled, true)
 
     registrations = Registrations.list_registrations_view(filter_opts)
+    date_selections = Courses.list_all_date_selections()
 
     # Generate CSV
-    csv_content = generate_csv(registrations)
+    csv_content = generate_csv(registrations, date_selections)
 
     # Generate filename with timestamp: Anmeldungen-DDMMYYYYHHMM.csv
     timestamp = Calendar.strftime(DateTime.now!("Europe/Berlin"), "%d%m%Y%H%M")
@@ -100,22 +102,39 @@ defmodule WhistleWeb.RegistrationController do
     |> send_resp(200, csv_content)
   end
 
-  defp generate_csv(registrations) do
-    # CSV header with German column names
-    header = "Id,E-Mail,Name,Geburtstag,Kurs,Lizenznummer,Abgemeldet am\n"
+  defp generate_csv(registrations, date_selections) do
+    has_selections = date_selections != %{}
+    date_header = if has_selections, do: ",Gewählte Termine", else: ""
+    header = "Id,E-Mail,Name,Geburtstag,Kurs,Lizenznummer,Abgemeldet am#{date_header}\n"
 
-    # CSV rows
     rows =
       Enum.map(registrations, fn reg ->
-        [
-          to_string(reg.user_id),
-          reg.user_email || "",
-          "#{reg.user_first_name} #{reg.user_last_name}",
-          format_date(reg.user_birthday),
-          escape_csv_field(reg.course_name),
-          to_string(reg.license_number || ""),
-          format_datetime(reg.unenrolled_at)
-        ]
+        dates_str =
+          if has_selections do
+            dates = Map.get(date_selections, reg.registration_id, [])
+
+            dates_formatted =
+              dates
+              |> Enum.sort_by(& &1.kind)
+              |> Enum.map(fn d ->
+                "#{Calendar.strftime(d.date, "%d.%m.%Y")} #{Time.to_string(d.time) |> String.slice(0, 5)} Uhr"
+              end)
+              |> Enum.join(", ")
+
+            [dates_formatted]
+          else
+            []
+          end
+
+        ([
+           to_string(reg.user_id),
+           reg.user_email || "",
+           "#{reg.user_first_name} #{reg.user_last_name}",
+           format_date(reg.user_birthday),
+           escape_csv_field(reg.course_name),
+           to_string(reg.license_number || ""),
+           format_datetime(reg.unenrolled_at)
+         ] ++ dates_str)
         |> Enum.map(&escape_csv_field/1)
         |> Enum.join(",")
       end)

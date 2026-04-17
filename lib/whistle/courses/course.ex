@@ -1,7 +1,9 @@
 defmodule Whistle.Courses.Course do
   use Ecto.Schema
   import Ecto.Changeset
+  import Ecto.Query
 
+  alias Whistle.Repo
   alias Whistle.Courses.CourseDate
   alias Whistle.Courses.CourseDateTopic
 
@@ -57,7 +59,7 @@ defmodule Whistle.Courses.Course do
 
     cond do
       online == true and not is_nil(date) ->
-        add_error(changeset, :date, "must be nil for online courses")
+        put_change(changeset, :date, nil)
 
       online == false and is_nil(date) ->
         add_error(changeset, :date, "can't be blank")
@@ -71,8 +73,8 @@ defmodule Whistle.Courses.Course do
   defp prevent_unsetting_online(changeset) do
     if get_change(changeset, :online) == false and
          changeset.data.online == true and
-         Ecto.assoc_loaded?(changeset.data.course_dates) and
-         changeset.data.course_dates != [] do
+         not is_nil(changeset.data.id) and
+         Repo.exists?(from d in CourseDate, where: d.course_id == ^changeset.data.id) do
       add_error(changeset, :online, "cannot be unset while course dates exist")
     else
       changeset

@@ -116,6 +116,14 @@ defmodule Whistle.Registrations do
   end
 
   defp validate_date_selection(course, date_ids) do
+    if length(date_ids) != length(Enum.uniq(date_ids)) do
+      {:error, {:invalid_selection, :duplicate_date_ids}}
+    else
+      do_validate_date_selection(course, date_ids)
+    end
+  end
+
+  defp do_validate_date_selection(course, date_ids) do
     dates = Repo.all(from d in CourseDate, where: d.id in ^date_ids)
 
     wrong_course = Enum.find(dates, fn d -> d.course_id != course.id end)
