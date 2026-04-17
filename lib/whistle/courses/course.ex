@@ -2,16 +2,23 @@ defmodule Whistle.Courses.Course do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Whistle.Courses.CourseDate
+  alias Whistle.Courses.CourseDateTopic
+
   schema "courses" do
     field :name, :string
     field :type, :string
     field :date, :date
+    field :online, :boolean, default: false
     field :max_participants, :integer
     field :max_per_club, :integer
     field :max_organizer_participants, :integer
     field :released_at, :naive_datetime
     field :organizer_id, :id
     field :season_id, :id
+
+    has_many :course_dates, CourseDate
+    has_many :course_date_topics, CourseDateTopic
 
     timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
@@ -30,6 +37,7 @@ defmodule Whistle.Courses.Course do
     |> cast(attrs, [
       :name,
       :date,
+      :online,
       :max_participants,
       :max_per_club,
       :max_organizer_participants,
@@ -38,10 +46,36 @@ defmodule Whistle.Courses.Course do
       :season_id,
       :type
     ])
-    |> validate_required([
-      :name,
-      :type,
-      :season_id
-    ])
+    |> validate_required([:name, :type, :season_id])
+    |> validate_date_or_online()
+    |> prevent_unsetting_online()
+  end
+
+  defp validate_date_or_online(changeset) do
+    online = get_field(changeset, :online)
+    date = get_field(changeset, :date)
+
+    cond do
+      online == true and not is_nil(date) ->
+        add_error(changeset, :date, "must be nil for online courses")
+
+      online == false and is_nil(date) ->
+        add_error(changeset, :date, "can't be blank")
+
+      true ->
+        changeset
+    end
+  end
+
+  # Prevent flipping online back to false once course_dates exist.
+  defp prevent_unsetting_online(changeset) do
+    if get_change(changeset, :online) == false and
+         changeset.data.online == true and
+         Ecto.assoc_loaded?(changeset.data.course_dates) and
+         changeset.data.course_dates != [] do
+      add_error(changeset, :online, "cannot be unset while course dates exist")
+    else
+      changeset
+    end
   end
 end

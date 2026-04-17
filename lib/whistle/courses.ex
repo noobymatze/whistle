@@ -7,6 +7,8 @@ defmodule Whistle.Courses do
   alias Whistle.Repo
 
   alias Whistle.Courses.Course
+  alias Whistle.Courses.CourseDate
+  alias Whistle.Courses.CourseDateTopic
   alias Whistle.Courses.CourseView
 
   @doc """
@@ -137,6 +139,50 @@ defmodule Whistle.Courses do
   """
   def change_course(%Course{} = course, attrs \\ %{}) do
     Course.changeset(course, attrs)
+  end
+
+  def list_course_dates(%Course{id: course_id}) do
+    Repo.all(from d in CourseDate, where: d.course_id == ^course_id, order_by: [asc: d.date, asc: d.time])
+  end
+
+  def get_course_date!(id), do: Repo.get!(CourseDate, id)
+
+  def create_course_date(attrs) do
+    %CourseDate{}
+    |> CourseDate.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_course_date(%CourseDate{} = course_date, attrs) do
+    course_date
+    |> CourseDate.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_course_date(%CourseDate{} = course_date) do
+    Repo.delete(course_date)
+  end
+
+  def list_course_date_topics(%Course{id: course_id}) do
+    Repo.all(from t in CourseDateTopic, where: t.course_id == ^course_id, order_by: [asc: t.name])
+  end
+
+  def get_course_date_topic!(id), do: Repo.get!(CourseDateTopic, id)
+
+  def create_course_date_topic(attrs) do
+    %CourseDateTopic{}
+    |> CourseDateTopic.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_course_date_topic(%CourseDateTopic{} = topic, attrs) do
+    topic
+    |> CourseDateTopic.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_course_date_topic(%CourseDateTopic{} = topic) do
+    Repo.delete(topic)
   end
 
   @doc """
