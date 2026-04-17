@@ -1,8 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "server",
-  "dolt_server_port": 8975,
-  "dolt_database": "whistle",
-  "project_id": "9d8e9e76-2cc4-4ba4-80a3-0bce40994085"
-}
