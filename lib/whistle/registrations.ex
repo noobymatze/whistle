@@ -181,10 +181,30 @@ defmodule Whistle.Registrations do
   end
 
   defp check_allowed_online(user, course) do
-    if Register.allowed?(user, course) do
-      :ok
-    else
-      {:error, {:not_allowed, course}}
+    query =
+      from r in Registration,
+        join: c in Course,
+        on: c.id == r.course_id,
+        where:
+          r.user_id == ^user.id and c.season_id == ^course.season_id and is_nil(r.unenrolled_at)
+
+    existing = Repo.all(query)
+
+    cond do
+      length(existing) >= 2 ->
+        {:error, {:not_allowed, course}}
+
+      Enum.any?(existing, fn r -> r.course_id == course.id end) ->
+        {:error, {:not_allowed, course}}
+
+      course.type == "F" and Enum.any?(existing, fn r ->
+          c = Repo.get!(Course, r.course_id)
+          c.type == "F"
+        end) ->
+        {:error, {:not_allowed, course}}
+
+      true ->
+        :ok
     end
   end
 
@@ -553,12 +573,21 @@ defmodule Whistle.Registrations do
 
       registrations = Repo.all(query)
 
-      # Check 2-course limit
-      if length(registrations) >= 2 do
-        false
-      else
-        # Check if already registered for this specific course
-        not Enum.any?(registrations, fn r -> r.course_id == course.id end)
+      cond do
+        length(registrations) >= 2 ->
+          false
+
+        Enum.any?(registrations, fn r -> r.course_id == course.id end) ->
+          false
+
+        course.type == "F" and Enum.any?(registrations, fn r ->
+            c = Repo.get!(Course, r.course_id)
+            c.type == "F"
+          end) ->
+          false
+
+        true ->
+          true
       end
     end
 
