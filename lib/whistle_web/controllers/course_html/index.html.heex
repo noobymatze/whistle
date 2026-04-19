@@ -34,7 +34,15 @@
           navigate={~p"/admin/courses/#{course}/edit"}
           class="min-w-0 flex-1 transition-colors hover:opacity-75"
         >
-          <div class="truncate text-sm font-medium">{course.name}</div>
+          <div class="truncate text-sm font-medium flex items-center gap-2">
+            {course.name}
+            <span
+              :if={course.online}
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-orange-100 text-orange-800 border-orange-300"
+            >
+              Online
+            </span>
+          </div>
           <div class="mt-0.5 text-xs text-base-content/55">
             {[
               course.organizer_name,

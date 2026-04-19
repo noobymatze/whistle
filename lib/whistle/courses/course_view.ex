@@ -5,6 +5,7 @@ defmodule Whistle.Courses.CourseView do
     field :name, :string
     field :type, :string
     field :date, :date
+    field :online, :boolean
     field :released_at, :naive_datetime
     field :max_organizer_participants, :integer
     field :max_participants, :integer

@@ -13,6 +13,8 @@ defmodule WhistleWeb.CourseHTML do
   attr :action, :string, required: true
   attr :course, :map, default: nil
   attr :current_user, :map, required: true
+  attr :course_dates, :list, default: []
+  attr :course_date_topics, :list, default: []
 
   def course_form(assigns)
 end

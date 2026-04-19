@@ -101,6 +101,10 @@ defmodule WhistleWeb.Router do
     post "/courses/:id/release", CourseController, :release
     get "/courses/:id/export", CourseController, :export
     delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
+    post "/courses/:course_id/dates", CourseDateController, :create
+    delete "/courses/:course_id/dates/:id", CourseDateController, :delete
+    post "/courses/:course_id/topics", CourseDateTopicController, :create
+    delete "/courses/:course_id/topics/:id", CourseDateTopicController, :delete
     resources "/questions", QuestionController, except: [:show]
     post "/questions/:id/activate", QuestionController, :activate
     post "/questions/:id/deactivate", QuestionController, :deactivate

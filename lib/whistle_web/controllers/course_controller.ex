@@ -68,6 +68,8 @@ defmodule WhistleWeb.CourseController do
       types = Course.available_types()
       clubs = get_club_options()
       seasons = get_season_options()
+      course_dates = Courses.list_course_dates(course)
+      course_date_topics = Courses.list_course_date_topics(course)
 
       render(conn, :edit,
         tab: :kursdaten,
@@ -75,7 +77,10 @@ defmodule WhistleWeb.CourseController do
         changeset: changeset,
         types: types,
         clubs: clubs,
-        seasons: seasons
+        seasons: seasons,
+        course_dates: course_dates,
+        course_date_topics: course_date_topics,
+        date_selections_by_registration: %{}
       )
     else
       _ -> render_not_found(conn)
@@ -90,7 +95,10 @@ defmodule WhistleWeb.CourseController do
       render(conn, :edit,
         tab: :tests,
         course: course,
-        exams: exams
+        exams: exams,
+        course_dates: [],
+        course_date_topics: [],
+        date_selections_by_registration: %{}
       )
     else
       _ -> render_not_found(conn)
@@ -104,10 +112,20 @@ defmodule WhistleWeb.CourseController do
         Whistle.Registrations.list_registrations_view(include_unenrolled: true)
         |> Enum.filter(fn r -> r.course_id == course.id end)
 
+      date_selections_by_registration =
+        if course.online do
+          Courses.list_date_selections_for_course(course)
+        else
+          %{}
+        end
+
       render(conn, :edit,
         tab: :teilnehmer,
         course: course,
-        registrations: registrations
+        registrations: registrations,
+        date_selections_by_registration: date_selections_by_registration,
+        course_dates: [],
+        course_date_topics: []
       )
     else
       _ -> render_not_found(conn)
@@ -127,6 +145,8 @@ defmodule WhistleWeb.CourseController do
           types = Course.available_types()
           clubs = get_club_options()
           seasons = get_season_options()
+          course_dates = Courses.list_course_dates(course)
+          course_date_topics = Courses.list_course_date_topics(course)
 
           render(conn, :edit,
             tab: :kursdaten,
@@ -134,7 +154,10 @@ defmodule WhistleWeb.CourseController do
             changeset: changeset,
             types: types,
             clubs: clubs,
-            seasons: seasons
+            seasons: seasons,
+            course_dates: course_dates,
+            course_date_topics: course_date_topics,
+            date_selections_by_registration: %{}
           )
       end
     else
@@ -149,7 +172,14 @@ defmodule WhistleWeb.CourseController do
         Whistle.Registrations.list_registrations_view(include_unenrolled: true)
         |> Enum.filter(fn r -> r.course_id == course.id end)
 
-      csv_content = generate_csv(registrations)
+      date_selections =
+        if course.online do
+          Courses.list_date_selections_for_course(course)
+        else
+          %{}
+        end
+
+      csv_content = generate_csv(registrations, date_selections)
 
       timestamp = Calendar.strftime(DateTime.now!("Europe/Berlin"), "%d%m%Y%H%M")
       safe_name = String.replace(course.name, ~r/[^a-zA-Z0-9_\-äöüÄÖÜß ]/, "")
@@ -222,20 +252,39 @@ defmodule WhistleWeb.CourseController do
     end
   end
 
-  defp generate_csv(registrations) do
-    header = "Id,E-Mail,Name,Geburtstag,Kurs,Lizenznummer,Abgemeldet am\n"
+  defp generate_csv(registrations, date_selections) do
+    has_selections = date_selections != %{}
+    date_header = if has_selections, do: ",Gewählte Termine", else: ""
+    header = "Id,E-Mail,Name,Geburtstag,Kurs,Lizenznummer,Abgemeldet am#{date_header}\n"
 
     rows =
       Enum.map(registrations, fn reg ->
-        [
-          to_string(reg.user_id),
-          reg.user_email || "",
-          "#{reg.user_first_name} #{reg.user_last_name}",
-          format_date(reg.user_birthday),
-          escape_csv_field(reg.course_name),
-          to_string(reg.license_number || ""),
-          format_datetime(reg.unenrolled_at)
-        ]
+        dates_str =
+          if has_selections do
+            dates = Map.get(date_selections, reg.registration_id, [])
+
+            dates_formatted =
+              dates
+              |> Enum.sort_by(& &1.kind)
+              |> Enum.map(fn d ->
+                "#{Calendar.strftime(d.date, "%d.%m.%Y")} #{Time.to_string(d.time) |> String.slice(0, 5)} Uhr"
+              end)
+              |> Enum.join(", ")
+
+            [dates_formatted]
+          else
+            []
+          end
+
+        ([
+           to_string(reg.user_id),
+           reg.user_email || "",
+           "#{reg.user_first_name} #{reg.user_last_name}",
+           format_date(reg.user_birthday),
+           escape_csv_field(reg.course_name),
+           to_string(reg.license_number || ""),
+           format_datetime(reg.unenrolled_at)
+         ] ++ dates_str)
         |> Enum.map(&escape_csv_field/1)
         |> Enum.join(",")
       end)
