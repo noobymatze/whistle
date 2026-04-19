@@ -359,6 +359,7 @@ defmodule Whistle.Exams do
   """
   def create_exam(course, user_ids, created_by_user_id, opts \\ []) do
     show_countdown = Keyword.get(opts, :show_countdown_to_participants, false)
+    execution_mode = Keyword.get(opts, :execution_mode, "synchronous")
     preselected = Keyword.get(opts, :questions)
 
     Repo.transaction(fn ->
@@ -386,6 +387,7 @@ defmodule Whistle.Exams do
               course_id: course.id,
               course_type: course.type,
               state: "waiting_room",
+              execution_mode: execution_mode,
               question_count: length(selected_questions),
               duration_seconds: distribution.duration_seconds,
               l1_threshold: distribution.l1_threshold,
@@ -436,6 +438,44 @@ defmodule Whistle.Exams do
     Repo.get_by(ExamParticipant, exam_id: exam_id, user_id: user_id)
   end
 
+  @async_duration_seconds 30 * 60
+
+  @doc """
+  Starts the async attempt for a participant who hasn't started yet.
+
+  Sets `async_started_at` and `async_deadline_at` (30 minutes from now),
+  transitions the participant to `running`, and is idempotent — calling it
+  again on an already-started participant returns `{:error, :already_started}`.
+  """
+  def start_async_participant(%ExamParticipant{} = participant) do
+    if participant.async_started_at != nil do
+      {:error, :already_started}
+    else
+      now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+      deadline = NaiveDateTime.add(now, @async_duration_seconds, :second)
+
+      participant
+      |> ExamParticipant.changeset(%{
+        state: "running",
+        async_started_at: now,
+        async_deadline_at: deadline,
+        connected_at: now,
+        last_seen_at: now
+      })
+      |> Repo.update()
+    end
+  end
+
+  @doc """
+  Returns true if the participant's async deadline has passed.
+  """
+  def async_deadline_passed?(%ExamParticipant{async_deadline_at: nil}), do: false
+
+  def async_deadline_passed?(%ExamParticipant{async_deadline_at: deadline}) do
+    now = NaiveDateTime.utc_now()
+    NaiveDateTime.compare(now, deadline) != :lt
+  end
+
   @doc """
   Updates an exam participant's state.
   """
@@ -476,6 +516,14 @@ defmodule Whistle.Exams do
   For choice questions, `choice_ids` should be the list of selected `exam_question_choice_id` values.
   """
   def upsert_answer(exam_participant, exam_question, choice_ids \\ []) do
+    if async_deadline_passed?(exam_participant) do
+      {:error, :deadline_passed}
+    else
+      do_upsert_answer(exam_participant, exam_question, choice_ids)
+    end
+  end
+
+  defp do_upsert_answer(exam_participant, exam_question, choice_ids) do
     now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
     Repo.transaction(fn ->

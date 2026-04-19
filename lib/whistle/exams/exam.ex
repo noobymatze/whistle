@@ -3,11 +3,13 @@ defmodule Whistle.Exams.Exam do
   import Ecto.Changeset
 
   @valid_states ~w(waiting_room running paused finished canceled)
+  @valid_execution_modes ~w(synchronous asynchronous)
 
   schema "exams" do
     field :course_id, :id
     field :course_type, :string
     field :state, :string, default: "waiting_room"
+    field :execution_mode, :string, default: "synchronous"
     field :question_count, :integer
     field :duration_seconds, :integer
     field :show_countdown_to_participants, :boolean, default: false
@@ -31,6 +33,7 @@ defmodule Whistle.Exams.Exam do
   end
 
   def valid_states, do: @valid_states
+  def valid_execution_modes, do: @valid_execution_modes
 
   @doc false
   def changeset(exam, attrs) do
@@ -39,6 +42,7 @@ defmodule Whistle.Exams.Exam do
       :course_id,
       :course_type,
       :state,
+      :execution_mode,
       :question_count,
       :duration_seconds,
       :show_countdown_to_participants,
@@ -60,6 +64,7 @@ defmodule Whistle.Exams.Exam do
       :duration_seconds
     ])
     |> validate_inclusion(:state, @valid_states)
+    |> validate_inclusion(:execution_mode, @valid_execution_modes)
     |> validate_number(:question_count, greater_than: 0)
     |> validate_number(:duration_seconds, greater_than: 0)
   end

@@ -15,6 +15,10 @@ defmodule Whistle.Exams.ExamParticipant do
     field :last_seen_at, :naive_datetime
     field :submitted_at, :naive_datetime
 
+    # Async-mode participant timing
+    field :async_started_at, :naive_datetime
+    field :async_deadline_at, :naive_datetime
+
     # Legacy fields (kept for compatibility)
     field :score, :decimal
     field :max_score, :decimal
@@ -44,6 +48,8 @@ defmodule Whistle.Exams.ExamParticipant do
       :disconnected_at,
       :last_seen_at,
       :submitted_at,
+      :async_started_at,
+      :async_deadline_at,
       :score,
       :max_score,
       :passed,
