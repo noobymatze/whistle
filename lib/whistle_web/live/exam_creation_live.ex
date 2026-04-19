@@ -40,8 +40,15 @@ defmodule WhistleWeb.ExamCreationLive do
        |> assign(:distribution, distribution)
        |> assign(:selected_questions, selected_questions)
        |> assign(:error, format_questions_error(questions_error))
-       |> assign(:creating, false)}
+       |> assign(:creating, false)
+       |> assign(:execution_mode, "synchronous")}
     end
+  end
+
+  @impl true
+  def handle_event("set_execution_mode", %{"mode" => mode}, socket)
+      when mode in ["synchronous", "asynchronous"] do
+    {:noreply, assign(socket, :execution_mode, mode)}
   end
 
   @impl true
@@ -86,7 +93,8 @@ defmodule WhistleWeb.ExamCreationLive do
       socket = assign(socket, :creating, true)
 
       case Exams.create_exam(course, user_ids, user.id,
-             questions: socket.assigns.selected_questions
+             questions: socket.assigns.selected_questions,
+             execution_mode: socket.assigns.execution_mode
            ) do
         {:ok, _exam} ->
           {:noreply,
@@ -144,6 +152,43 @@ defmodule WhistleWeb.ExamCreationLive do
           {@distribution.question_count} Fragen ·
           Dauer: {div(@distribution.duration_seconds, 60)} Minuten
         </p>
+      </div>
+
+      <%!-- Execution mode selection --%>
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">Durchführungsmodus</h3>
+        <div class="flex gap-2">
+          <button
+            id="execution-mode-sync"
+            type="button"
+            phx-click="set_execution_mode"
+            phx-value-mode="synchronous"
+            class={[
+              "px-4 py-2 rounded-md text-sm font-medium border transition-colors",
+              @execution_mode == "synchronous" &&
+                "bg-blue-600 text-white border-blue-600",
+              @execution_mode != "synchronous" &&
+                "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            ]}
+          >
+            Synchron (Gruppenstart)
+          </button>
+          <button
+            id="execution-mode-async"
+            type="button"
+            phx-click="set_execution_mode"
+            phx-value-mode="asynchronous"
+            class={[
+              "px-4 py-2 rounded-md text-sm font-medium border transition-colors",
+              @execution_mode == "asynchronous" &&
+                "bg-blue-600 text-white border-blue-600",
+              @execution_mode != "asynchronous" &&
+                "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            ]}
+          >
+            Asynchron (Einzelstart, 30 Min.)
+          </button>
+        </div>
       </div>
 
       <%!-- Participant selection --%>
