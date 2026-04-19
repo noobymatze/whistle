@@ -8,6 +8,7 @@ defmodule Whistle.Registrations.RegistrationView do
     field :organizer_short_name, :string
     field :association_id, :integer
     field :association_name, :string
+    field :registration_id, :integer
     field :user_id, :integer
     field :user_first_name, :string
     field :user_last_name, :string
@@ -21,10 +22,12 @@ defmodule Whistle.Registrations.RegistrationView do
     field :unenrolled_at, :naive_datetime
     field :course_id, :integer
     field :course_name, :string
+    field :course_type, :string
     field :season_id, :integer
     field :course_date, :date
+    field :course_online, :boolean
     field :year, :integer
     field :user_club_name, :string
-    field :license_number, :integer
+    field :license_number, :string
   end
 end

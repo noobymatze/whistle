@@ -627,6 +627,7 @@ defmodule Whistle.Exams do
 
       passed = result.outcome in [:l3_pass, :l2_pass, :l1_eligible]
       license_decision = if passed, do: "granted", else: "denied"
+      l1_review_eligible = result.outcome == :l1_eligible
 
       participant
       |> ExamParticipant.changeset(%{
@@ -636,12 +637,13 @@ defmodule Whistle.Exams do
         license_decision: license_decision,
         achieved_points: result.achieved_points,
         max_points: result.max_points,
-        exam_outcome: Atom.to_string(result.outcome)
+        exam_outcome: Atom.to_string(result.outcome),
+        l1_review_eligible: l1_review_eligible
       })
       |> Repo.update!()
 
       if passed do
-        issue_provisional_license(participant, exam)
+        issue_seasonal_license(participant, exam, result.outcome)
       end
     end)
 
@@ -650,51 +652,62 @@ defmodule Whistle.Exams do
   end
 
   @doc """
-  Issues a provisional license for a participant who passed.
+  Issues or updates the seasonal license for a participant who passed.
 
-  Uses the current season and a randomly generated unique 7-digit number.
-  If no current season exists, skips license creation.
+  The license type is determined by course type and exam outcome:
+  - F-course l1_eligible → :L2 (manual L1 review is tracked on the participant)
+  - F-course l2_pass     → :L2
+  - F-course l3_pass     → :L3
+  - G-course l3_pass     → :L3
+  - J-course             → :LJ (not triggered via online scoring)
+
+  Upserts the license for the exam's course season so re-scoring is idempotent.
   """
-  def issue_provisional_license(participant, exam) do
-    season = Whistle.Seasons.get_current_season()
+  def issue_seasonal_license(participant, exam, outcome) do
+    license_type = outcome_to_license_type(exam.course_type, outcome)
 
-    if season do
-      license_type = course_type_to_license_type(exam.course_type)
+    if license_type do
+      season_id = get_season_id_for_exam(exam)
 
-      issue_license_with_retry(participant.user_id, season.id, license_type, 5)
+      if season_id do
+        upsert_seasonal_license(participant.user_id, season_id, license_type)
+      end
     end
   end
 
-  defp issue_license_with_retry(_user_id, _season_id, _license_type, 0),
-    do: {:error, :max_retries}
-
-  defp issue_license_with_retry(user_id, season_id, license_type, retries) do
-    number = :rand.uniform(9_000_000) + 1_000_000
-
-    case Whistle.Repo.insert(
-           Whistle.Accounts.License.changeset(%Whistle.Accounts.License{}, %{
-             number: number,
-             type: license_type,
-             season_id: season_id,
-             user_id: user_id,
-             created_by: user_id
-           })
-         ) do
-      {:ok, license} ->
-        {:ok, license}
-
-      {:error, %Ecto.Changeset{errors: [number: {_, [{:constraint, :unique} | _]}]}} ->
-        issue_license_with_retry(user_id, season_id, license_type, retries - 1)
-
-      {:error, changeset} ->
-        {:error, changeset}
+  defp get_season_id_for_exam(%{course_id: course_id}) when not is_nil(course_id) do
+    case Repo.get(Whistle.Courses.Course, course_id) do
+      nil -> nil
+      course -> course.season_id
     end
   end
 
-  defp course_type_to_license_type("F"), do: :N1
-  defp course_type_to_license_type("J"), do: :LJ
-  defp course_type_to_license_type("G"), do: :N1
-  defp course_type_to_license_type(_), do: :N1
+  defp get_season_id_for_exam(_), do: nil
+
+  defp upsert_seasonal_license(user_id, season_id, license_type) do
+    case Repo.get_by(Whistle.Accounts.License, user_id: user_id, season_id: season_id) do
+      nil ->
+        Repo.insert(
+          Whistle.Accounts.License.changeset(%Whistle.Accounts.License{}, %{
+            type: license_type,
+            season_id: season_id,
+            user_id: user_id,
+            created_by: user_id
+          })
+        )
+
+      existing ->
+        existing
+        |> Whistle.Accounts.License.changeset(%{type: license_type})
+        |> Repo.update()
+    end
+  end
+
+  defp outcome_to_license_type("F", :l1_eligible), do: :L2
+  defp outcome_to_license_type("F", :l2_pass), do: :L2
+  defp outcome_to_license_type("F", :l3_pass), do: :L3
+  defp outcome_to_license_type("G", :l3_pass), do: :L3
+  defp outcome_to_license_type(_, _), do: nil
 
   @doc """
   Auto-submits all non-submitted participants when an exam times out.

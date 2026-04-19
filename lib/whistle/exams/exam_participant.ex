@@ -25,6 +25,7 @@ defmodule Whistle.Exams.ExamParticipant do
     field :achieved_points, :integer
     field :max_points, :integer
     field :exam_outcome, :string
+    field :l1_review_eligible, :boolean, default: false
 
     timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
@@ -49,7 +50,8 @@ defmodule Whistle.Exams.ExamParticipant do
       :license_decision,
       :achieved_points,
       :max_points,
-      :exam_outcome
+      :exam_outcome,
+      :l1_review_eligible
     ])
     |> validate_required([:exam_id, :user_id, :state])
     |> validate_inclusion(:state, @valid_states)

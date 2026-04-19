@@ -4,7 +4,6 @@ defmodule Whistle.Accounts.License do
 
   @primary_key {:id, :id, autogenerate: true}
   schema "licenses" do
-    field :number, :integer
     field :type, Ecto.Enum, values: [:N1, :N2, :N3, :N4, :L1, :L2, :L3, :LJ]
 
     belongs_to :season, Whistle.Seasons.Season
@@ -17,7 +16,8 @@ defmodule Whistle.Accounts.License do
   @doc false
   def changeset(license, attrs) do
     license
-    |> cast(attrs, [:number, :type, :season_id, :user_id, :created_by])
-    |> validate_required([:number, :type, :season_id, :user_id, :created_by])
+    |> cast(attrs, [:type, :season_id, :user_id, :created_by])
+    |> validate_required([:type, :season_id, :user_id, :created_by])
+    |> unique_constraint([:user_id, :season_id])
   end
 end

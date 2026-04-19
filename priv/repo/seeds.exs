@@ -12,6 +12,7 @@ alias Whistle.Seasons
 alias Whistle.Courses
 alias Whistle.Registrations
 alias Whistle.Exams
+alias Whistle.Courses.CourseDateTopic
 
 import Ecto.Query
 
@@ -1198,16 +1199,142 @@ if Repo.aggregate(Whistle.Courses.Course, :count) == 0 do
 
   IO.puts("  Erstellt: #{exam_j.title} [#{exam_j.state}]")
 
-  # Exam 5: canceled
-  {:ok, exam_canceled} =
-    Exams.create_exam(g2026, Enum.map([braun, klein], & &1.id), admin.id,
+  # Exam 5: G-course, finished and scored (pass/fail outcome)
+  {:ok, exam_g} =
+    Exams.create_exam(g2026, Enum.map([braun, klein, wolf, richter], & &1.id), admin.id,
       title: "G-Prüfung April 2026"
     )
 
-  {:ok, exam_canceled} = Exams.update_exam_state(exam_canceled, "canceled")
-  IO.puts("  Erstellt: #{exam_canceled.title} [#{exam_canceled.state}]")
+  {:ok, exam_g} = Exams.update_exam_state(exam_g, "running")
+  {:ok, exam_g} = Exams.update_exam_state(exam_g, "finished")
+  Exams.score_exam(exam_g)
+  IO.puts("  Erstellt: #{exam_g.title} [#{exam_g.state}]")
+
+  # Exam 6: F-course with L1-eligible participant — submit all correct answers for mueller
+  {:ok, exam_l1} =
+    Exams.create_exam(f2026b, Enum.map([mueller, schmidt], & &1.id), admin.id,
+      title: "F-Prüfung März 2026 (L1-Test)"
+    )
+
+  exam_l1_details = Exams.get_exam_with_details!(exam_l1.id)
+  mueller_participant = Enum.find(exam_l1_details.participants, &(&1.user_id == mueller.id))
+
+  Enum.each(exam_l1_details.questions, fn question ->
+    correct_ids = question.choices |> Enum.filter(& &1.is_correct) |> Enum.map(& &1.id)
+    Exams.upsert_answer(mueller_participant, question, correct_ids)
+  end)
+
+  {:ok, exam_l1} = Exams.update_exam_state(exam_l1, "running")
+  {:ok, exam_l1} = Exams.update_exam_state(exam_l1, "finished")
+  Exams.score_exam(exam_l1)
+  IO.puts("  Erstellt: #{exam_l1.title} [#{exam_l1.state}] (Mueller: alle Antworten korrekt)")
 else
   IO.puts("  Kurse existieren bereits – Kurse, Anmeldungen und Prüfungen übersprungen.")
+end
+
+# ---------------------------------------------------------------------------
+# 10. Online F-course with dates
+# ---------------------------------------------------------------------------
+
+IO.puts("\n--- Online-Kurs ---")
+
+online_course_name = "F-Online-Lehrgang 2026"
+
+online_course =
+  case Repo.one(from c in Whistle.Courses.Course, where: c.name == ^online_course_name) do
+    nil ->
+      {:ok, c} =
+        Courses.create_course(%{
+          name: online_course_name,
+          type: "F",
+          season_id: season_2026.id,
+          max_participants: 30,
+          max_per_club: 5,
+          max_organizer_participants: 5,
+          online: true
+        })
+
+      {:ok, c} = Courses.release_course(c)
+      IO.puts("  Erstellt: #{online_course_name}")
+      c
+
+    existing ->
+      IO.puts("  Online-Kurs existiert bereits: #{online_course_name}")
+      existing
+  end
+
+topics_exist? = Repo.exists?(from t in CourseDateTopic, where: t.course_id == ^online_course.id)
+
+unless topics_exist? do
+  {:ok, topic_regelkunde} =
+    Courses.create_course_date_topic(%{
+      name: "Regelkunde",
+      course_id: online_course.id
+    })
+
+  {:ok, topic_praxis} =
+    Courses.create_course_date_topic(%{
+      name: "Spielpraxis",
+      course_id: online_course.id
+    })
+
+  IO.puts("  Themen erstellt: Regelkunde, Spielpraxis")
+
+  # Mandatory dates (Pflichttermine)
+  mandatory_dates = [
+    {~D[2026-05-03], ~T[10:00:00]},
+    {~D[2026-05-10], ~T[10:00:00]},
+    {~D[2026-05-17], ~T[10:00:00]}
+  ]
+
+  Enum.each(mandatory_dates, fn {date, time} ->
+    {:ok, _} =
+      Courses.create_course_date(%{
+        course_id: online_course.id,
+        date: date,
+        time: time,
+        kind: :mandatory
+      })
+  end)
+
+  IO.puts("  3 Pflichttermine erstellt (Mai 2026, samstags 10:00 Uhr)")
+
+  # Elective dates per topic (Wahltermine)
+  elective_regelkunde = [
+    {~D[2026-04-22], ~T[18:00:00]},
+    {~D[2026-04-29], ~T[18:00:00]},
+    {~D[2026-05-06], ~T[18:00:00]}
+  ]
+
+  Enum.each(elective_regelkunde, fn {date, time} ->
+    {:ok, _} =
+      Courses.create_course_date(%{
+        course_id: online_course.id,
+        date: date,
+        time: time,
+        kind: :elective,
+        course_date_topic_id: topic_regelkunde.id
+      })
+  end)
+
+  elective_praxis = [
+    {~D[2026-05-05], ~T[19:00:00]},
+    {~D[2026-05-12], ~T[19:00:00]},
+    {~D[2026-05-19], ~T[19:00:00]}
+  ]
+
+  Enum.each(elective_praxis, fn {date, time} ->
+    {:ok, _} =
+      Courses.create_course_date(%{
+        course_id: online_course.id,
+        date: date,
+        time: time,
+        kind: :elective,
+        course_date_topic_id: topic_praxis.id
+      })
+  end)
+
+  IO.puts("  6 Wahltermine erstellt (je 3 pro Thema)")
 end
 
 # ---------------------------------------------------------------------------
@@ -1223,10 +1350,11 @@ IO.puts("""
 ║  Benutzer-Passwort (alle):  Testpasswort123!            ║
 ╠══════════════════════════════════════════════════════╣
 ║  Prüfungen:                                          ║
-║  • F Mai 2026 (Gruppe A)  → Warteraum               ║
-║  • F Mai 2026 (Gruppe B)  → Läuft                   ║
-║  • F April 2026           → Beendet + bewertet       ║
-║  • J Mai 2026             → Warteraum               ║
-║  • G April 2026           → Abgebrochen             ║
+║  • F Mai 2026 (Gruppe A)    → Warteraum             ║
+║  • F Mai 2026 (Gruppe B)    → Läuft                 ║
+║  • F April 2026             → Beendet + bewertet     ║
+║  • J Mai 2026               → Warteraum             ║
+║  • G April 2026             → Beendet + bewertet     ║
+║  • F März 2026 (L1-Test)    → Beendet (Mueller L1)  ║
 ╚══════════════════════════════════════════════════════╝
 """)
