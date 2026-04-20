@@ -30,11 +30,23 @@ defmodule Whistle.Exams.ScoringTest do
   end
 
   defp g_config(pass) do
-    %{course_type: "G", l3_threshold: nil, l2_threshold: nil, l1_threshold: nil, pass_threshold: pass}
+    %{
+      course_type: "G",
+      l3_threshold: nil,
+      l2_threshold: nil,
+      l1_threshold: nil,
+      pass_threshold: pass
+    }
   end
 
   defp j_config do
-    %{course_type: "J", l3_threshold: nil, l2_threshold: nil, l1_threshold: nil, pass_threshold: nil}
+    %{
+      course_type: "J",
+      l3_threshold: nil,
+      l2_threshold: nil,
+      l1_threshold: nil,
+      pass_threshold: nil
+    }
   end
 
   describe "score_answer/2 single_choice" do

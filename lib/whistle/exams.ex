@@ -395,7 +395,8 @@ defmodule Whistle.Exams do
           {:ok, selected_questions} ->
             now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
-            initial_state = if execution_mode == "asynchronous", do: "running", else: "waiting_room"
+            initial_state =
+              if execution_mode == "asynchronous", do: "running", else: "waiting_room"
 
             {:ok, exam} =
               %Exam{}

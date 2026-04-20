@@ -11,8 +11,8 @@ defmodule Whistle.Repo.Migrations.AddOnlineToCourses do
     execute "UPDATE courses SET online = true WHERE date IS NULL"
 
     create constraint(:courses, :check_date_online,
-      check: "(online = true AND date IS NULL) OR (online = false AND date IS NOT NULL)"
-    )
+             check: "(online = true AND date IS NULL) OR (online = false AND date IS NOT NULL)"
+           )
   end
 
   def down do

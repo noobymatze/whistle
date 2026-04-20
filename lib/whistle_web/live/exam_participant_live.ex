@@ -122,7 +122,10 @@ defmodule WhistleWeb.ExamParticipantLive do
 
       {:noreply,
        socket
-       |> assign(:participant, Exams.get_exam_participant(exam.id, socket.assigns.current_user.id))
+       |> assign(
+         :participant,
+         Exams.get_exam_participant(exam.id, socket.assigns.current_user.id)
+       )
        |> assign(:submitted, true)
        |> assign(:remaining_seconds, 0)}
     else

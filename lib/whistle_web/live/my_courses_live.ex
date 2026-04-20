@@ -84,8 +84,7 @@ defmodule WhistleWeb.MyCoursesLive do
                     <div class="text-sm text-zinc-600 space-y-1">
                       <%= if registration.course_online do %>
                         <div class="flex items-center gap-2">
-                          <.icon name="hero-users" class="h-4 w-4" />
-                          Online
+                          <.icon name="hero-users" class="h-4 w-4" /> Online
                         </div>
                       <% else %>
                         <%= if registration.course_date do %>
@@ -126,9 +125,17 @@ defmodule WhistleWeb.MyCoursesLive do
                   <div class="mt-4 pt-4 border-t border-zinc-100 space-y-2">
                     <%= for %{date: date, topic: topic} <- selections do %>
                       <div class="flex items-start gap-2 text-sm text-zinc-600">
-                        <.icon name={if date.kind == :mandatory, do: "hero-calendar", else: "hero-bookmark"} class="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <.icon
+                          name={
+                            if date.kind == :mandatory, do: "hero-calendar", else: "hero-bookmark"
+                          }
+                          class="h-4 w-4 mt-0.5 flex-shrink-0"
+                        />
                         <div>
-                          <span>{Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(date.time) |> String.slice(0, 5)} Uhr</span>
+                          <span>
+                            {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(date.time)
+                            |> String.slice(0, 5)} Uhr
+                          </span>
                           <%= if topic do %>
                             <span class="ml-1 text-zinc-400">({topic.name})</span>
                           <% end %>

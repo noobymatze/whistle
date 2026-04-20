@@ -205,10 +205,11 @@ defmodule Whistle.Registrations do
       Enum.any?(existing, fn r -> r.course_id == course.id end) ->
         {:error, {:not_allowed, course}}
 
-      course.type == "F" and Enum.any?(existing, fn r ->
-          c = Repo.get!(Course, r.course_id)
-          c.type == "F"
-        end) ->
+      course.type == "F" and
+          Enum.any?(existing, fn r ->
+            c = Repo.get!(Course, r.course_id)
+            c.type == "F"
+          end) ->
         {:error, {:not_allowed, course}}
 
       true ->
@@ -235,13 +236,14 @@ defmodule Whistle.Registrations do
   end
 
   defp replace_date_selections(registration, date_ids) do
-    Repo.delete_all(
-      from s in CourseDateSelection, where: s.registration_id == ^registration.id
-    )
+    Repo.delete_all(from s in CourseDateSelection, where: s.registration_id == ^registration.id)
 
     Enum.each(date_ids, fn date_id ->
       %CourseDateSelection{}
-      |> CourseDateSelection.changeset(%{registration_id: registration.id, course_date_id: date_id})
+      |> CourseDateSelection.changeset(%{
+        registration_id: registration.id,
+        course_date_id: date_id
+      })
       |> Repo.insert!()
     end)
   end
@@ -588,10 +590,11 @@ defmodule Whistle.Registrations do
         Enum.any?(registrations, fn r -> r.course_id == course.id end) ->
           false
 
-        course.type == "F" and Enum.any?(registrations, fn r ->
-            c = Repo.get!(Course, r.course_id)
-            c.type == "F"
-          end) ->
+        course.type == "F" and
+            Enum.any?(registrations, fn r ->
+              c = Repo.get!(Course, r.course_id)
+              c.type == "F"
+            end) ->
           false
 
         true ->

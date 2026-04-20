@@ -144,7 +144,9 @@ defmodule Whistle.Courses do
   end
 
   def list_course_dates(%Course{id: course_id}) do
-    Repo.all(from d in CourseDate, where: d.course_id == ^course_id, order_by: [asc: d.date, asc: d.time])
+    Repo.all(
+      from d in CourseDate, where: d.course_id == ^course_id, order_by: [asc: d.date, asc: d.time]
+    )
   end
 
   def list_course_dates_with_topics(%Course{id: course_id}) do

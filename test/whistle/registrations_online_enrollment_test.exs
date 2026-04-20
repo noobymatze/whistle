@@ -133,9 +133,10 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
         Registrations.enroll_one(user, course, nil, [mandatory1.id, elective.id])
 
       old_selection_ids =
-        Repo.all(from s in CourseDateSelection,
-          where: s.registration_id == ^registration.id,
-          select: s.id
+        Repo.all(
+          from s in CourseDateSelection,
+            where: s.registration_id == ^registration.id,
+            select: s.id
         )
 
       {:ok, _} = Registrations.sign_out(course.id, user.id, admin.id)
@@ -146,9 +147,10 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       assert registration.id == registration2.id
 
       new_selection_ids =
-        Repo.all(from s in CourseDateSelection,
-          where: s.registration_id == ^registration2.id,
-          select: s.id
+        Repo.all(
+          from s in CourseDateSelection,
+            where: s.registration_id == ^registration2.id,
+            select: s.id
         )
 
       assert length(new_selection_ids) == 2

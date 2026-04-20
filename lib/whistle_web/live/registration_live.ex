@@ -104,7 +104,11 @@ defmodule WhistleWeb.RegistrationLive do
     {:noreply, assign(socket, :selected_online_courses, new_selected)}
   end
 
-  def handle_event("select_online_date", %{"course-id" => course_id_str, "kind" => kind, "date-id" => date_id_str}, socket) do
+  def handle_event(
+        "select_online_date",
+        %{"course-id" => course_id_str, "kind" => kind, "date-id" => date_id_str},
+        socket
+      ) do
     course_id = String.to_integer(course_id_str)
     date_id = String.to_integer(date_id_str)
 
@@ -183,7 +187,8 @@ defmodule WhistleWeb.RegistrationLive do
         _ -> false
       end)
 
-    enrolled_course_ids = offline_course_ids ++ MapSet.to_list(socket.assigns.selected_online_courses)
+    enrolled_course_ids =
+      offline_course_ids ++ MapSet.to_list(socket.assigns.selected_online_courses)
 
     socket =
       Enum.reduce(successes, socket, fn {:ok, _reg}, acc ->
@@ -256,7 +261,13 @@ defmodule WhistleWeb.RegistrationLive do
 
   # Compute the set of course types already "spoken for":
   # existing registrations + currently selected offline courses + currently selected online courses.
-  defp active_types(courses_by_date, online_courses, selected_courses, selected_online_courses, existing_registrations) do
+  defp active_types(
+         courses_by_date,
+         online_courses,
+         selected_courses,
+         selected_online_courses,
+         existing_registrations
+       ) do
     all_courses =
       Enum.flat_map(courses_by_date, fn {_, cs} -> cs end) ++ online_courses
 
@@ -270,7 +281,14 @@ defmodule WhistleWeb.RegistrationLive do
     |> MapSet.new()
   end
 
-  defp course_disabled?(course, selected_courses, selected_online_courses, courses_by_date, online_courses, existing_registrations) do
+  defp course_disabled?(
+         course,
+         selected_courses,
+         selected_online_courses,
+         courses_by_date,
+         online_courses,
+         existing_registrations
+       ) do
     already_registered = MapSet.member?(existing_registrations, course.id)
 
     # A selected-but-not-yet-registered course is never disabled (it's the one being toggled)
@@ -283,17 +301,38 @@ defmodule WhistleWeb.RegistrationLive do
           MapSet.size(selected_online_courses)
 
       cond do
-        already_registered -> true
-        total_count >= 2 -> true
+        already_registered ->
+          true
+
+        total_count >= 2 ->
+          true
+
         course.type in ["F", "J", "G"] ->
-          types = active_types(courses_by_date, online_courses, selected_courses, selected_online_courses, existing_registrations)
+          types =
+            active_types(
+              courses_by_date,
+              online_courses,
+              selected_courses,
+              selected_online_courses,
+              existing_registrations
+            )
+
           MapSet.member?(types, course.type)
-        true -> false
+
+        true ->
+          false
       end
     end
   end
 
-  defp online_course_disabled?(course, selected_courses, selected_online_courses, courses_by_date, online_courses, existing_registrations) do
+  defp online_course_disabled?(
+         course,
+         selected_courses,
+         selected_online_courses,
+         courses_by_date,
+         online_courses,
+         existing_registrations
+       ) do
     already_registered = MapSet.member?(existing_registrations, course.id)
 
     if MapSet.member?(selected_online_courses, course.id) and not already_registered do
@@ -305,12 +344,26 @@ defmodule WhistleWeb.RegistrationLive do
           MapSet.size(selected_online_courses)
 
       cond do
-        already_registered -> true
-        total_count >= 2 -> true
+        already_registered ->
+          true
+
+        total_count >= 2 ->
+          true
+
         course.type in ["F", "J", "G"] ->
-          types = active_types(courses_by_date, online_courses, selected_courses, selected_online_courses, existing_registrations)
+          types =
+            active_types(
+              courses_by_date,
+              online_courses,
+              selected_courses,
+              selected_online_courses,
+              existing_registrations
+            )
+
           MapSet.member?(types, course.type)
-        true -> false
+
+        true ->
+          false
       end
     end
   end
@@ -424,7 +477,15 @@ defmodule WhistleWeb.RegistrationLive do
               <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <%= for course <- @online_courses do %>
                   <% already_registered = MapSet.member?(@existing_registrations, course.id) %>
-                  <% disabled = online_course_disabled?(course, @selected_courses, @selected_online_courses, @courses_by_date, @online_courses, @existing_registrations) %>
+                  <% disabled =
+                    online_course_disabled?(
+                      course,
+                      @selected_courses,
+                      @selected_online_courses,
+                      @courses_by_date,
+                      @online_courses,
+                      @existing_registrations
+                    ) %>
                   <% selected = MapSet.member?(@selected_online_courses, course.id) %>
                   <% dates = Map.get(@online_course_dates, course.id, []) %>
                   <% mandatory_dates = Enum.filter(dates, &(&1.kind == :mandatory)) %>
@@ -436,7 +497,10 @@ defmodule WhistleWeb.RegistrationLive do
 
                   <div class={[
                     "rounded-lg border p-4 shadow-sm transition-all",
-                    if(disabled, do: "bg-zinc-100 border-zinc-200 opacity-50", else: "bg-white border-zinc-200 hover:shadow-md"),
+                    if(disabled,
+                      do: "bg-zinc-100 border-zinc-200 opacity-50",
+                      else: "bg-white border-zinc-200 hover:shadow-md"
+                    ),
                     if(selected and not disabled, do: "ring-2 ring-blue-500", else: "")
                   ]}>
                     <div
@@ -484,9 +548,19 @@ defmodule WhistleWeb.RegistrationLive do
                       <div class="mt-4 pt-4 border-t border-zinc-100 space-y-2">
                         <%= for %{date: date, topic: topic} <- registered_selections do %>
                           <div class="flex items-start gap-2 text-sm text-zinc-600">
-                            <.icon name={if date.kind == :mandatory, do: "hero-calendar", else: "hero-bookmark"} class="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <.icon
+                              name={
+                                if date.kind == :mandatory, do: "hero-calendar", else: "hero-bookmark"
+                              }
+                              class="h-4 w-4 mt-0.5 flex-shrink-0"
+                            />
                             <div>
-                              <span>{Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(date.time) |> String.slice(0, 5)} Uhr</span>
+                              <span>
+                                {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                  date.time
+                                )
+                                |> String.slice(0, 5)} Uhr
+                              </span>
                               <%= if topic do %>
                                 <span class="ml-1 text-zinc-400">({topic.name})</span>
                               <% end %>
@@ -517,7 +591,10 @@ defmodule WhistleWeb.RegistrationLive do
                                     class="h-4 w-4"
                                   />
                                   <span class="text-sm">
-                                    {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(date.time) |> String.slice(0, 5)} Uhr
+                                    {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                      date.time
+                                    )
+                                    |> String.slice(0, 5)} Uhr
                                   </span>
                                 </label>
                               <% end %>
@@ -550,7 +627,10 @@ defmodule WhistleWeb.RegistrationLive do
                                         class="h-4 w-4"
                                       />
                                       <span class="text-sm">
-                                        {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(date.time) |> String.slice(0, 5)} Uhr
+                                        {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                          date.time
+                                        )
+                                        |> String.slice(0, 5)} Uhr
                                       </span>
                                     </label>
                                   <% end %>
@@ -596,7 +676,10 @@ defmodule WhistleWeb.RegistrationLive do
                   <div
                     class={[
                       "rounded-lg border border-zinc-200 p-4 shadow-sm cursor-pointer transition-all relative",
-                      if(disabled, do: "bg-zinc-100 opacity-50 cursor-not-allowed", else: "bg-white hover:shadow-md"),
+                      if(disabled,
+                        do: "bg-zinc-100 opacity-50 cursor-not-allowed",
+                        else: "bg-white hover:shadow-md"
+                      ),
                       if(selected, do: "ring-2 ring-blue-500", else: "")
                     ]}
                     phx-click={unless disabled, do: "toggle_course"}

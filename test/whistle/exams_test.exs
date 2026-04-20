@@ -308,7 +308,14 @@ defmodule Whistle.ExamsTest do
       assert participant.max_points != nil
       assert participant.passed != nil
       assert participant.license_decision in ["granted", "denied"]
-      assert participant.exam_outcome in ["l3_pass", "l2_pass", "l1_eligible", "fail", "not_applicable"]
+
+      assert participant.exam_outcome in [
+               "l3_pass",
+               "l2_pass",
+               "l1_eligible",
+               "fail",
+               "not_applicable"
+             ]
     end
 
     test "participant with no answers fails", %{exam: exam} do

@@ -152,7 +152,9 @@ defmodule Whistle.CoursesOnlineTest do
              ) == 2
 
       # Registrations reference courses with on_delete: :nothing — remove first
-      Repo.delete_all(from r in Whistle.Registrations.Registration, where: r.course_id == ^course.id)
+      Repo.delete_all(
+        from r in Whistle.Registrations.Registration, where: r.course_id == ^course.id
+      )
 
       {:ok, _} = Courses.delete_course(course)
 

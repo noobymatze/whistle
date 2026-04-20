@@ -154,7 +154,9 @@ defmodule WhistleWeb.AdminController do
           {:error, %Ecto.Changeset{} = changeset} ->
             current_user = conn.assigns.current_user
             assignable_roles = WhistleWeb.RoleComponents.assignable_roles(current_user)
-            clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
+
+            clubs =
+              if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
 
             render(conn, :edit,
               user: user,

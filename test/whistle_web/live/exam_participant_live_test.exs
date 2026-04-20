@@ -178,9 +178,7 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
         |> NaiveDateTime.add(-1, :second)
         |> NaiveDateTime.truncate(:second)
 
-      Repo.update!(
-        Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline)
-      )
+      Repo.update!(Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline))
 
       {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
 
@@ -201,9 +199,7 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
         |> NaiveDateTime.add(-1, :second)
         |> NaiveDateTime.truncate(:second)
 
-      Repo.update!(
-        Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline)
-      )
+      Repo.update!(Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline))
 
       {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
 
@@ -228,9 +224,7 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
         |> NaiveDateTime.add(-1, :second)
         |> NaiveDateTime.truncate(:second)
 
-      Repo.update!(
-        Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline)
-      )
+      Repo.update!(Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline))
 
       # Simulate disconnect by setting state to disconnected
       Exams.update_participant_state(started_participant, "disconnected")

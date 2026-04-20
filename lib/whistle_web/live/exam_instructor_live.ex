@@ -131,8 +131,9 @@ defmodule WhistleWeb.ExamInstructorLive do
       <.header>
         Test – {@exam.course_type}
         <:subtitle>
-          Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(@exam.duration_seconds, 60)} Minuten ·
-          {execution_mode_label(@exam.execution_mode)} ·
+          Typ: {@exam.course_type} · {@exam.question_count} Fragen · {div(@exam.duration_seconds, 60)} Minuten · {execution_mode_label(
+            @exam.execution_mode
+          )} ·
           <span class={[
             "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
             @exam.state == "waiting_room" && "bg-yellow-100 text-yellow-800",
@@ -174,7 +175,10 @@ defmodule WhistleWeb.ExamInstructorLive do
         </h2>
         <div class="divide-y divide-gray-100 border border-gray-200 rounded-md overflow-hidden">
           <%= for %{participant: p, user: u} <- @participants do %>
-            <div id={"participant-#{p.user_id}"} class="flex items-center justify-between px-4 py-3 text-sm gap-3">
+            <div
+              id={"participant-#{p.user_id}"}
+              class="flex items-center justify-between px-4 py-3 text-sm gap-3"
+            >
               <div class="flex items-center gap-3 min-w-0">
                 <span class={[
                   "inline-block w-2 h-2 rounded-full flex-shrink-0",

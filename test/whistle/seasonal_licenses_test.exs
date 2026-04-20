@@ -201,7 +201,9 @@ defmodule Whistle.SeasonalLicensesTest do
       finish_and_score(exam)
       Exams.score_exam(Exams.get_exam!(exam.id))
 
-      licenses = Repo.all(from l in License, where: l.user_id == ^user.id and l.season_id == ^season.id)
+      licenses =
+        Repo.all(from l in License, where: l.user_id == ^user.id and l.season_id == ^season.id)
+
       assert length(licenses) == 1
     end
 
