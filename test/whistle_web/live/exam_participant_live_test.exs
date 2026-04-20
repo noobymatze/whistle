@@ -190,5 +190,55 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
 
       assert html =~ "Abgegeben"
     end
+
+    test "shows result immediately after deadline auto-submit via :tick", %{conn: conn} do
+      %{user: user, exam: exam, participant: participant} = async_exam_setup()
+
+      {:ok, started_participant} = Exams.start_async_participant(participant)
+
+      past_deadline =
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.add(-1, :second)
+        |> NaiveDateTime.truncate(:second)
+
+      Repo.update!(
+        Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline)
+      )
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
+
+      send(lv.pid, :tick)
+      html = render(lv)
+
+      refute html =~ "Ergebnis wird in Kürze berechnet"
+      assert html =~ "Bestanden" or html =~ "Nicht bestanden"
+    end
+  end
+
+  # ── 9. Async exam: reconnect after deadline ───────────────────────────────────
+
+  describe "async exam - reconnect after deadline" do
+    test "shows result immediately on mount when deadline already passed", %{conn: conn} do
+      %{user: user, exam: exam, participant: participant} = async_exam_setup()
+
+      {:ok, started_participant} = Exams.start_async_participant(participant)
+
+      past_deadline =
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.add(-1, :second)
+        |> NaiveDateTime.truncate(:second)
+
+      Repo.update!(
+        Ecto.Changeset.change(started_participant, async_deadline_at: past_deadline)
+      )
+
+      # Simulate disconnect by setting state to disconnected
+      Exams.update_participant_state(started_participant, "disconnected")
+
+      {:ok, _lv, html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
+
+      refute html =~ "Ergebnis wird in Kürze berechnet"
+      assert html =~ "Bestanden" or html =~ "Nicht bestanden"
+    end
   end
 end

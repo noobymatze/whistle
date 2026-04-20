@@ -35,6 +35,9 @@ defmodule WhistleWeb.ExamParticipantLive do
         )
       end
 
+      {participant, already_submitted} =
+        maybe_auto_submit_on_mount(exam, participant)
+
       {questions, answers_map} = maybe_load_questions(exam, participant)
 
       socket =
@@ -44,7 +47,7 @@ defmodule WhistleWeb.ExamParticipantLive do
         |> assign(:questions, questions)
         |> assign(:answers_map, answers_map)
         |> assign(:current_index, 0)
-        |> assign(:submitted, participant.state == "submitted")
+        |> assign(:submitted, already_submitted || participant.state == "submitted")
         |> assign(:remaining_seconds, compute_remaining_seconds(exam, participant))
 
       socket = maybe_schedule_tick(socket, exam, participant)
@@ -115,10 +118,11 @@ defmodule WhistleWeb.ExamParticipantLive do
       {:ok, updated} = Exams.update_participant_state(participant, "submitted")
 
       Exams.broadcast(exam.id, {:participant_submitted, updated.user_id})
+      Exams.score_exam(exam)
 
       {:noreply,
        socket
-       |> assign(:participant, updated)
+       |> assign(:participant, Exams.get_exam_participant(exam.id, socket.assigns.current_user.id))
        |> assign(:submitted, true)
        |> assign(:remaining_seconds, 0)}
     else
@@ -601,13 +605,29 @@ defmodule WhistleWeb.ExamParticipantLive do
     needs_tick =
       exam.execution_mode == "asynchronous" &&
         participant.async_started_at != nil &&
-        participant.state not in ["submitted", "timed_out"]
+        participant.state not in ["submitted", "timed_out"] &&
+        !Exams.async_deadline_passed?(participant)
 
     if needs_tick do
       Process.send_after(self(), :tick, @tick_interval_ms)
     end
 
     socket
+  end
+
+  defp maybe_auto_submit_on_mount(exam, participant) do
+    deadline_passed = Exams.async_deadline_passed?(participant)
+    not_yet_submitted = participant.state not in ["submitted", "timed_out"]
+
+    if exam.execution_mode == "asynchronous" && deadline_passed && not_yet_submitted do
+      {:ok, updated} = Exams.update_participant_state(participant, "submitted")
+      Exams.broadcast(exam.id, {:participant_submitted, updated.user_id})
+      Exams.score_exam(exam)
+      fresh = Exams.get_exam_participant(exam.id, participant.user_id)
+      {fresh, true}
+    else
+      {participant, false}
+    end
   end
 
   defp compute_remaining_seconds(_exam, %{async_deadline_at: nil}), do: nil
