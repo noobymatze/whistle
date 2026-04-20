@@ -182,6 +182,7 @@ defmodule WhistleWeb.CourseEditLive do
         if topic do
           Courses.delete_course_date_topic(topic)
           course = socket.assigns.course
+
           {:noreply,
            socket
            |> assign(:course_date_topics, Courses.list_course_date_topics(course))
@@ -206,6 +207,7 @@ defmodule WhistleWeb.CourseEditLive do
           {:ok, updated} = Exams.update_exam_state(exam, "canceled")
           Exams.broadcast(updated.id, {:exam_state_changed, updated})
           course = socket.assigns.course
+
           {:noreply,
            socket
            |> assign(:exams, Exams.list_exams(course_id: course.id))
@@ -455,8 +457,8 @@ defmodule WhistleWeb.CourseEditLive do
               <%= for date <- Enum.filter(@course_dates, &(&1.kind == :mandatory)) do %>
                 <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
                   <div class="text-sm font-medium">
-                    {Calendar.strftime(date.date, "%d.%m.%Y")} &middot;
-                    {Time.to_string(date.time) |> String.slice(0, 5)} Uhr
+                    {Calendar.strftime(date.date, "%d.%m.%Y")} &middot; {Time.to_string(date.time)
+                    |> String.slice(0, 5)} Uhr
                   </div>
                   <.action_link
                     phx-click="delete_date"
@@ -522,8 +524,8 @@ defmodule WhistleWeb.CourseEditLive do
                   <%= for date <- Enum.filter(@course_dates, &(&1.kind == :elective && &1.course_date_topic_id == topic.id)) do %>
                     <div class="flex items-center justify-between gap-4 rounded-lg border border-base-200 bg-base-100 px-3 py-2">
                       <div class="text-sm">
-                        {Calendar.strftime(date.date, "%d.%m.%Y")} &middot;
-                        {Time.to_string(date.time) |> String.slice(0, 5)} Uhr
+                        {Calendar.strftime(date.date, "%d.%m.%Y")} &middot; {Time.to_string(date.time)
+                        |> String.slice(0, 5)} Uhr
                       </div>
                       <.action_link
                         phx-click="delete_date"

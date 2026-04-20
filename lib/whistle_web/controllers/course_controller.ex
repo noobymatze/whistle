@@ -151,5 +151,4 @@ defmodule WhistleWeb.CourseController do
   end
 
   defp escape_csv_field(value), do: to_string(value)
-
 end
