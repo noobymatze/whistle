@@ -252,6 +252,28 @@ defmodule WhistleWeb.CourseController do
     end
   end
 
+  def cancel_exam(conn, %{"id" => course_id, "exam_id" => exam_id}) do
+    with {:ok, course_id} <- parse_id(course_id),
+         {:ok, exam_id} <- parse_id(exam_id),
+         %{} = course <- Courses.get_course(course_id),
+         %{} = exam <- Whistle.Exams.get_exam(exam_id),
+         true <- exam.course_id == course.id,
+         true <- exam.state in ["waiting_room", "running", "paused"] do
+      Whistle.Exams.ExamTimer.stop_timer(exam.id)
+      {:ok, updated} = Whistle.Exams.update_exam_state(exam, "canceled")
+      Whistle.Exams.broadcast(updated.id, {:exam_state_changed, updated})
+
+      conn
+      |> put_flash(:info, "Test wurde abgebrochen.")
+      |> redirect(to: ~p"/admin/courses/#{course_id}/tests")
+    else
+      _ ->
+        conn
+        |> put_flash(:error, "Test konnte nicht abgebrochen werden.")
+        |> redirect(to: ~p"/admin/courses/#{course_id}/tests")
+    end
+  end
+
   defp generate_csv(registrations, date_selections) do
     has_selections = date_selections != %{}
     date_header = if has_selections, do: ",Gewählte Termine", else: ""

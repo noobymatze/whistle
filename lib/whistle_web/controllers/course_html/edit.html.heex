@@ -45,25 +45,37 @@
     </p>
   <% else %>
     <div class="space-y-2">
-      <.link
-        :for={exam <- @exams}
-        navigate={~p"/admin/exams/#{exam}"}
-        class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300"
-      >
-        <div class="min-w-0 flex-1">
-          <div class="text-sm font-medium">{exam.course_type}</div>
-          <div class="mt-0.5 text-xs text-base-content/55">
-            {[
-              exam.state,
-              "#{exam.question_count} Fragen",
-              Calendar.strftime(exam.created_at, "%d.%m.%Y %H:%M")
-            ]
-            |> Enum.filter(& &1)
-            |> Enum.join(" · ")}
-          </div>
+      <%= for exam <- @exams do %>
+        <div class="flex items-center gap-2 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
+          <.link
+            navigate={~p"/admin/exams/#{exam}"}
+            class="flex items-center justify-between gap-4 min-w-0 flex-1 transition-colors hover:opacity-70"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium">{exam.course_type}</div>
+              <div class="mt-0.5 text-xs text-base-content/55">
+                {[
+                  exam.state,
+                  "#{exam.question_count} Fragen",
+                  Calendar.strftime(exam.created_at, "%d.%m.%Y %H:%M")
+                ]
+                |> Enum.filter(& &1)
+                |> Enum.join(" · ")}
+              </div>
+            </div>
+            <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
+          </.link>
+          <.action_link
+            :if={exam.state in ["waiting_room", "running", "paused"]}
+            href={~p"/admin/courses/#{@course}/exams/#{exam}/cancel"}
+            method="delete"
+            data-confirm="Test wirklich abbrechen?"
+            tone={:danger}
+          >
+            Abbrechen
+          </.action_link>
         </div>
-        <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
-      </.link>
+      <% end %>
     </div>
   <% end %>
 <% end %>

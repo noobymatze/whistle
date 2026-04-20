@@ -68,7 +68,11 @@ defmodule WhistleWeb.ExamInstructorLive do
   def handle_event("start", _params, socket) do
     {:ok, exam} = Exams.update_exam_state(socket.assigns.exam, "running")
     Exams.broadcast(exam.id, {:exam_state_changed, exam})
-    ExamTimer.start_timer(exam.id, exam.duration_seconds)
+
+    if exam.execution_mode == "synchronous" do
+      ExamTimer.start_timer(exam.id, exam.duration_seconds)
+    end
+
     {:noreply, assign(socket, :exam, exam)}
   end
 
@@ -151,10 +155,12 @@ defmodule WhistleWeb.ExamInstructorLive do
         <%= if @exam.state == "running" do %>
           <.button phx-click="pause">⏸ Pausieren</.button>
           <.button phx-click="finish" data-confirm="Test jetzt beenden?">⏹ Beenden</.button>
+          <.button phx-click="cancel" data-confirm="Test wirklich abbrechen?">Abbrechen</.button>
         <% end %>
         <%= if @exam.state == "paused" do %>
           <.button phx-click="resume">▶ Fortsetzen</.button>
           <.button phx-click="finish" data-confirm="Test jetzt beenden?">⏹ Beenden</.button>
+          <.button phx-click="cancel" data-confirm="Test wirklich abbrechen?">Abbrechen</.button>
         <% end %>
       </div>
 

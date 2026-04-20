@@ -362,49 +362,66 @@ defmodule Whistle.Exams do
     execution_mode = Keyword.get(opts, :execution_mode, "synchronous")
     preselected = Keyword.get(opts, :questions)
 
-    Repo.transaction(fn ->
-      distribution = get_distribution_for_course_type(course.type)
-      question_count = distribution.question_count
+    active_states = ["waiting_room", "running", "paused"]
 
-      questions_result =
-        if preselected do
-          {:ok, preselected}
-        else
-          counts = calculate_difficulty_counts(question_count, distribution)
-          load_and_select_questions(course.type, counts)
+    conflicting_user_ids =
+      from(p in ExamParticipant,
+        join: e in Exam,
+        on: e.id == p.exam_id,
+        where: p.user_id in ^user_ids and e.course_id == ^course.id and e.state in ^active_states,
+        select: p.user_id
+      )
+      |> Repo.all()
+
+    if conflicting_user_ids != [] do
+      {:error, {:already_in_active_exam, conflicting_user_ids}}
+    else
+      Repo.transaction(fn ->
+        distribution = get_distribution_for_course_type(course.type)
+        question_count = distribution.question_count
+
+        questions_result =
+          if preselected do
+            {:ok, preselected}
+          else
+            counts = calculate_difficulty_counts(question_count, distribution)
+            load_and_select_questions(course.type, counts)
+          end
+
+        case questions_result do
+          {:error, reason} ->
+            Repo.rollback(reason)
+
+          {:ok, selected_questions} ->
+            now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+            initial_state = if execution_mode == "asynchronous", do: "running", else: "waiting_room"
+
+            {:ok, exam} =
+              %Exam{}
+              |> Exam.changeset(%{
+                course_id: course.id,
+                course_type: course.type,
+                state: initial_state,
+                execution_mode: execution_mode,
+                question_count: length(selected_questions),
+                duration_seconds: distribution.duration_seconds,
+                l1_threshold: distribution.l1_threshold,
+                l2_threshold: distribution.l2_threshold,
+                l3_threshold: distribution.l3_threshold,
+                pass_threshold: distribution.pass_threshold,
+                show_countdown_to_participants: show_countdown,
+                created_by: created_by_user_id
+              })
+              |> Repo.insert()
+
+            snapshot_questions(exam, selected_questions, now)
+            create_exam_participants(exam, user_ids, now)
+
+            exam
         end
-
-      case questions_result do
-        {:error, reason} ->
-          Repo.rollback(reason)
-
-        {:ok, selected_questions} ->
-          now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
-
-          {:ok, exam} =
-            %Exam{}
-            |> Exam.changeset(%{
-              course_id: course.id,
-              course_type: course.type,
-              state: "waiting_room",
-              execution_mode: execution_mode,
-              question_count: length(selected_questions),
-              duration_seconds: distribution.duration_seconds,
-              l1_threshold: distribution.l1_threshold,
-              l2_threshold: distribution.l2_threshold,
-              l3_threshold: distribution.l3_threshold,
-              pass_threshold: distribution.pass_threshold,
-              show_countdown_to_participants: show_countdown,
-              created_by: created_by_user_id
-            })
-            |> Repo.insert()
-
-          snapshot_questions(exam, selected_questions, now)
-          create_exam_participants(exam, user_ids, now)
-
-          exam
-      end
-    end)
+      end)
+    end
   end
 
   @doc """
@@ -464,6 +481,31 @@ defmodule Whistle.Exams do
       })
       |> Repo.update()
     end
+  end
+
+  @doc """
+  Cancels an async participant's own attempt and records it as a fail.
+
+  Only valid for asynchronous exams. Sets the participant to submitted with
+  zero points and a fail outcome so the instructor can see it and create a
+  new exam for that participant if needed.
+  """
+  def cancel_async_participant(%ExamParticipant{} = participant) do
+    now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+    participant
+    |> ExamParticipant.changeset(%{
+      state: "submitted",
+      submitted_at: now,
+      score: 0,
+      max_score: participant.max_points || 0,
+      passed: false,
+      achieved_points: 0,
+      exam_outcome: "fail",
+      license_decision: "denied",
+      l1_review_eligible: false
+    })
+    |> Repo.update()
   end
 
   @doc """

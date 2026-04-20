@@ -111,6 +111,12 @@ defmodule WhistleWeb.ExamCreationLive do
            |> assign(:creating, false)
            |> assign(:error, msg)}
 
+        {:error, {:already_in_active_exam, _user_ids}} ->
+          {:noreply,
+           socket
+           |> assign(:creating, false)
+           |> assign(:error, "Einige Teilnehmer nehmen bereits an einem aktiven Test teil.")}
+
         {:error, reason} ->
           {:noreply,
            socket

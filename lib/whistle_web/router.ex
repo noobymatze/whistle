@@ -99,6 +99,7 @@ defmodule WhistleWeb.Router do
     get "/courses/:id/tests", CourseController, :tests
     get "/courses/:id/teilnehmer", CourseController, :teilnehmer
     post "/courses/:id/release", CourseController, :release
+    delete "/courses/:id/exams/:exam_id/cancel", CourseController, :cancel_exam
     get "/courses/:id/export", CourseController, :export
     delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
     post "/courses/:course_id/dates", CourseDateController, :create

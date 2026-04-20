@@ -214,6 +214,24 @@ defmodule WhistleWeb.ExamParticipantLive do
   end
 
   @impl true
+  def handle_event("cancel_attempt", _params, socket) do
+    exam = socket.assigns.exam
+    participant = socket.assigns.participant
+
+    if exam.execution_mode != "asynchronous" || socket.assigns.submitted do
+      {:noreply, socket}
+    else
+      {:ok, updated} = Exams.cancel_async_participant(participant)
+      Exams.broadcast(exam.id, {:participant_submitted, updated.user_id})
+
+      {:noreply,
+       socket
+       |> assign(:participant, updated)
+       |> assign(:submitted, true)}
+    end
+  end
+
+  @impl true
   def handle_event("submit", _params, socket) do
     exam = socket.assigns.exam
     participant = socket.assigns.participant
@@ -266,6 +284,7 @@ defmodule WhistleWeb.ExamParticipantLive do
                 answers_map={@answers_map}
                 current_index={@current_index}
                 remaining_seconds={@remaining_seconds}
+                async={@exam.execution_mode == "asynchronous"}
               />
           <% end %>
       <% end %>
@@ -335,15 +354,13 @@ defmodule WhistleWeb.ExamParticipantLive do
           Der Timer startet erst, wenn du auf „Test starten" klickst. Lies dir die Hinweise gut durch.
         </p>
       </div>
-      <button
+      <.button
         id="start-async-btn"
-        type="button"
         phx-click="start_async"
         data-confirm="Bist du sicher? Der 30-Minuten-Timer startet sofort."
-        class="px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl text-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
       >
         Test starten →
-      </button>
+      </.button>
     </div>
     """
   end
@@ -446,6 +463,7 @@ defmodule WhistleWeb.ExamParticipantLive do
   attr :answers_map, :map, required: true
   attr :current_index, :integer, required: true
   attr :remaining_seconds, :integer, default: nil
+  attr :async, :boolean, default: false
 
   defp question_screen(assigns) do
     ~H"""
@@ -538,6 +556,17 @@ defmodule WhistleWeb.ExamParticipantLive do
             </.button>
           <% end %>
         </div>
+
+        <%= if @async do %>
+          <div class="mt-4 text-center">
+            <.button
+              phx-click="cancel_attempt"
+              data-confirm="Test wirklich abbrechen? Dein Versuch wird als nicht bestanden gewertet."
+            >
+              Test abbrechen
+            </.button>
+          </div>
+        <% end %>
       <% end %>
     </div>
     """
