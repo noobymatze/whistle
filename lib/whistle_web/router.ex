@@ -94,21 +94,20 @@ defmodule WhistleWeb.Router do
   scope "/admin", WhistleWeb do
     pipe_through [:browser, :require_authenticated_user, :require_course_area]
 
-    resources "/courses", CourseController, except: [:show, :edit]
-    get "/courses/:id/edit", CourseController, :edit
-    get "/courses/:id/tests", CourseController, :tests
-    get "/courses/:id/teilnehmer", CourseController, :teilnehmer
+    resources "/courses", CourseController, only: [:index, :delete]
     post "/courses/:id/release", CourseController, :release
-    delete "/courses/:id/exams/:exam_id/cancel", CourseController, :cancel_exam
     get "/courses/:id/export", CourseController, :export
-    delete "/courses/:id/registrations/:user_id/sign-out", CourseController, :sign_out_participant
-    post "/courses/:course_id/dates", CourseDateController, :create
-    delete "/courses/:course_id/dates/:id", CourseDateController, :delete
-    post "/courses/:course_id/topics", CourseDateTopicController, :create
-    delete "/courses/:course_id/topics/:id", CourseDateTopicController, :delete
     resources "/questions", QuestionController, except: [:show]
     post "/questions/:id/activate", QuestionController, :activate
     post "/questions/:id/deactivate", QuestionController, :deactivate
+  end
+
+  # Course new/edit LiveViews: INSTRUCTOR, ADMIN, SUPER_ADMIN
+  scope "/", WhistleWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_course_area]
+
+    live "/admin/courses/new", CourseEditLive
+    live "/admin/courses/:id/edit", CourseEditLive
   end
 
   # Club-area admin routes: CLUB_ADMIN, ADMIN, SUPER_ADMIN

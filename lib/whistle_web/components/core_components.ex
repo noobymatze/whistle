@@ -561,6 +561,7 @@ defmodule WhistleWeb.CoreComponents do
   slot :tab, required: true do
     attr :label, :string, required: true
     attr :navigate, :any
+    attr :patch, :any
     attr :active, :boolean
   end
 
@@ -571,6 +572,7 @@ defmodule WhistleWeb.CoreComponents do
         <.link
           :for={tab <- @tab}
           navigate={tab[:navigate]}
+          patch={tab[:patch]}
           class={[
             "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
             tab[:active] && "border-primary text-primary",

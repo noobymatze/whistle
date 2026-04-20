@@ -1,9 +1,7 @@
 defmodule WhistleWeb.CourseController do
   use WhistleWeb, :controller
 
-  alias Whistle.Clubs
   alias Whistle.Courses
-  alias Whistle.Courses.Course
   alias Whistle.Seasons
 
   plug WhistleWeb.Plugs.RequireRole, course_area: true
@@ -34,135 +32,6 @@ defmodule WhistleWeb.CourseController do
       current_season: current_season,
       selected_season_id: selected_season_id
     )
-  end
-
-  def new(conn, _params) do
-    current_season = Seasons.get_current_season()
-    season_id = if current_season, do: current_season.id, else: nil
-    changeset = Courses.change_course(%Course{season_id: season_id})
-    types = Course.available_types()
-    clubs = get_club_options()
-    seasons = get_season_options()
-    render(conn, :new, changeset: changeset, types: types, clubs: clubs, seasons: seasons)
-  end
-
-  def create(conn, %{"course" => course_params}) do
-    case Courses.create_course(course_params) do
-      {:ok, course} ->
-        conn
-        |> put_flash(:info, "Kurs wurde erfolgreich erstellt.")
-        |> redirect(to: ~p"/admin/courses/#{course}/edit")
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        types = Course.available_types()
-        clubs = get_club_options()
-        seasons = get_season_options()
-        render(conn, :new, changeset: changeset, types: types, clubs: clubs, seasons: seasons)
-    end
-  end
-
-  def edit(conn, %{"id" => id}) do
-    with {:ok, id} <- parse_id(id),
-         %{} = course <- Courses.get_course(id) do
-      changeset = Courses.change_course(course)
-      types = Course.available_types()
-      clubs = get_club_options()
-      seasons = get_season_options()
-      course_dates = Courses.list_course_dates(course)
-      course_date_topics = Courses.list_course_date_topics(course)
-
-      render(conn, :edit,
-        tab: :kursdaten,
-        course: course,
-        changeset: changeset,
-        types: types,
-        clubs: clubs,
-        seasons: seasons,
-        course_dates: course_dates,
-        course_date_topics: course_date_topics,
-        date_selections_by_registration: %{}
-      )
-    else
-      _ -> render_not_found(conn)
-    end
-  end
-
-  def tests(conn, %{"id" => id}) do
-    with {:ok, id} <- parse_id(id),
-         %{} = course <- Courses.get_course(id) do
-      exams = Whistle.Exams.list_exams(course_id: course.id)
-
-      render(conn, :edit,
-        tab: :tests,
-        course: course,
-        exams: exams,
-        course_dates: [],
-        course_date_topics: [],
-        date_selections_by_registration: %{}
-      )
-    else
-      _ -> render_not_found(conn)
-    end
-  end
-
-  def teilnehmer(conn, %{"id" => id}) do
-    with {:ok, id} <- parse_id(id),
-         %{} = course <- Courses.get_course(id) do
-      registrations =
-        Whistle.Registrations.list_registrations_view(include_unenrolled: true)
-        |> Enum.filter(fn r -> r.course_id == course.id end)
-
-      date_selections_by_registration =
-        if course.online do
-          Courses.list_date_selections_for_course(course)
-        else
-          %{}
-        end
-
-      render(conn, :edit,
-        tab: :teilnehmer,
-        course: course,
-        registrations: registrations,
-        date_selections_by_registration: date_selections_by_registration,
-        course_dates: [],
-        course_date_topics: []
-      )
-    else
-      _ -> render_not_found(conn)
-    end
-  end
-
-  def update(conn, %{"id" => id, "course" => course_params}) do
-    with {:ok, id} <- parse_id(id),
-         %{} = course <- Courses.get_course(id) do
-      case Courses.update_course(course, course_params) do
-        {:ok, course} ->
-          conn
-          |> put_flash(:info, "Kurs wurde erfolgreich aktualisiert.")
-          |> redirect(to: ~p"/admin/courses/#{course}/edit")
-
-        {:error, %Ecto.Changeset{} = changeset} ->
-          types = Course.available_types()
-          clubs = get_club_options()
-          seasons = get_season_options()
-          course_dates = Courses.list_course_dates(course)
-          course_date_topics = Courses.list_course_date_topics(course)
-
-          render(conn, :edit,
-            tab: :kursdaten,
-            course: course,
-            changeset: changeset,
-            types: types,
-            clubs: clubs,
-            seasons: seasons,
-            course_dates: course_dates,
-            course_date_topics: course_date_topics,
-            date_selections_by_registration: %{}
-          )
-      end
-    else
-      _ -> render_not_found(conn)
-    end
   end
 
   def export(conn, %{"id" => id}) do
@@ -226,54 +95,6 @@ defmodule WhistleWeb.CourseController do
     end
   end
 
-  def sign_out_participant(conn, %{"id" => course_id, "user_id" => user_id}) do
-    with {:ok, course_id} <- parse_id(course_id),
-         {:ok, user_id} <- parse_id(user_id) do
-      admin_user = conn.assigns.current_user
-
-      case Whistle.Registrations.sign_out(course_id, user_id, admin_user.id) do
-        {:ok, _registration} ->
-          conn
-          |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")
-          |> redirect(to: ~p"/admin/courses/#{course_id}/teilnehmer")
-
-        {:error, :not_found} ->
-          conn
-          |> put_flash(:error, "Registrierung nicht gefunden.")
-          |> redirect(to: ~p"/admin/courses/#{course_id}/teilnehmer")
-
-        {:error, _changeset} ->
-          conn
-          |> put_flash(:error, "Teilnehmer konnte nicht abgemeldet werden.")
-          |> redirect(to: ~p"/admin/courses/#{course_id}/teilnehmer")
-      end
-    else
-      _ -> render_not_found(conn)
-    end
-  end
-
-  def cancel_exam(conn, %{"id" => course_id, "exam_id" => exam_id}) do
-    with {:ok, course_id} <- parse_id(course_id),
-         {:ok, exam_id} <- parse_id(exam_id),
-         %{} = course <- Courses.get_course(course_id),
-         %{} = exam <- Whistle.Exams.get_exam(exam_id),
-         true <- exam.course_id == course.id,
-         true <- exam.state in ["waiting_room", "running", "paused"] do
-      Whistle.Exams.ExamTimer.stop_timer(exam.id)
-      {:ok, updated} = Whistle.Exams.update_exam_state(exam, "canceled")
-      Whistle.Exams.broadcast(updated.id, {:exam_state_changed, updated})
-
-      conn
-      |> put_flash(:info, "Test wurde abgebrochen.")
-      |> redirect(to: ~p"/admin/courses/#{course_id}/tests")
-    else
-      _ ->
-        conn
-        |> put_flash(:error, "Test konnte nicht abgebrochen werden.")
-        |> redirect(to: ~p"/admin/courses/#{course_id}/tests")
-    end
-  end
-
   defp generate_csv(registrations, date_selections) do
     has_selections = date_selections != %{}
     date_header = if has_selections, do: ",Gewählte Termine", else: ""
@@ -331,13 +152,4 @@ defmodule WhistleWeb.CourseController do
 
   defp escape_csv_field(value), do: to_string(value)
 
-  defp get_club_options() do
-    Clubs.list_clubs()
-    |> Enum.map(fn club -> {club.name, club.id} end)
-  end
-
-  defp get_season_options() do
-    Seasons.list_seasons()
-    |> Enum.map(fn season -> {"Saison #{season.year}", season.id} end)
-  end
 end
