@@ -59,7 +59,7 @@ defmodule Whistle.Courses.Course do
 
     cond do
       online == true and not is_nil(date) ->
-        put_change(changeset, :date, nil)
+        add_error(changeset, :date, "must be blank when online is true")
 
       online == false and is_nil(date) ->
         add_error(changeset, :date, "can't be blank")
