@@ -9,6 +9,7 @@ defmodule WhistleWeb.AssociationHTML do
   attr :changeset, Ecto.Changeset, required: true
   attr :action, :string, required: true
   attr :association, :map, default: nil
+  attr :current_user, :map, required: true
 
   def association_form(assigns)
 end

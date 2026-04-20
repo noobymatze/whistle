@@ -10,6 +10,7 @@ defmodule WhistleWeb.ClubHTML do
   attr :associations, :list, required: true
   attr :action, :string, required: true
   attr :club, :map, default: nil
+  attr :current_user, :map, required: true
 
   def club_form(assigns)
 end
