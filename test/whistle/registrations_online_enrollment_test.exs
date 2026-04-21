@@ -158,6 +158,110 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
     end
   end
 
+  describe "reschedule_online_dates/4" do
+    test "updates only the mandatory date and keeps the elective selection" do
+      club = club_fixture()
+      user = user_fixture(%{club_id: club.id})
+      season = season_fixture()
+      course = online_course_fixture(season)
+      topic = topic_fixture(course)
+      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-04-13], time: ~T[14:00:00]})
+      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-04-14], time: ~T[15:00:00]})
+      elective = elective_date_fixture(course, topic)
+
+      assert {:ok, registration} =
+               Registrations.enroll_one(user, course, nil, [mandatory1.id, elective.id])
+
+      assert {:ok, _} =
+               Registrations.reschedule_online_dates(user, registration.id, %{
+                 "mandatory" => mandatory2.id
+               })
+
+      selections = Courses.list_date_selections_for_registration(registration.id)
+      selected_ids = MapSet.new(selections, & &1.date.id)
+
+      assert MapSet.member?(selected_ids, mandatory2.id)
+      assert MapSet.member?(selected_ids, elective.id)
+      refute MapSet.member?(selected_ids, mandatory1.id)
+    end
+
+    test "allows keeping a full current date while changing the other one" do
+      club = club_fixture()
+      user = user_fixture(%{club_id: club.id})
+      season = season_fixture()
+
+      course =
+        online_course_fixture(season, %{
+          max_participants: 1,
+          max_per_club: 1
+        })
+
+      topic = topic_fixture(course)
+      mandatory = mandatory_date_fixture(course)
+
+      elective1 =
+        elective_date_fixture(course, topic, %{date: ~D[2026-04-21], time: ~T[16:00:00]})
+
+      elective2 =
+        elective_date_fixture(course, topic, %{date: ~D[2026-04-22], time: ~T[18:00:00]})
+
+      assert {:ok, registration} =
+               Registrations.enroll_one(user, course, nil, [mandatory.id, elective1.id])
+
+      assert {:ok, _} =
+               Registrations.reschedule_online_dates(user, registration.id, %{
+                 "elective" => elective2.id
+               })
+
+      selections = Courses.list_date_selections_for_registration(registration.id)
+      selected_ids = MapSet.new(selections, & &1.date.id)
+
+      assert MapSet.member?(selected_ids, mandatory.id)
+      assert MapSet.member?(selected_ids, elective2.id)
+    end
+
+    test "returns not_available when moving to a full target date" do
+      club1 = club_fixture()
+      club2 = club_fixture()
+      user1 = user_fixture(%{club_id: club1.id})
+      user2 = user_fixture(%{club_id: club2.id})
+      season = season_fixture()
+
+      course =
+        online_course_fixture(season, %{
+          max_participants: 1,
+          max_per_club: 1
+        })
+
+      topic = topic_fixture(course)
+      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-04-13], time: ~T[14:00:00]})
+      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-04-14], time: ~T[15:00:00]})
+
+      elective1 =
+        elective_date_fixture(course, topic, %{date: ~D[2026-04-21], time: ~T[16:00:00]})
+
+      elective2 =
+        elective_date_fixture(course, topic, %{date: ~D[2026-04-22], time: ~T[18:00:00]})
+
+      assert {:ok, registration1} =
+               Registrations.enroll_one(user1, course, nil, [mandatory1.id, elective1.id])
+
+      assert {:ok, _registration2} =
+               Registrations.enroll_one(user2, course, nil, [mandatory2.id, elective2.id])
+
+      assert {:error, {:not_available, _date}} =
+               Registrations.reschedule_online_dates(user1, registration1.id, %{
+                 "mandatory" => mandatory2.id
+               })
+
+      selections = Courses.list_date_selections_for_registration(registration1.id)
+      selected_ids = MapSet.new(selections, & &1.date.id)
+
+      assert MapSet.member?(selected_ids, mandatory1.id)
+      assert MapSet.member?(selected_ids, elective1.id)
+    end
+  end
+
   # ── Invalid Selection ────────────────────────────────────────────────────────
 
   describe "enroll_one/4 - online course: ungültige Terminauswahl" do

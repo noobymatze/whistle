@@ -150,15 +150,23 @@ defmodule Whistle.Registrations do
     Repo.all(from d in CourseDate, where: d.id in ^date_ids, lock: "FOR UPDATE")
   end
 
-  defp check_date_capacity(%CourseDate{id: id, course_id: course_id} = date) do
-    count =
-      Repo.one(
-        from s in CourseDateSelection,
-          join: r in Registration,
-          on: r.id == s.registration_id,
-          where: s.course_date_id == ^id and is_nil(r.unenrolled_at),
-          select: count(s.id)
-      )
+  defp check_date_capacity(%CourseDate{id: id, course_id: course_id} = date, opts \\ []) do
+    exclude_registration_id = Keyword.get(opts, :exclude_registration_id)
+
+    query =
+      from s in CourseDateSelection,
+        join: r in Registration,
+        on: r.id == s.registration_id,
+        where: s.course_date_id == ^id and is_nil(r.unenrolled_at)
+
+    query =
+      if exclude_registration_id do
+        from s in query, where: s.registration_id != ^exclude_registration_id
+      else
+        query
+      end
+
+    count = Repo.one(from s in query, select: count(s.id))
 
     course = Courses.get_course!(course_id)
 
@@ -169,17 +177,30 @@ defmodule Whistle.Registrations do
     end
   end
 
-  defp check_date_club_limit(%User{club_id: club_id}, course, %CourseDate{id: id} = date) do
-    count =
-      Repo.one(
-        from s in CourseDateSelection,
-          join: r in Registration,
-          on: r.id == s.registration_id,
-          join: u in Whistle.Accounts.User,
-          on: u.id == r.user_id,
-          where: s.course_date_id == ^id and is_nil(r.unenrolled_at) and u.club_id == ^club_id,
-          select: count(s.id)
-      )
+  defp check_date_club_limit(
+         %User{club_id: club_id},
+         course,
+         %CourseDate{id: id} = date,
+         opts \\ []
+       ) do
+    exclude_registration_id = Keyword.get(opts, :exclude_registration_id)
+
+    query =
+      from s in CourseDateSelection,
+        join: r in Registration,
+        on: r.id == s.registration_id,
+        join: u in Whistle.Accounts.User,
+        on: u.id == r.user_id,
+        where: s.course_date_id == ^id and is_nil(r.unenrolled_at) and u.club_id == ^club_id
+
+    query =
+      if exclude_registration_id do
+        from s in query, where: s.registration_id != ^exclude_registration_id
+      else
+        query
+      end
+
+    count = Repo.one(from s in query, select: count(s.id))
 
     if count >= course.max_per_club do
       {:error, {:not_available, date}}
@@ -245,6 +266,47 @@ defmodule Whistle.Registrations do
         course_date_id: date_id
       })
       |> Repo.insert!()
+    end)
+  end
+
+  @doc """
+  Reschedules one or both selected dates for an existing online registration.
+
+  The registration stays active; only the chosen course dates are replaced.
+  """
+  def reschedule_online_dates(
+        %User{} = user,
+        registration_id,
+        date_ids_by_kind,
+        _acting_user_id \\ nil
+      )
+      when is_map(date_ids_by_kind) do
+    Repo.transaction(fn ->
+      with {:ok, {registration, course}} <- active_online_registration(registration_id, user.id),
+           {:ok, current_date_ids} <- current_date_ids_by_kind(registration.id),
+           {:ok, merged_date_ids} <- merge_date_ids_by_kind(current_date_ids, date_ids_by_kind),
+           {:ok, {mandatory, elective}} <-
+             validate_date_selection(course, Map.values(merged_date_ids)),
+           _ = lock_course_dates([mandatory.id, elective.id]),
+           :ok <- check_date_capacity(mandatory, exclude_registration_id: registration.id),
+           :ok <-
+             check_date_capacity(elective,
+               exclude_registration_id: registration.id
+             ),
+           :ok <-
+             check_date_club_limit(user, course, mandatory,
+               exclude_registration_id: registration.id
+             ),
+           :ok <-
+             check_date_club_limit(user, course, elective,
+               exclude_registration_id: registration.id
+             ) do
+        replace_date_selections(registration, [mandatory.id, elective.id])
+
+        registration
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
     end)
   end
 
@@ -515,6 +577,74 @@ defmodule Whistle.Registrations do
 
     Repo.all(query)
   end
+
+  defp active_online_registration(registration_id, user_id) do
+    query =
+      from r in Registration,
+        join: c in Course,
+        on: c.id == r.course_id,
+        where:
+          r.id == ^registration_id and r.user_id == ^user_id and is_nil(r.unenrolled_at) and
+            c.online == true,
+        select: {r, c}
+
+    case Repo.one(query) do
+      nil -> {:error, :not_found}
+      registration -> {:ok, registration}
+    end
+  end
+
+  defp current_date_ids_by_kind(registration_id) do
+    selections =
+      Repo.all(
+        from s in CourseDateSelection,
+          join: d in CourseDate,
+          on: d.id == s.course_date_id,
+          where: s.registration_id == ^registration_id,
+          select: {d.kind, d.id}
+      )
+
+    if length(selections) == 2 do
+      {:ok, Map.new(selections, fn {kind, date_id} -> {Atom.to_string(kind), date_id} end)}
+    else
+      {:error, {:invalid_selection, :registration_selection_incomplete}}
+    end
+  end
+
+  defp merge_date_ids_by_kind(current_date_ids, date_ids_by_kind) do
+    normalized =
+      Enum.reduce_while(date_ids_by_kind, %{}, fn {kind, date_id}, acc ->
+        with {:ok, normalized_kind} <- normalize_date_kind(kind),
+             {:ok, normalized_id} <- normalize_date_id(date_id) do
+          {:cont, Map.put(acc, normalized_kind, normalized_id)}
+        else
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+
+    case normalized do
+      {:error, _} = error ->
+        error
+
+      normalized_map ->
+        {:ok, Map.merge(current_date_ids, normalized_map)}
+    end
+  end
+
+  defp normalize_date_kind(kind) when kind in [:mandatory, "mandatory"], do: {:ok, "mandatory"}
+  defp normalize_date_kind(kind) when kind in [:elective, "elective"], do: {:ok, "elective"}
+  defp normalize_date_kind(_kind), do: {:error, {:invalid_selection, :unknown_kind}}
+
+  defp normalize_date_id(date_id) when is_integer(date_id), do: {:ok, date_id}
+
+  defp normalize_date_id(date_id) when is_binary(date_id) do
+    case Integer.parse(date_id) do
+      {parsed, ""} -> {:ok, parsed}
+      _ -> {:error, {:invalid_selection, :invalid_date_id}}
+    end
+  end
+
+  defp normalize_date_id(_date_id), do: {:error, {:invalid_selection, :invalid_date_id}}
 
   defmodule Register do
     @moduledoc """

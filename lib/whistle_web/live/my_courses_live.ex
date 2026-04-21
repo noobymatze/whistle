@@ -10,9 +10,16 @@ defmodule WhistleWeb.MyCoursesLive do
 
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
-    {registrations, date_selections} = load_registrations(user.id)
+    {registrations, date_selections, online_course_dates} = load_registrations(user.id)
 
-    {:ok, assign(socket, registrations: registrations, date_selections: date_selections)}
+    {:ok,
+     assign(socket,
+       registrations: registrations,
+       date_selections: date_selections,
+       online_course_dates: online_course_dates,
+       editing_registration_id: nil,
+       editing_date_selections: %{}
+     )}
   end
 
   def handle_event("unenroll", %{"course_id" => course_id}, socket) do
@@ -20,15 +27,109 @@ defmodule WhistleWeb.MyCoursesLive do
 
     case Registrations.sign_out(String.to_integer(course_id), user.id, user.id) do
       {:ok, _} ->
-        {registrations, date_selections} = load_registrations(user.id)
+        {registrations, date_selections, online_course_dates} = load_registrations(user.id)
 
         {:noreply,
          socket
          |> put_flash(:info, "Erfolgreich abgemeldet")
-         |> assign(registrations: registrations, date_selections: date_selections)}
+         |> assign(
+           registrations: registrations,
+           date_selections: date_selections,
+           online_course_dates: online_course_dates,
+           editing_registration_id: nil,
+           editing_date_selections: %{}
+         )}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Fehler beim Abmelden")}
+    end
+  end
+
+  def handle_event("start_reschedule", %{"registration_id" => registration_id}, socket) do
+    registration_id = String.to_integer(registration_id)
+    selections = Map.get(socket.assigns.date_selections, registration_id, [])
+
+    editing_date_selections =
+      selections
+      |> Enum.reduce(%{}, fn %{date: date}, acc ->
+        Map.put(acc, Atom.to_string(date.kind), date.id)
+      end)
+
+    {:noreply,
+     assign(socket,
+       editing_registration_id: registration_id,
+       editing_date_selections: editing_date_selections
+     )}
+  end
+
+  def handle_event("cancel_reschedule", _params, socket) do
+    {:noreply, clear_reschedule(socket)}
+  end
+
+  def handle_event(
+        "select_reschedule_date",
+        %{"kind" => kind, "date_id" => date_id, "registration_id" => registration_id},
+        socket
+      ) do
+    registration_id = String.to_integer(registration_id)
+    date_id = String.to_integer(date_id)
+
+    editing_date_selections =
+      if socket.assigns.editing_registration_id == registration_id do
+        Map.put(socket.assigns.editing_date_selections, kind, date_id)
+      else
+        socket.assigns.editing_date_selections
+      end
+
+    {:noreply, assign(socket, editing_date_selections: editing_date_selections)}
+  end
+
+  def handle_event("save_reschedule", %{"registration_id" => registration_id}, socket) do
+    registration_id = String.to_integer(registration_id)
+    user = socket.assigns.current_user
+
+    case Registrations.reschedule_online_dates(
+           user,
+           registration_id,
+           socket.assigns.editing_date_selections,
+           user.id
+         ) do
+      {:ok, _registration} ->
+        {registrations, date_selections, online_course_dates} = load_registrations(user.id)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Termine erfolgreich geändert")
+         |> assign(
+           registrations: registrations,
+           date_selections: date_selections,
+           online_course_dates: online_course_dates
+         )
+         |> clear_reschedule()}
+
+      {:error, {:invalid_selection, _}} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Bitte wähle einen Pflicht- und einen Wahlpflichttermin.")
+         |> assign(:editing_registration_id, registration_id)}
+
+      {:error, {:not_available, _date}} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Der gewählte Termin ist ausgebucht.")
+         |> assign(:editing_registration_id, registration_id)}
+
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Anmeldung nicht gefunden.")
+         |> clear_reschedule()}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Fehler beim Ändern der Termine")
+         |> assign(:editing_registration_id, registration_id)}
     end
   end
 
@@ -56,7 +157,26 @@ defmodule WhistleWeb.MyCoursesLive do
         {r.registration_id, Courses.list_date_selections_for_registration(r.registration_id)}
       end)
 
-    {Enum.group_by(regs, & &1.year), date_selections}
+    online_course_dates =
+      regs
+      |> Enum.filter(&(&1.course_online and is_nil(&1.unenrolled_at)))
+      |> Enum.map(& &1.course_id)
+      |> Enum.uniq()
+      |> Map.new(fn course_id ->
+        course = Courses.get_course!(course_id)
+        {course_id, Courses.list_course_dates_with_topics(course)}
+      end)
+
+    {Enum.group_by(regs, & &1.year), date_selections, online_course_dates}
+  end
+
+  defp clear_reschedule(socket) do
+    assign(socket, editing_registration_id: nil, editing_date_selections: %{})
+  end
+
+  defp editing_selection_complete?(editing_date_selections) do
+    Map.has_key?(editing_date_selections, "mandatory") and
+      Map.has_key?(editing_date_selections, "elective")
   end
 
   def render(assigns) do
@@ -68,6 +188,11 @@ defmodule WhistleWeb.MyCoursesLive do
           <div class="grid gap-4 md:grid-cols-2">
             <%= for registration <- registrations do %>
               <% selections = Map.get(@date_selections, registration.registration_id, []) %>
+              <% editing = @editing_registration_id == registration.registration_id %>
+              <% available_dates = Map.get(@online_course_dates, registration.course_id, []) %>
+              <% mandatory_dates = Enum.filter(available_dates, &(&1.kind == :mandatory)) %>
+              <% elective_dates = Enum.filter(available_dates, &(&1.kind == :elective)) %>
+              <% topics = Enum.group_by(elective_dates, & &1.course_date_topic_id) %>
               <div class={"rounded-lg border border-zinc-200 p-4 shadow-sm " <> if registration.unenrolled_at, do: "bg-zinc-100 opacity-60", else: "bg-white"}>
                 <div class="flex gap-3">
                   <div class="flex-1">
@@ -136,6 +261,106 @@ defmodule WhistleWeb.MyCoursesLive do
                   </div>
                 <% end %>
 
+                <%= if editing and registration.course_online and is_nil(registration.unenrolled_at) do %>
+                  <div
+                    id={"reschedule-panel-#{registration.registration_id}"}
+                    class="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4"
+                  >
+                    <div class="space-y-4">
+                      <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
+                          Pflichttermin
+                        </p>
+                        <div class="space-y-1">
+                          <%= for date <- mandatory_dates do %>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                              <input
+                                id={"reschedule-mandatory-#{registration.registration_id}-#{date.id}"}
+                                type="radio"
+                                name={"reschedule_mandatory_#{registration.registration_id}"}
+                                phx-click="select_reschedule_date"
+                                phx-value-registration_id={registration.registration_id}
+                                phx-value-kind="mandatory"
+                                phx-value-date_id={date.id}
+                                checked={Map.get(@editing_date_selections, "mandatory") == date.id}
+                                class="h-4 w-4"
+                              />
+                              <span class="text-sm">
+                                {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                  date.time
+                                )
+                                |> String.slice(0, 5)} Uhr
+                              </span>
+                            </label>
+                          <% end %>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
+                          Wahlpflichttermin
+                        </p>
+                        <%= for {_topic_id, topic_dates} <- topics do %>
+                          <% topic = hd(topic_dates).topic %>
+                          <div class="mb-2">
+                            <%= if topic do %>
+                              <p class="text-xs text-zinc-400 mb-1">{topic.name}</p>
+                            <% end %>
+                            <div class="space-y-1">
+                              <%= for date <- topic_dates do %>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    id={"reschedule-elective-#{registration.registration_id}-#{date.id}"}
+                                    type="radio"
+                                    name={"reschedule_elective_#{registration.registration_id}"}
+                                    phx-click="select_reschedule_date"
+                                    phx-value-registration_id={registration.registration_id}
+                                    phx-value-kind="elective"
+                                    phx-value-date_id={date.id}
+                                    checked={Map.get(@editing_date_selections, "elective") == date.id}
+                                    class="h-4 w-4"
+                                  />
+                                  <span class="text-sm">
+                                    {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                      date.time
+                                    )
+                                    |> String.slice(0, 5)} Uhr
+                                  </span>
+                                </label>
+                              <% end %>
+                            </div>
+                          </div>
+                        <% end %>
+                      </div>
+
+                      <%= if not editing_selection_complete?(@editing_date_selections) do %>
+                        <p class="text-xs text-amber-600">
+                          Bitte wähle einen Pflicht- und einen Wahlpflichttermin.
+                        </p>
+                      <% end %>
+
+                      <div class="flex flex-wrap justify-end gap-2">
+                        <.button
+                          type="button"
+                          phx-click="cancel_reschedule"
+                          class="btn-sm"
+                        >
+                          Abbrechen
+                        </.button>
+                        <.button
+                          id={"save-reschedule-#{registration.registration_id}"}
+                          type="button"
+                          phx-click="save_reschedule"
+                          phx-value-registration_id={registration.registration_id}
+                          class="btn-sm"
+                        >
+                          Termine speichern
+                        </.button>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+
                 <div class="mt-4 flex justify-end">
                   <%= if registration.unenrolled_at do %>
                     <div class="text-sm text-zinc-500">
@@ -145,14 +370,26 @@ defmodule WhistleWeb.MyCoursesLive do
                       )}
                     </div>
                   <% else %>
-                    <.link
-                      phx-click="unenroll"
-                      phx-value-course_id={registration.course_id}
-                      data-confirm="Möchten Sie sich wirklich von diesem Kurs abmelden?"
-                      class="underline font-bold text-sm"
-                    >
-                      Abmelden
-                    </.link>
+                    <div class="flex flex-wrap items-center justify-end gap-4">
+                      <%= if registration.course_online do %>
+                        <.link
+                          id={"edit-reschedule-#{registration.registration_id}"}
+                          phx-click={if editing, do: "cancel_reschedule", else: "start_reschedule"}
+                          phx-value-registration_id={registration.registration_id}
+                          class="underline font-bold text-sm"
+                        >
+                          {if editing, do: "Bearbeitung abbrechen", else: "Termin ändern"}
+                        </.link>
+                      <% end %>
+                      <.link
+                        phx-click="unenroll"
+                        phx-value-course_id={registration.course_id}
+                        data-confirm="Möchten Sie sich wirklich von diesem Kurs abmelden?"
+                        class="underline font-bold text-sm"
+                      >
+                        Abmelden
+                      </.link>
+                    </div>
                   <% end %>
                 </div>
               </div>
