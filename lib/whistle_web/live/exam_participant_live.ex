@@ -439,8 +439,19 @@ defmodule WhistleWeb.ExamParticipantLive do
 
   defp result_card(assigns) do
     ~H"""
-    <div class="mt-4 w-full max-w-sm rounded-xl border-2 border-gray-200 bg-gray-50 p-6">
-      <p class="text-2xl font-bold text-gray-800 mb-1">
+    <div class={[
+      "mt-4 w-full max-w-sm rounded-xl border-2 bg-gray-50 p-6",
+      @participant.passed && "border-green-400",
+      !@participant.passed && "border-red-400"
+    ]}>
+      <p class={[
+        "text-2xl font-bold mb-1",
+        @participant.passed && "text-green-700",
+        !@participant.passed && "text-red-700"
+      ]}>
+        {if @participant.passed, do: "Bestanden", else: "Nicht bestanden"}
+      </p>
+      <p class="text-gray-600">
         {@participant.achieved_points || @participant.score} / {@participant.max_points ||
           @participant.max_score} Punkte
       </p>
