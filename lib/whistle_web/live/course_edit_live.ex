@@ -229,14 +229,25 @@ defmodule WhistleWeb.CourseEditLive do
       {user_id, ""} ->
         case Whistle.Registrations.sign_out(course.id, user_id, admin.id) do
           {:ok, _} ->
-            registrations =
-              Registrations.list_registrations_view(include_unenrolled: true)
-              |> Enum.filter(&(&1.course_id == course.id))
-
             date_selections =
               if course.online,
                 do: Courses.list_date_selections_for_course(course),
                 else: %{}
+
+            registrations =
+              Registrations.list_registrations_view(include_unenrolled: true)
+              |> Enum.filter(&(&1.course_id == course.id))
+              |> then(fn regs ->
+                if course.online do
+                  Enum.sort_by(regs, fn reg ->
+                    dates = Map.get(date_selections, reg.registration_id, [])
+                    first_date = dates |> Enum.sort_by(& &1.date) |> List.first()
+                    if first_date, do: {first_date.date, first_date.time}, else: {~D[9999-01-01], ~T[00:00:00]}
+                  end)
+                else
+                  regs
+                end
+              end)
 
             {:noreply,
              socket
@@ -306,6 +317,17 @@ defmodule WhistleWeb.CourseEditLive do
       if course.online,
         do: Courses.list_date_selections_for_course(course),
         else: %{}
+
+    registrations =
+      if course.online do
+        Enum.sort_by(registrations, fn reg ->
+          dates = Map.get(date_selections, reg.registration_id, [])
+          first_date = dates |> Enum.sort_by(& &1.date) |> List.first()
+          if first_date, do: {first_date.date, first_date.time}, else: {~D[9999-01-01], ~T[00:00:00]}
+        end)
+      else
+        registrations
+      end
 
     socket
     |> assign(:tab, :teilnehmer)

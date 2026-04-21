@@ -38,6 +38,7 @@
     <.input field={f[:phone]} type="text" label="Telefon" />
     <.input field={f[:birthday]} type="date" label="Geburtstag" required />
     <.input field={f[:license_number]} type="text" label="Lizenznummer" />
+    <.input field={f[:license_level]} type="text" label="Lizenzstufe" />
 
     <.input
       :if={Whistle.Accounts.Role.can_access_global_area?(@current_user)}

@@ -38,6 +38,8 @@ defmodule WhistleWeb.ExamParticipantLive do
       {participant, already_submitted} =
         maybe_auto_submit_on_mount(exam, participant)
 
+      already_submitted = already_submitted || participant.state in ["submitted", "timed_out"]
+
       {questions, answers_map} = maybe_load_questions(exam, participant)
 
       socket =
@@ -47,7 +49,7 @@ defmodule WhistleWeb.ExamParticipantLive do
         |> assign(:questions, questions)
         |> assign(:answers_map, answers_map)
         |> assign(:current_index, 0)
-        |> assign(:submitted, already_submitted || participant.state == "submitted")
+        |> assign(:submitted, already_submitted)
         |> assign(:remaining_seconds, compute_remaining_seconds(exam, participant))
 
       socket = maybe_schedule_tick(socket, exam, participant)
@@ -437,30 +439,11 @@ defmodule WhistleWeb.ExamParticipantLive do
 
   defp result_card(assigns) do
     ~H"""
-    <div class={[
-      "mt-4 w-full max-w-sm rounded-xl border-2 p-6",
-      @participant.passed && "border-green-400 bg-green-50",
-      !@participant.passed && "border-red-300 bg-red-50"
-    ]}>
-      <p class={[
-        "text-2xl font-bold mb-1",
-        @participant.passed && "text-green-700",
-        !@participant.passed && "text-red-600"
-      ]}>
-        <%= if @participant.passed do %>
-          Bestanden
-        <% else %>
-          Nicht bestanden
-        <% end %>
+    <div class="mt-4 w-full max-w-sm rounded-xl border-2 border-gray-200 bg-gray-50 p-6">
+      <p class="text-2xl font-bold text-gray-800 mb-1">
+        {@participant.achieved_points || @participant.score} / {@participant.max_points ||
+          @participant.max_score} Punkte
       </p>
-      <p class="text-lg text-gray-700 mb-1">
-        {@participant.score} / {@participant.max_score} Punkte
-      </p>
-      <%= if @participant.passed do %>
-        <p class="mt-3 text-sm text-gray-600">
-          Eine vorläufige Lizenz wurde ausgestellt.
-        </p>
-      <% end %>
     </div>
     """
   end
@@ -527,6 +510,13 @@ defmodule WhistleWeb.ExamParticipantLive do
           </div>
 
           <%!-- Choices --%>
+          <div class="mb-3 text-xs text-gray-500 font-medium">
+            <%= if current_q.type == "multiple_choice" do %>
+              Mehrere Antworten möglich
+            <% else %>
+              Eine Antwort auswählen
+            <% end %>
+          </div>
           <div class="space-y-3">
             <%= for choice <- current_q.choices do %>
               <% selected =
@@ -537,13 +527,26 @@ defmodule WhistleWeb.ExamParticipantLive do
                 phx-value-question-id={current_q.id}
                 phx-value-choice-id={choice.id}
                 class={[
-                  "w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-colors",
+                  "w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-colors flex items-start gap-3",
                   selected && "border-blue-500 bg-blue-50 text-blue-900",
                   !selected &&
                     "border-gray-200 bg-white text-gray-800 hover:border-gray-300 active:bg-gray-50"
                 ]}
               >
-                {render_markdown(choice.body_markdown)}
+                <span class={[
+                  "mt-0.5 flex-shrink-0 flex items-center justify-center text-xs font-bold",
+                  current_q.type == "multiple_choice" && selected &&
+                    "w-4 h-4 rounded border-2 border-blue-500 bg-blue-500 text-white",
+                  current_q.type == "multiple_choice" && !selected &&
+                    "w-4 h-4 rounded border-2 border-gray-400 bg-white",
+                  current_q.type == "single_choice" && selected &&
+                    "w-4 h-4 rounded-full border-2 border-blue-500 bg-blue-500 text-white",
+                  current_q.type == "single_choice" && !selected &&
+                    "w-4 h-4 rounded-full border-2 border-gray-400 bg-white"
+                ]}>
+                  <%= if selected && current_q.type == "multiple_choice" do %>✓<% end %>
+                </span>
+                <span>{render_markdown(choice.body_markdown)}</span>
               </button>
             <% end %>
           </div>

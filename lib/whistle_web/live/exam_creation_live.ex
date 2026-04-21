@@ -156,7 +156,7 @@ defmodule WhistleWeb.ExamCreationLive do
         </h3>
         <p class="mt-1 text-xs text-gray-500">
           {@distribution.question_count} Fragen ·
-          Dauer: {div(@distribution.duration_seconds, 60)} Minuten
+          Dauer: <%= if @execution_mode == "asynchronous", do: "30", else: div(@distribution.duration_seconds, 60) %> Minuten
         </p>
       </div>
 

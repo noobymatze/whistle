@@ -22,6 +22,33 @@
     </p>
   </div>
 
+  <%!-- License info (read-only) --%>
+  <%= if @current_user.license_level || @current_user.license_number do %>
+    <div>
+      <h2 class="text-sm font-semibold text-zinc-800 mb-3">Lizenzinformationen</h2>
+      <div class="flex flex-col gap-2">
+        <%= if @current_user.license_level do %>
+          <.input
+            type="text"
+            name="license_level"
+            value={@current_user.license_level}
+            label="Lizenzstufe"
+            disabled
+          />
+        <% end %>
+        <%= if @current_user.license_number do %>
+          <.input
+            type="text"
+            name="license_number"
+            value={@current_user.license_number}
+            label="Lizenznummer"
+            disabled
+          />
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
   <%!-- Update email --%>
   <div>
     <h2 class="text-sm font-semibold text-zinc-800 mb-3">E-Mail ändern</h2>

@@ -209,6 +209,16 @@ defmodule WhistleWeb.Layouts do
                       <p class="truncate text-[0.7rem] leading-tight text-base-content/55">
                         {role_label(@current_user.role)}
                       </p>
+                      <%= if @current_user.license_level do %>
+                        <p class="truncate text-[0.7rem] leading-tight text-base-content/55">
+                          Lizenzstufe: {@current_user.license_level}
+                        </p>
+                      <% end %>
+                      <%= if @current_user.license_number do %>
+                        <p class="truncate text-[0.7rem] leading-tight text-base-content/55">
+                          Nr.: {@current_user.license_number}
+                        </p>
+                      <% end %>
                     </div>
                     <.link
                       href={~p"/users/log_out"}

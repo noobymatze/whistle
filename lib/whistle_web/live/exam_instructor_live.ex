@@ -25,12 +25,15 @@ defmodule WhistleWeb.ExamInstructorLive do
       end
 
       participants = build_participant_list(exam)
+      answers_by_participant = if exam.state == "finished", do: Exams.list_answers_for_exam(exam.id), else: %{}
 
       {:ok,
        socket
        |> assign(:exam, exam)
        |> assign(:participants, participants)
-       |> assign(:connected_user_ids, MapSet.new())}
+       |> assign(:connected_user_ids, MapSet.new())
+       |> assign(:answers_by_participant, answers_by_participant)
+       |> assign(:expanded_participant_id, nil)}
     end
   end
 
@@ -61,7 +64,16 @@ defmodule WhistleWeb.ExamInstructorLive do
   @impl true
   def handle_info({:exam_scored, exam}, socket) do
     participants = build_participant_list(exam)
-    {:noreply, socket |> assign(:exam, exam) |> assign(:participants, participants)}
+    answers_by_participant = Exams.list_answers_for_exam(exam.id)
+    {:noreply, socket |> assign(:exam, exam) |> assign(:participants, participants) |> assign(:answers_by_participant, answers_by_participant)}
+  end
+
+  @impl true
+  def handle_event("toggle_participant_detail", %{"id" => id_str}, socket) do
+    id = String.to_integer(id_str)
+    current = socket.assigns.expanded_participant_id
+    new_id = if current == id, do: nil, else: id
+    {:noreply, assign(socket, :expanded_participant_id, new_id)}
   end
 
   @impl true
@@ -175,66 +187,127 @@ defmodule WhistleWeb.ExamInstructorLive do
         </h2>
         <div class="divide-y divide-gray-100 border border-gray-200 rounded-md overflow-hidden">
           <%= for %{participant: p, user: u} <- @participants do %>
-            <div
-              id={"participant-#{p.user_id}"}
-              class="flex items-center justify-between px-4 py-3 text-sm gap-3"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <span class={[
-                  "inline-block w-2 h-2 rounded-full flex-shrink-0",
-                  MapSet.member?(@connected_user_ids, p.user_id) && "bg-green-500",
-                  !MapSet.member?(@connected_user_ids, p.user_id) && "bg-gray-300"
-                ]} />
-                <span class="font-medium truncate">
-                  {if u, do: "#{u.first_name} #{u.last_name}", else: "Benutzer ##{p.user_id}"}
-                </span>
-              </div>
-              <div class="flex items-center gap-2 flex-shrink-0">
-                <span
-                  id={"participant-state-#{p.user_id}"}
-                  class={[
-                    "text-xs px-2 py-0.5 rounded-full",
-                    p.state == "waiting" && "bg-gray-100 text-gray-500",
-                    p.state == "running" && "bg-blue-100 text-blue-700",
-                    p.state == "submitted" && "bg-green-100 text-green-700",
-                    p.state == "timed_out" && "bg-red-100 text-red-600",
-                    p.state == "disconnected" && "bg-orange-100 text-orange-600"
-                  ]}
-                >
-                  {participant_state_label(p.state)}
-                </span>
-                <%= if p.achieved_points != nil do %>
-                  <span
-                    id={"participant-points-#{p.user_id}"}
-                    class="text-xs text-gray-600"
-                  >
-                    {p.achieved_points} / {p.max_points} Pkt.
+            <div id={"participant-#{p.user_id}"}>
+              <div class="flex items-center justify-between px-4 py-3 text-sm gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <span class={[
+                    "inline-block w-2 h-2 rounded-full flex-shrink-0",
+                    MapSet.member?(@connected_user_ids, p.user_id) && "bg-green-500",
+                    !MapSet.member?(@connected_user_ids, p.user_id) && "bg-gray-300"
+                  ]} />
+                  <span class="font-medium truncate">
+                    {if u, do: "#{u.first_name} #{u.last_name}", else: "Benutzer ##{p.user_id}"}
                   </span>
-                <% end %>
-                <%= if p.exam_outcome != nil do %>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
                   <span
-                    id={"participant-outcome-#{p.user_id}"}
+                    id={"participant-state-#{p.user_id}"}
                     class={[
-                      "text-xs px-2 py-0.5 rounded-full font-medium",
-                      p.exam_outcome == "l3_pass" && "bg-green-100 text-green-700",
-                      p.exam_outcome == "l2_pass" && "bg-blue-100 text-blue-700",
-                      p.exam_outcome == "l1_eligible" && "bg-purple-100 text-purple-700",
-                      p.exam_outcome == "fail" && "bg-red-100 text-red-600",
-                      p.exam_outcome == "not_applicable" && "bg-gray-100 text-gray-500"
+                      "text-xs px-2 py-0.5 rounded-full",
+                      p.state == "waiting" && "bg-gray-100 text-gray-500",
+                      p.state == "running" && "bg-blue-100 text-blue-700",
+                      p.state == "submitted" && "bg-green-100 text-green-700",
+                      p.state == "timed_out" && "bg-red-100 text-red-600",
+                      p.state == "disconnected" && "bg-orange-100 text-orange-600"
                     ]}
                   >
-                    {exam_outcome_label(p.exam_outcome)}
+                    {participant_state_label(p.state)}
                   </span>
-                <% end %>
-                <%= if p.l1_review_eligible do %>
-                  <span
-                    id={"l1-review-badge-#{p.user_id}"}
-                    class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
-                  >
-                    L1-Prüfung erforderlich
-                  </span>
-                <% end %>
+                  <%= if p.achieved_points != nil do %>
+                    <span
+                      id={"participant-points-#{p.user_id}"}
+                      class="text-xs text-gray-600"
+                    >
+                      {p.achieved_points} / {p.max_points} Pkt.
+                    </span>
+                  <% end %>
+                  <%= if p.exam_outcome != nil do %>
+                    <span
+                      id={"participant-outcome-#{p.user_id}"}
+                      class={[
+                        "text-xs px-2 py-0.5 rounded-full font-medium",
+                        p.exam_outcome == "l3_pass" && "bg-green-100 text-green-700",
+                        p.exam_outcome == "l2_pass" && "bg-blue-100 text-blue-700",
+                        p.exam_outcome == "l1_eligible" && "bg-purple-100 text-purple-700",
+                        p.exam_outcome == "fail" && "bg-red-100 text-red-600",
+                        p.exam_outcome == "not_applicable" && "bg-gray-100 text-gray-500"
+                      ]}
+                    >
+                      {exam_outcome_label(p.exam_outcome)}
+                    </span>
+                  <% end %>
+                  <%= if p.l1_review_eligible do %>
+                    <span
+                      id={"l1-review-badge-#{p.user_id}"}
+                      class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
+                    >
+                      L1-Prüfung erforderlich
+                    </span>
+                  <% end %>
+                  <%= if Map.has_key?(@answers_by_participant, p.id) do %>
+                    <button
+                      type="button"
+                      phx-click="toggle_participant_detail"
+                      phx-value-id={p.id}
+                      class="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-500 hover:bg-gray-50"
+                    >
+                      <%= if @expanded_participant_id == p.id, do: "▲ Details", else: "▼ Details" %>
+                    </button>
+                  <% end %>
+                </div>
               </div>
+
+              <%= if @expanded_participant_id == p.id do %>
+                <% answers = Map.get(@answers_by_participant, p.id, []) %>
+                <div class="px-4 pb-3 bg-gray-50 border-t border-gray-100">
+                  <table class="w-full text-xs mt-2">
+                    <thead>
+                      <tr class="text-gray-500 text-left">
+                        <th class="py-1 pr-2 font-medium w-8">#</th>
+                        <th class="py-1 pr-2 font-medium">Schwierigkeit</th>
+                        <th class="py-1 pr-2 font-medium">Punkte</th>
+                        <th class="py-1 font-medium">Ergebnis</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <%= for question <- @exam.questions do %>
+                        <% answer = Enum.find(answers, &(&1.exam_question_id == question.id)) %>
+                        <tr>
+                          <td class="py-1 pr-2 text-gray-400">{question.position}</td>
+                          <td class="py-1 pr-2">
+                            <span class={[
+                              "inline-flex items-center rounded-full px-1.5 py-0.5 font-medium",
+                              question.difficulty == "low" && "bg-green-100 text-green-700",
+                              question.difficulty == "medium" && "bg-yellow-100 text-yellow-700",
+                              question.difficulty == "high" && "bg-red-100 text-red-700"
+                            ]}>
+                              {case question.difficulty do
+                                "low" -> "Leicht"
+                                "medium" -> "Mittel"
+                                "high" -> "Schwer"
+                                d -> d
+                              end}
+                            </span>
+                          </td>
+                          <td class="py-1 pr-2 text-gray-600">
+                            {if answer, do: "#{answer.awarded_points}/#{question.points}", else: "–/#{question.points}"}
+                          </td>
+                          <td class="py-1">
+                            <%= cond do %>
+                              <% answer == nil -> %>
+                                <span class="text-gray-400">Nicht beantwortet</span>
+                              <% answer.is_correct -> %>
+                                <span class="text-green-700 font-medium">✓ Richtig</span>
+                              <% true -> %>
+                                <span class="text-red-600 font-medium">✗ Falsch</span>
+                            <% end %>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
             </div>
           <% end %>
         </div>

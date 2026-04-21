@@ -628,6 +628,21 @@ defmodule Whistle.Exams do
     |> Repo.preload(:answer_choices)
   end
 
+  @doc """
+  Returns all answers for an exam, grouped by participant_id.
+  Each answer is preloaded with answer_choices.
+  """
+  def list_answers_for_exam(exam_id) do
+    participant_ids =
+      from(p in ExamParticipant, where: p.exam_id == ^exam_id, select: p.id)
+      |> Repo.all()
+
+    from(a in ExamAnswer, where: a.exam_participant_id in ^participant_ids)
+    |> Repo.all()
+    |> Repo.preload(:answer_choices)
+    |> Enum.group_by(& &1.exam_participant_id)
+  end
+
   # ---------------------------------------------------------------------------
   # Distribution calculation helpers
   # ---------------------------------------------------------------------------
@@ -883,6 +898,11 @@ defmodule Whistle.Exams do
     end
   end
 
+  defp points_for_difficulty("low"), do: 1
+  defp points_for_difficulty("medium"), do: 2
+  defp points_for_difficulty("high"), do: 3
+  defp points_for_difficulty(_), do: 1
+
   defp snapshot_questions(exam, questions, now) do
     questions
     |> Enum.with_index(1)
@@ -898,7 +918,7 @@ defmodule Whistle.Exams do
           body_markdown: question.body_markdown,
           explanation_markdown: question.explanation_markdown,
           scoring_mode: question.scoring_mode,
-          points: question.points || 1,
+          points: points_for_difficulty(question.difficulty),
           created_at: now
         })
         |> Repo.insert()
