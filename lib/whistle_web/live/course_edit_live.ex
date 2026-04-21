@@ -242,7 +242,10 @@ defmodule WhistleWeb.CourseEditLive do
                   Enum.sort_by(regs, fn reg ->
                     dates = Map.get(date_selections, reg.registration_id, [])
                     first_date = dates |> Enum.sort_by(& &1.date) |> List.first()
-                    if first_date, do: {first_date.date, first_date.time}, else: {~D[9999-01-01], ~T[00:00:00]}
+
+                    if first_date,
+                      do: {first_date.date, first_date.time},
+                      else: {~D[9999-01-01], ~T[00:00:00]}
                   end)
                 else
                   regs
@@ -323,7 +326,10 @@ defmodule WhistleWeb.CourseEditLive do
         Enum.sort_by(registrations, fn reg ->
           dates = Map.get(date_selections, reg.registration_id, [])
           first_date = dates |> Enum.sort_by(& &1.date) |> List.first()
-          if first_date, do: {first_date.date, first_date.time}, else: {~D[9999-01-01], ~T[00:00:00]}
+
+          if first_date,
+            do: {first_date.date, first_date.time},
+            else: {~D[9999-01-01], ~T[00:00:00]}
         end)
       else
         registrations

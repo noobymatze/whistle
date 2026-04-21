@@ -544,7 +544,9 @@ defmodule WhistleWeb.ExamParticipantLive do
                   current_q.type == "single_choice" && !selected &&
                     "w-4 h-4 rounded-full border-2 border-gray-400 bg-white"
                 ]}>
-                  <%= if selected && current_q.type == "multiple_choice" do %>✓<% end %>
+                  <%= if selected && current_q.type == "multiple_choice" do %>
+                    ✓
+                  <% end %>
                 </span>
                 <span>{render_markdown(choice.body_markdown)}</span>
               </button>

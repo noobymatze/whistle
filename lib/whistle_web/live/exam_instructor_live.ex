@@ -25,7 +25,9 @@ defmodule WhistleWeb.ExamInstructorLive do
       end
 
       participants = build_participant_list(exam)
-      answers_by_participant = if exam.state == "finished", do: Exams.list_answers_for_exam(exam.id), else: %{}
+
+      answers_by_participant =
+        if exam.state == "finished", do: Exams.list_answers_for_exam(exam.id), else: %{}
 
       {:ok,
        socket
@@ -65,7 +67,12 @@ defmodule WhistleWeb.ExamInstructorLive do
   def handle_info({:exam_scored, exam}, socket) do
     participants = build_participant_list(exam)
     answers_by_participant = Exams.list_answers_for_exam(exam.id)
-    {:noreply, socket |> assign(:exam, exam) |> assign(:participants, participants) |> assign(:answers_by_participant, answers_by_participant)}
+
+    {:noreply,
+     socket
+     |> assign(:exam, exam)
+     |> assign(:participants, participants)
+     |> assign(:answers_by_participant, answers_by_participant)}
   end
 
   @impl true
@@ -251,7 +258,7 @@ defmodule WhistleWeb.ExamInstructorLive do
                       phx-value-id={p.id}
                       class="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-500 hover:bg-gray-50"
                     >
-                      <%= if @expanded_participant_id == p.id, do: "▲ Details", else: "▼ Details" %>
+                      {if @expanded_participant_id == p.id, do: "▲ Details", else: "▼ Details"}
                     </button>
                   <% end %>
                 </div>
@@ -290,7 +297,9 @@ defmodule WhistleWeb.ExamInstructorLive do
                             </span>
                           </td>
                           <td class="py-1 pr-2 text-gray-600">
-                            {if answer, do: "#{answer.awarded_points}/#{question.points}", else: "–/#{question.points}"}
+                            {if answer,
+                              do: "#{answer.awarded_points}/#{question.points}",
+                              else: "–/#{question.points}"}
                           </td>
                           <td class="py-1">
                             <%= cond do %>
