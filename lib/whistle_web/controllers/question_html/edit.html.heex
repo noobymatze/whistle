@@ -42,7 +42,7 @@
           name={f[:type].name}
           class="rounded border border-gray-300 py-0.5 pl-2 pr-6 text-xs text-zinc-700 focus:border-blue-500 focus:outline-none"
         >
-          <%= for {label, val} <- [{"Multiple-Choice", "single_choice"}, {"Text", "text"}] do %>
+          <%= for {label, val} <- [{"Eine Antwort", "single_choice"}, {"Multiple-Choice", "multiple_choice"}, {"Text", "text"}] do %>
             <option value={val} selected={Phoenix.HTML.Form.input_value(f, :type) == val}>
               {label}
             </option>

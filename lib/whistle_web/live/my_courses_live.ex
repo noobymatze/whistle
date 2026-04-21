@@ -3,6 +3,7 @@ defmodule WhistleWeb.MyCoursesLive do
   import Ecto.Query
   alias Whistle.Repo
   alias Whistle.Courses
+  alias Whistle.Registrations
   alias Whistle.Registrations.RegistrationView
 
   on_mount WhistleWeb.UserAuthLive
@@ -17,18 +18,8 @@ defmodule WhistleWeb.MyCoursesLive do
   def handle_event("unenroll", %{"course_id" => course_id}, socket) do
     user = socket.assigns.current_user
 
-    query =
-      from r in "registrations",
-        where: r.user_id == ^user.id and r.course_id == ^course_id and is_nil(r.unenrolled_at),
-        update: [
-          set: [
-            unenrolled_at: fragment("NOW()"),
-            unenrolled_by: ^user.id
-          ]
-        ]
-
-    case Repo.update_all(query, []) do
-      {1, _} ->
+    case Registrations.sign_out(String.to_integer(course_id), user.id, user.id) do
+      {:ok, _} ->
         {registrations, date_selections} = load_registrations(user.id)
 
         {:noreply,
@@ -36,7 +27,7 @@ defmodule WhistleWeb.MyCoursesLive do
          |> put_flash(:info, "Erfolgreich abgemeldet")
          |> assign(registrations: registrations, date_selections: date_selections)}
 
-      _ ->
+      {:error, _} ->
         {:noreply, put_flash(socket, :error, "Fehler beim Abmelden")}
     end
   end

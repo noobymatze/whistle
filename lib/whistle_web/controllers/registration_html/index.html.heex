@@ -50,6 +50,9 @@
             |> Enum.join(" · ")}
           </div>
         </div>
+        <% short_notice =
+          reg.course_date != nil &&
+            Date.diff(reg.course_date, Date.utc_today()) < 7 %>
         <.action_link
           :if={
             Whistle.Accounts.Role.can_access_club_area?(@current_user) &&
@@ -57,7 +60,12 @@
           }
           href={~p"/admin/registrations/#{reg.course_id}/#{reg.user_id}"}
           method="delete"
-          data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"
+          data-confirm={
+            if short_notice,
+              do:
+                "Achtung: Der Kurs findet in weniger als 7 Tagen statt. Bei kurzfristiger Abmeldung wird eine Gebühr fällig. Trotzdem abmelden?",
+              else: "Möchtest du diesen Teilnehmer wirklich abmelden?"
+          }
           tone={:danger}
         >
           Abmelden
