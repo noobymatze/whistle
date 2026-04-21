@@ -260,6 +260,52 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       assert MapSet.member?(selected_ids, mandatory1.id)
       assert MapSet.member?(selected_ids, elective1.id)
     end
+
+    test "returns not_found for an unenrolled registration" do
+      club = club_fixture()
+      user = user_fixture(%{club_id: club.id})
+      admin = user_fixture(%{club_id: club.id})
+      season = season_fixture()
+      course = online_course_fixture(season)
+      topic = topic_fixture(course)
+      mandatory = mandatory_date_fixture(course)
+      elective = elective_date_fixture(course, topic)
+
+      assert {:ok, registration} =
+               Registrations.enroll_one(user, course, nil, [mandatory.id, elective.id])
+
+      assert {:ok, _} = Registrations.sign_out(course.id, user.id, admin.id)
+
+      assert {:error, :not_found} =
+               Registrations.reschedule_online_dates(user, registration.id, %{
+                 "mandatory" => mandatory.id
+               })
+    end
+
+    test "rejects a date from another course" do
+      club = club_fixture()
+      user = user_fixture(%{club_id: club.id})
+      season = season_fixture()
+      course = online_course_fixture(season)
+      topic = topic_fixture(course)
+      mandatory = mandatory_date_fixture(course)
+      elective = elective_date_fixture(course, topic)
+
+      other_course = online_course_fixture(season, %{name: "Anderer Online-Kurs"})
+      other_topic = topic_fixture(other_course, "Thema B")
+      foreign_mandatory = mandatory_date_fixture(other_course, %{date: ~D[2026-04-15]})
+
+      _foreign_elective =
+        elective_date_fixture(other_course, other_topic, %{date: ~D[2026-04-23]})
+
+      assert {:ok, registration} =
+               Registrations.enroll_one(user, course, nil, [mandatory.id, elective.id])
+
+      assert {:error, {:invalid_selection, :date_belongs_to_other_course}} =
+               Registrations.reschedule_online_dates(user, registration.id, %{
+                 "mandatory" => foreign_mandatory.id
+               })
+    end
   end
 
   # ── Invalid Selection ────────────────────────────────────────────────────────

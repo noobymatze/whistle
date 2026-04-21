@@ -19,12 +19,12 @@ defmodule WhistleWeb.MyCoursesLiveTest do
     |> put_session(:user_token, token)
   end
 
-  defp season_fixture_open do
+  defp season_fixture_open(year \\ 2026) do
     season_fixture(%{
       start: ~D[2026-01-01],
       start_registration: ~N[2026-01-01 00:00:00],
       end_registration: ~N[2099-12-31 23:59:59],
-      year: 2026
+      year: year
     })
   end
 
@@ -142,6 +142,120 @@ defmodule WhistleWeb.MyCoursesLiveTest do
 
       assert MapSet.member?(selection_ids, mandatory2.id)
       assert MapSet.member?(selection_ids, elective1.id)
+    end
+
+    test "user can cancel inline rescheduling", %{
+      conn: conn,
+      user: user,
+      registration: registration
+    } do
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/my-courses")
+
+      lv
+      |> element("#edit-reschedule-#{registration.id}")
+      |> render_click()
+
+      assert has_element?(lv, "#reschedule-panel-#{registration.id}")
+      assert render(lv) =~ "Bearbeitung abbrechen"
+
+      lv
+      |> element("#edit-reschedule-#{registration.id}")
+      |> render_click()
+
+      refute has_element?(lv, "#reschedule-panel-#{registration.id}")
+      assert render(lv) =~ "Termin ändern"
+    end
+
+    test "forged save_reschedule for another registration is rejected", %{
+      conn: conn,
+      user: user,
+      registration: registration
+    } do
+      other_course =
+        online_course_fixture(season_fixture_open(2027), %{name: "Zweiter Online-Kurs"})
+
+      other_topic = topic_fixture(other_course, "Thema B")
+
+      other_mandatory =
+        mandatory_date_fixture(other_course, %{date: ~D[2026-04-16], time: ~T[12:00:00]})
+
+      other_elective =
+        elective_date_fixture(other_course, other_topic, %{
+          date: ~D[2026-04-24],
+          time: ~T[17:00:00]
+        })
+
+      {:ok, other_registration} =
+        Registrations.enroll_one(user, other_course, nil, [other_mandatory.id, other_elective.id])
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/my-courses")
+
+      lv
+      |> element("#edit-reschedule-#{registration.id}")
+      |> render_click()
+
+      html =
+        render_click(lv, "save_reschedule", %{
+          "registration_id" => Integer.to_string(other_registration.id)
+        })
+
+      assert html =~ "Bitte öffne die Terminbearbeitung erneut."
+      refute has_element?(lv, "#reschedule-panel-#{registration.id}")
+    end
+
+    test "shows an error flash when the target date is full", %{
+      conn: conn,
+      user: user
+    } do
+      other_club = club_fixture()
+      other_user = user_fixture(%{club_id: other_club.id})
+      season = season_fixture_open(2028)
+
+      course =
+        online_course_fixture(season, %{
+          name: "Voller Online-Kurs",
+          max_participants: 1,
+          max_per_club: 1
+        })
+
+      topic = topic_fixture(course, "Thema C")
+      full_mandatory = mandatory_date_fixture(course, %{date: ~D[2026-04-17], time: ~T[09:00:00]})
+
+      target_mandatory =
+        mandatory_date_fixture(course, %{date: ~D[2026-04-18], time: ~T[10:00:00]})
+
+      occupying_elective =
+        elective_date_fixture(course, topic, %{date: ~D[2026-04-25], time: ~T[11:00:00]})
+
+      own_elective =
+        elective_date_fixture(course, topic, %{date: ~D[2026-04-26], time: ~T[12:00:00]})
+
+      {:ok, _occupying_registration} =
+        Registrations.enroll_one(other_user, course, nil, [
+          target_mandatory.id,
+          occupying_elective.id
+        ])
+
+      {:ok, own_registration} =
+        Registrations.enroll_one(user, course, nil, [full_mandatory.id, own_elective.id])
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/my-courses")
+
+      lv
+      |> element("#edit-reschedule-#{own_registration.id}")
+      |> render_click()
+
+      lv
+      |> element("#reschedule-mandatory-#{own_registration.id}-#{target_mandatory.id}")
+      |> render_click()
+
+      html =
+        lv
+        |> element("#save-reschedule-#{own_registration.id}")
+        |> render_click()
+
+      assert html =~ "Der gewählte Termin ist ausgebucht."
+      assert has_element?(lv, "#reschedule-panel-#{own_registration.id}")
     end
   end
 end
