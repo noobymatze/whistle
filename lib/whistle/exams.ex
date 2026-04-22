@@ -725,6 +725,18 @@ defmodule Whistle.Exams do
           {question, choice_ids}
         end)
 
+      Enum.each(question_answer_pairs, fn {question, choice_ids} ->
+        answer = Enum.find(answers, fn a -> a.exam_question_id == question.id end)
+
+        if answer do
+          {awarded, correct} = Whistle.Exams.Scoring.score_answer(question, choice_ids)
+
+          answer
+          |> ExamAnswer.changeset(%{awarded_points: awarded, is_correct: correct})
+          |> Repo.update!()
+        end
+      end)
+
       result =
         Whistle.Exams.Scoring.compute_total(
           question_answer_pairs,

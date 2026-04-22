@@ -271,6 +271,7 @@ defmodule WhistleWeb.ExamInstructorLive do
                     <thead>
                       <tr class="text-gray-500 text-left">
                         <th class="py-1 pr-2 font-medium w-8">#</th>
+                        <th class="py-1 pr-2 font-medium">Frage</th>
                         <th class="py-1 pr-2 font-medium">Schwierigkeit</th>
                         <th class="py-1 pr-2 font-medium">Punkte</th>
                         <th class="py-1 font-medium">Ergebnis</th>
@@ -281,6 +282,9 @@ defmodule WhistleWeb.ExamInstructorLive do
                         <% answer = Enum.find(answers, &(&1.exam_question_id == question.id)) %>
                         <tr>
                           <td class="py-1 pr-2 text-gray-400">{question.position}</td>
+                          <td class="py-1 pr-2 text-gray-700 max-w-xs truncate" title={question.body_markdown}>
+                            {question.body_markdown}
+                          </td>
                           <td class="py-1 pr-2">
                             <span class={[
                               "inline-flex items-center rounded-full px-1.5 py-0.5 font-medium",

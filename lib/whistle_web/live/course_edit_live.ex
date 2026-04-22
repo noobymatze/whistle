@@ -710,7 +710,7 @@ defmodule WhistleWeb.CourseEditLive do
                             NaiveDateTime.to_date(reg.unenrolled_at)
                           ) == :gt do %>
                       Abgemeldet {datum}
-                      <span class="ml-1 text-error font-medium">&lt; 1 Woche vor Beginn</span>
+                        <span class="ml-1 text-error font-medium">Abmeldung weniger als 7 Tage vor Kurs</span>
                     <% else %>
                       Abgemeldet {datum}
                     <% end %>
@@ -729,6 +729,9 @@ defmodule WhistleWeb.CourseEditLive do
                   </div>
                 <% end %>
               </div>
+              <% short_notice =
+                reg.course_date &&
+                  Date.diff(reg.course_date, Date.utc_today()) < 7 %>
               <.action_link
                 :if={
                   is_nil(reg.unenrolled_at) &&
@@ -736,7 +739,12 @@ defmodule WhistleWeb.CourseEditLive do
                 }
                 phx-click="sign_out_participant"
                 phx-value-user-id={reg.user_id}
-                data-confirm="Möchtest du diesen Teilnehmer wirklich abmelden?"
+                data-confirm={
+                  if short_notice,
+                    do:
+                      "Achtung: Der Kurs findet in weniger als 7 Tagen statt. Bei kurzfristiger Abmeldung wird eine Gebühr fällig. Trotzdem abmelden?",
+                    else: "Möchtest du diesen Teilnehmer wirklich abmelden?"
+                }
                 tone={:danger}
                 href="#"
               >

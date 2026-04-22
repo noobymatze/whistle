@@ -574,7 +574,11 @@ defmodule WhistleWeb.ExamParticipantLive do
           <%= if @current_index < length(@questions) - 1 do %>
             <.button phx-click="next" class="flex-1 py-3">Weiter →</.button>
           <% else %>
-            <.button phx-click="submit" data-confirm="Test jetzt abgeben?" class="flex-1 py-3">
+            <.button
+                phx-click="submit"
+                data-confirm="Wirklich abgeben? Antworten können danach nicht mehr geändert werden."
+                class="flex-1 py-3"
+              >
               Abgeben ✓
             </.button>
           <% end %>
