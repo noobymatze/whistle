@@ -710,7 +710,9 @@ defmodule WhistleWeb.CourseEditLive do
                             NaiveDateTime.to_date(reg.unenrolled_at)
                           ) == :gt do %>
                       Abgemeldet {datum}
-                        <span class="ml-1 text-error font-medium">Abmeldung weniger als 7 Tage vor Kurs</span>
+                      <span class="ml-1 text-error font-medium">
+                        Abmeldung weniger als 7 Tage vor Kurs
+                      </span>
                     <% else %>
                       Abgemeldet {datum}
                     <% end %>
@@ -729,7 +731,8 @@ defmodule WhistleWeb.CourseEditLive do
                   </div>
                 <% end %>
               </div>
-              <% days_until = reg.course_date && Date.diff(reg.course_date, Whistle.Timezone.today_local()) %>
+              <% days_until =
+                reg.course_date && Date.diff(reg.course_date, Whistle.Timezone.today_local()) %>
               <% short_notice = days_until != nil && days_until >= 0 && days_until < 7 %>
               <.action_link
                 :if={

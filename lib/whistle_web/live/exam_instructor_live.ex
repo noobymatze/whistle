@@ -282,7 +282,10 @@ defmodule WhistleWeb.ExamInstructorLive do
                         <% answer = Enum.find(answers, &(&1.exam_question_id == question.id)) %>
                         <tr>
                           <td class="py-1 pr-2 text-gray-400">{question.position}</td>
-                          <td class="py-1 pr-2 text-gray-700 max-w-xs truncate" title={question.body_markdown}>
+                          <td
+                            class="py-1 pr-2 text-gray-700 max-w-xs truncate"
+                            title={question.body_markdown}
+                          >
                             {question.body_markdown}
                           </td>
                           <td class="py-1 pr-2">
