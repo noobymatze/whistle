@@ -55,7 +55,7 @@ defmodule WhistleWeb.MyCoursesLiveTest do
     {:ok, date} =
       Courses.create_course_date(
         Map.merge(
-          %{course_id: course.id, date: ~D[2026-04-13], time: ~T[14:00:00], kind: :mandatory},
+          %{course_id: course.id, date: ~D[2026-05-13], time: ~T[14:00:00], kind: :mandatory},
           attrs
         )
       )
@@ -69,7 +69,7 @@ defmodule WhistleWeb.MyCoursesLiveTest do
         Map.merge(
           %{
             course_id: course.id,
-            date: ~D[2026-04-21],
+            date: ~D[2026-05-21],
             time: ~T[16:00:00],
             kind: :elective,
             course_date_topic_id: topic.id
@@ -88,14 +88,14 @@ defmodule WhistleWeb.MyCoursesLiveTest do
       user = user_fixture(%{club_id: club.id})
       course = online_course_fixture(season)
       topic = topic_fixture(course, "Zitronentarte")
-      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-04-13], time: ~T[14:00:00]})
-      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-04-14], time: ~T[15:00:00]})
+      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-05-13], time: ~T[14:00:00]})
+      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-05-14], time: ~T[15:00:00]})
 
       elective1 =
-        elective_date_fixture(course, topic, %{date: ~D[2026-04-21], time: ~T[16:00:00]})
+        elective_date_fixture(course, topic, %{date: ~D[2026-05-21], time: ~T[16:00:00]})
 
       elective2 =
-        elective_date_fixture(course, topic, %{date: ~D[2026-04-22], time: ~T[18:00:00]})
+        elective_date_fixture(course, topic, %{date: ~D[2026-05-22], time: ~T[18:00:00]})
 
       {:ok, registration} =
         Registrations.enroll_one(user, course, nil, [mandatory1.id, elective1.id])
@@ -134,8 +134,8 @@ defmodule WhistleWeb.MyCoursesLiveTest do
       |> render_click()
 
       html = render(lv)
-      assert html =~ "14.04.2026"
-      assert html =~ "21.04.2026"
+      assert html =~ "14.05.2026"
+      assert html =~ "21.05.2026"
 
       selections = Courses.list_date_selections_for_registration(registration.id)
       selection_ids = MapSet.new(selections, & &1.date.id)
@@ -177,11 +177,11 @@ defmodule WhistleWeb.MyCoursesLiveTest do
       other_topic = topic_fixture(other_course, "Thema B")
 
       other_mandatory =
-        mandatory_date_fixture(other_course, %{date: ~D[2026-04-16], time: ~T[12:00:00]})
+        mandatory_date_fixture(other_course, %{date: ~D[2026-05-16], time: ~T[12:00:00]})
 
       other_elective =
         elective_date_fixture(other_course, other_topic, %{
-          date: ~D[2026-04-24],
+          date: ~D[2026-05-24],
           time: ~T[17:00:00]
         })
 
@@ -219,16 +219,16 @@ defmodule WhistleWeb.MyCoursesLiveTest do
         })
 
       topic = topic_fixture(course, "Thema C")
-      full_mandatory = mandatory_date_fixture(course, %{date: ~D[2026-04-17], time: ~T[09:00:00]})
+      full_mandatory = mandatory_date_fixture(course, %{date: ~D[2026-05-17], time: ~T[09:00:00]})
 
       target_mandatory =
-        mandatory_date_fixture(course, %{date: ~D[2026-04-18], time: ~T[10:00:00]})
+        mandatory_date_fixture(course, %{date: ~D[2026-05-18], time: ~T[10:00:00]})
 
       occupying_elective =
-        elective_date_fixture(course, topic, %{date: ~D[2026-04-25], time: ~T[11:00:00]})
+        elective_date_fixture(course, topic, %{date: ~D[2026-05-25], time: ~T[11:00:00]})
 
       own_elective =
-        elective_date_fixture(course, topic, %{date: ~D[2026-04-26], time: ~T[12:00:00]})
+        elective_date_fixture(course, topic, %{date: ~D[2026-05-26], time: ~T[12:00:00]})
 
       {:ok, _occupying_registration} =
         Registrations.enroll_one(other_user, course, nil, [
