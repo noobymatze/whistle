@@ -729,9 +729,8 @@ defmodule WhistleWeb.CourseEditLive do
                   </div>
                 <% end %>
               </div>
-              <% short_notice =
-                reg.course_date &&
-                  Date.diff(reg.course_date, Date.utc_today()) < 7 %>
+              <% days_until = reg.course_date && Date.diff(reg.course_date, Whistle.Timezone.today_local()) %>
+              <% short_notice = days_until != nil && days_until >= 0 && days_until < 7 %>
               <.action_link
                 :if={
                   is_nil(reg.unenrolled_at) &&

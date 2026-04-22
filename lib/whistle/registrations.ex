@@ -150,6 +150,15 @@ defmodule Whistle.Registrations do
     Repo.all(from d in CourseDate, where: d.id in ^date_ids, lock: "FOR UPDATE")
   end
 
+  defp check_dates_in_future(dates) do
+    today = Whistle.Timezone.today_local()
+
+    case Enum.find(dates, fn d -> Date.compare(d.date, today) == :lt end) do
+      nil -> :ok
+      date -> {:error, {:date_in_past, date.id}}
+    end
+  end
+
   defp check_date_capacity(%CourseDate{id: id, course_id: course_id} = date, opts \\ []) do
     exclude_registration_id = Keyword.get(opts, :exclude_registration_id)
 
@@ -287,6 +296,7 @@ defmodule Whistle.Registrations do
            {:ok, merged_date_ids} <- merge_date_ids_by_kind(current_date_ids, date_ids_by_kind),
            {:ok, {mandatory, elective}} <-
              validate_date_selection(course, Map.values(merged_date_ids)),
+           :ok <- check_dates_in_future([mandatory, elective]),
            _ = lock_course_dates([mandatory.id, elective.id]),
            :ok <- check_date_capacity(mandatory, exclude_registration_id: registration.id),
            :ok <-
@@ -604,11 +614,7 @@ defmodule Whistle.Registrations do
           select: {d.kind, d.id}
       )
 
-    if length(selections) == 2 do
-      {:ok, Map.new(selections, fn {kind, date_id} -> {Atom.to_string(kind), date_id} end)}
-    else
-      {:error, {:invalid_selection, :registration_selection_incomplete}}
-    end
+    {:ok, Map.new(selections, fn {kind, date_id} -> {Atom.to_string(kind), date_id} end)}
   end
 
   defp merge_date_ids_by_kind(current_date_ids, date_ids_by_kind) do

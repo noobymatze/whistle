@@ -125,6 +125,12 @@ defmodule WhistleWeb.MyCoursesLive do
            |> put_flash(:error, "Der gewählte Termin ist ausgebucht.")
            |> assign(:editing_registration_id, registration_id)}
 
+        {:error, {:date_in_past, _}} ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Ein gewählter Termin liegt in der Vergangenheit.")
+           |> assign(:editing_registration_id, registration_id)}
+
         {:error, :not_found} ->
           {:noreply,
            socket
@@ -378,7 +384,8 @@ defmodule WhistleWeb.MyCoursesLive do
                     </div>
                   <% else %>
                     <div class="flex flex-wrap items-center justify-end gap-4">
-                      <%= if registration.course_online do %>
+                      <%= if registration.course_online &&
+                            (editing || Enum.any?(selections, &(Date.compare(&1.date.date, Whistle.Timezone.today_local()) != :lt))) do %>
                         <.link
                           id={"edit-reschedule-#{registration.registration_id}"}
                           phx-click={if editing, do: "cancel_reschedule", else: "start_reschedule"}

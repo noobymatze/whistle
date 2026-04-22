@@ -765,7 +765,8 @@ defmodule Whistle.Exams do
       end
     end)
 
-    broadcast(exam.id, {:exam_scored, exam})
+    reloaded = Repo.preload(Repo.reload!(exam), [:questions, participants: []])
+    broadcast(exam.id, {:exam_scored, reloaded})
     :ok
   end
 
@@ -894,7 +895,7 @@ defmodule Whistle.Exams do
     from(q in Question,
       join: qct in QuestionCourseType,
       on: qct.question_id == q.id and qct.course_type == ^course_type,
-      where: q.status == "active" and q.difficulty == ^difficulty,
+      where: q.status == "active" and q.difficulty == ^difficulty and q.type != "text",
       preload: :choices
     )
     |> Repo.all()

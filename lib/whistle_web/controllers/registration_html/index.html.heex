@@ -50,9 +50,8 @@
             |> Enum.join(" · ")}
           </div>
         </div>
-        <% short_notice =
-          reg.course_date != nil &&
-            Date.diff(reg.course_date, Date.utc_today()) < 7 %>
+        <% days_until = reg.course_date && Date.diff(reg.course_date, Whistle.Timezone.today_local()) %>
+        <% short_notice = days_until != nil && days_until >= 0 && days_until < 7 %>
         <.action_link
           :if={
             Whistle.Accounts.Role.can_access_club_area?(@current_user) &&
