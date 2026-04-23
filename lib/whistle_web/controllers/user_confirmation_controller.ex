@@ -9,19 +9,27 @@ defmodule WhistleWeb.UserConfirmationController do
 
   def create(conn, %{"user" => %{"email" => email}}) do
     if user = Accounts.get_user_by_email(email) do
-      Accounts.deliver_user_confirmation_instructions(
-        user,
-        &url(~p"/users/confirm/#{&1}")
-      )
-    end
+      case Accounts.deliver_user_confirmation_instructions(
+             user,
+             &url(~p"/users/confirm/#{&1}")
+           ) do
+        {:ok, _email} ->
+          confirmation_sent(conn)
 
-    conn
-    |> put_flash(
-      :info,
-      "Falls deine E-Mail in unserem System existiert und noch nicht bestätigt wurde, " <>
-        "erhältst du in Kürze eine E-Mail mit Anweisungen."
-    )
-    |> redirect(to: ~p"/")
+        {:error, :already_confirmed} ->
+          confirmation_sent(conn)
+
+        {:error, _reason} ->
+          conn
+          |> put_flash(
+            :error,
+            "Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden. Bitte versuche es später erneut."
+          )
+          |> render(:new)
+      end
+    else
+      confirmation_sent(conn)
+    end
   end
 
   def edit(conn, %{"token" => token}) do
@@ -55,5 +63,15 @@ defmodule WhistleWeb.UserConfirmationController do
             |> redirect(to: ~p"/")
         end
     end
+  end
+
+  defp confirmation_sent(conn) do
+    conn
+    |> put_flash(
+      :info,
+      "Falls deine E-Mail in unserem System existiert und noch nicht bestätigt wurde, " <>
+        "erhältst du in Kürze eine E-Mail mit Anweisungen."
+    )
+    |> redirect(to: ~p"/")
   end
 end

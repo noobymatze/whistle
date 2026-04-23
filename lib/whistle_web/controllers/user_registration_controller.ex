@@ -13,18 +13,26 @@ defmodule WhistleWeb.UserRegistrationController do
   def create(conn, %{"user" => user_params}) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
-        {:ok, _} =
-          Accounts.deliver_user_confirmation_instructions(
-            user,
-            &url(~p"/users/confirm/#{&1}")
-          )
-
         conn
-        |> put_flash(:info, "Benutzer erfolgreich erstellt.")
+        |> put_flash(
+          :info,
+          registration_flash_message(
+            Accounts.deliver_user_confirmation_instructions(
+              user,
+              &url(~p"/users/confirm/#{&1}")
+            )
+          )
+        )
         |> UserAuth.log_in_user(user)
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, :new, changeset: changeset)
     end
+  end
+
+  defp registration_flash_message({:ok, _email}), do: "Benutzer erfolgreich erstellt."
+
+  defp registration_flash_message({:error, _reason}) do
+    "Benutzer erfolgreich erstellt. Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden. Du kannst sie später erneut anfordern."
   end
 end

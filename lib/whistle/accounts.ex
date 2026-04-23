@@ -281,8 +281,9 @@ defmodule Whistle.Accounts do
       when is_function(update_email_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
 
-    Repo.insert!(user_token)
-    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
+    deliver_user_token(user_token, fn ->
+      UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
+    end)
   end
 
   @doc """
@@ -353,6 +354,19 @@ defmodule Whistle.Accounts do
     :ok
   end
 
+  defp deliver_user_token(user_token, deliver_fun) when is_function(deliver_fun, 0) do
+    inserted_token = Repo.insert!(user_token)
+
+    case deliver_fun.() do
+      {:ok, _email} = ok ->
+        ok
+
+      {:error, _reason} = error ->
+        Repo.delete(inserted_token)
+        error
+    end
+  end
+
   ## Confirmation
 
   @doc ~S"""
@@ -373,8 +387,10 @@ defmodule Whistle.Accounts do
       {:error, :already_confirmed}
     else
       {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
-      Repo.insert!(user_token)
-      UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
+
+      deliver_user_token(user_token, fn ->
+        UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
+      end)
     end
   end
 
@@ -414,8 +430,13 @@ defmodule Whistle.Accounts do
   def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
       when is_function(reset_password_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_email_token(user, "reset_password")
-    Repo.insert!(user_token)
-    UserNotifier.deliver_reset_password_instructions(user, reset_password_url_fun.(encoded_token))
+
+    deliver_user_token(user_token, fn ->
+      UserNotifier.deliver_reset_password_instructions(
+        user,
+        reset_password_url_fun.(encoded_token)
+      )
+    end)
   end
 
   @doc """

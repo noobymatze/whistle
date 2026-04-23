@@ -11,18 +11,24 @@ defmodule WhistleWeb.UserResetPasswordController do
 
   def create(conn, %{"user" => %{"username_or_email" => username_or_email}}) do
     if user = Accounts.get_user_by_username_or_email(username_or_email) do
-      Accounts.deliver_user_reset_password_instructions(
-        user,
-        &url(~p"/users/reset_password/#{&1}")
-      )
-    end
+      case Accounts.deliver_user_reset_password_instructions(
+             user,
+             &url(~p"/users/reset_password/#{&1}")
+           ) do
+        {:ok, _email} ->
+          reset_password_sent(conn)
 
-    conn
-    |> put_flash(
-      :info,
-      "Falls dein Benutzername oder deine E-Mail in unserem System existiert, erhältst du in Kürze Anweisungen zum Zurücksetzen deines Passworts."
-    )
-    |> redirect(to: ~p"/")
+        {:error, _reason} ->
+          conn
+          |> put_flash(
+            :error,
+            "Die E-Mail zum Zurücksetzen des Passworts konnte aktuell nicht gesendet werden. Bitte versuche es später erneut."
+          )
+          |> render(:new)
+      end
+    else
+      reset_password_sent(conn)
+    end
   end
 
   def edit(conn, _params) do
@@ -57,5 +63,14 @@ defmodule WhistleWeb.UserResetPasswordController do
       |> redirect(to: ~p"/")
       |> halt()
     end
+  end
+
+  defp reset_password_sent(conn) do
+    conn
+    |> put_flash(
+      :info,
+      "Falls dein Benutzername oder deine E-Mail in unserem System existiert, erhältst du in Kürze Anweisungen zum Zurücksetzen deines Passworts."
+    )
+    |> redirect(to: ~p"/")
   end
 end

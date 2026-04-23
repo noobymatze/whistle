@@ -2,6 +2,7 @@ defmodule Whistle.Accounts.UserNotifier do
   import Swoosh.Email
 
   alias Whistle.Mailer
+  require Logger
 
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do
@@ -15,12 +16,16 @@ defmodule Whistle.Accounts.UserNotifier do
       |> text_body(body)
 
     try do
-      with {:ok, _metadata} <- Mailer.deliver(email) do
-        {:ok, email}
+      case Mailer.deliver(email) do
+        {:ok, _metadata} ->
+          {:ok, email}
+
+        {:error, reason} ->
+          Logger.error("Failed to deliver email to #{recipient}: #{inspect(reason)}")
+          {:error, reason}
       end
     rescue
       e ->
-        require Logger
         Logger.error("Failed to deliver email to #{recipient}: #{Exception.message(e)}")
         {:error, :delivery_failed}
     end

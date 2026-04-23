@@ -16,18 +16,27 @@ defmodule WhistleWeb.UserSettingsController do
 
     case Accounts.apply_user_email(user, password, user_params) do
       {:ok, applied_user} ->
-        Accounts.deliver_user_update_email_instructions(
-          applied_user,
-          user.email,
-          &url(~p"/users/settings/confirm_email/#{&1}")
-        )
+        case Accounts.deliver_user_update_email_instructions(
+               applied_user,
+               user.email,
+               &url(~p"/users/settings/confirm_email/#{&1}")
+             ) do
+          {:ok, _email} ->
+            conn
+            |> put_flash(
+              :info,
+              "Ein Link zur Bestätigung deiner E-Mail-Änderung wurde an die neue Adresse gesendet."
+            )
+            |> redirect(to: ~p"/users/settings")
 
-        conn
-        |> put_flash(
-          :info,
-          "Ein Link zur Bestätigung deiner E-Mail-Änderung wurde an die neue Adresse gesendet."
-        )
-        |> redirect(to: ~p"/users/settings")
+          {:error, _reason} ->
+            conn
+            |> put_flash(
+              :error,
+              "Die Bestätigungs-E-Mail für deine neue Adresse konnte aktuell nicht gesendet werden. Bitte versuche es später erneut."
+            )
+            |> render(:edit, email_changeset: Accounts.change_user_email(user, user_params))
+        end
 
       {:error, changeset} ->
         render(conn, :edit, email_changeset: changeset)
