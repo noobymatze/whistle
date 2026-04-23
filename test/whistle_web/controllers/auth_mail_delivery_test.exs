@@ -37,12 +37,10 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
     conn = post(conn, ~p"/users/register", params)
 
     assert redirected_to(conn) == "/"
-
-    assert Flash.get(conn.assigns.flash, :info) =~
-             "Benutzer erfolgreich erstellt. Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden."
+    assert Flash.get(conn.assigns.flash, :info) == "Benutzer erfolgreich erstellt."
   end
 
-  test "reset password shows an error when delivery fails", %{conn: conn} do
+  test "reset password request stays successful even when the worker later fails", %{conn: conn} do
     user = user_fixture()
 
     conn =
@@ -50,11 +48,13 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
         "user" => %{"username_or_email" => user.username}
       })
 
-    assert html_response(conn, 200) =~
-             "Die E-Mail zum Zurücksetzen des Passworts konnte aktuell nicht gesendet werden."
+    assert redirected_to(conn) == "/"
+    assert Flash.get(conn.assigns.flash, :info) =~ "erhältst du in Kürze Anweisungen"
   end
 
-  test "requesting a confirmation email shows an error when delivery fails", %{conn: conn} do
+  test "requesting a confirmation email stays successful even when the worker later fails", %{
+    conn: conn
+  } do
     user = user_fixture()
 
     conn =
@@ -62,11 +62,11 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
         "user" => %{"email" => user.email}
       })
 
-    assert html_response(conn, 200) =~
-             "Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden."
+    assert redirected_to(conn) == "/"
+    assert Flash.get(conn.assigns.flash, :info) =~ "erhältst du in Kürze eine E-Mail"
   end
 
-  test "updating the email shows an error when delivery fails", %{conn: conn} do
+  test "updating the email stays successful even when the worker later fails", %{conn: conn} do
     user = user_fixture()
     token = Accounts.generate_user_session_token(user)
 
@@ -82,7 +82,7 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
         "user" => %{"email" => "new-#{unique_user_email()}"}
       })
 
-    assert html_response(conn, 200) =~
-             "Die Bestätigungs-E-Mail für deine neue Adresse konnte aktuell nicht gesendet werden."
+    assert redirected_to(conn) == "/users/settings"
+    assert Flash.get(conn.assigns.flash, :info) =~ "wurde an die neue Adresse gesendet"
   end
 end

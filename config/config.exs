@@ -31,6 +31,11 @@ config :whistle, WhistleWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :whistle, Whistle.Mailer, adapter: Swoosh.Adapters.Local
 
+config :whistle, Whistle.Oban,
+  engine: Oban.Engines.Basic,
+  repo: Whistle.Repo,
+  queues: [default: 10, mailers: 10]
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

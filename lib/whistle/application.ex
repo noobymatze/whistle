@@ -10,6 +10,7 @@ defmodule Whistle.Application do
     children = [
       WhistleWeb.Telemetry,
       Whistle.Repo,
+      Whistle.Oban,
       {DNSCluster, query: Application.get_env(:whistle, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Whistle.PubSub},
       {Registry, keys: :unique, name: Whistle.Exams.ExamTimerRegistry},

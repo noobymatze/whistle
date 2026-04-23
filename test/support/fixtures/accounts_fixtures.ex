@@ -58,7 +58,15 @@ defmodule Whistle.AccountsFixtures do
   end
 
   def extract_user_token(fun) do
-    {:ok, captured_email} = fun.(&"[TOKEN]#{&1}[TOKEN]")
+    {:ok, _job} = fun.(&"[TOKEN]#{&1}[TOKEN]")
+
+    captured_email =
+      receive do
+        {:email, email} -> email
+      after
+        1_000 -> raise "expected an email to be delivered"
+      end
+
     [_, token | _] = String.split(captured_email.text_body, "[TOKEN]")
     token
   end

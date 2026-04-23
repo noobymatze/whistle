@@ -1,0 +1,146 @@
+<.header>
+  Jobs
+  <:subtitle>
+    Alle Oban-Jobs mit Filtern nach Status, Queue und Worker. Zugriff nur fuer Super Admins.
+  </:subtitle>
+</.header>
+
+<div class="space-y-6">
+  <.form for={%{}} method="get" action={~p"/admin/jobs"} id="jobs-filter-form">
+    <div class="grid gap-4 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm md:grid-cols-4">
+      <.input
+        name="state"
+        type="select"
+        label="Status"
+        prompt="Alle"
+        options={Enum.map(@states, &{&1, &1})}
+        value={@filters.state}
+      />
+      <.input
+        name="queue"
+        type="select"
+        label="Queue"
+        prompt="Alle"
+        options={Enum.map(@queues, &{&1, &1})}
+        value={@filters.queue}
+      />
+      <.input
+        name="worker"
+        type="text"
+        label="Worker"
+        value={@filters.worker}
+        placeholder="z.B. DeliverUserEmail"
+      />
+      <div class="flex items-end gap-2">
+        <.button type="submit">Filtern</.button>
+        <.link navigate={~p"/admin/jobs"} class="btn btn-soft">Zuruecksetzen</.link>
+      </div>
+    </div>
+  </.form>
+
+  <div class="flex items-center justify-between text-sm text-base-content/60">
+    <span>{@total_count} Job(s)</span>
+    <span>Seite {@page} von {@total_pages}</span>
+  </div>
+
+  <%= if @jobs == [] do %>
+    <p class="rounded-2xl border border-dashed border-base-300 bg-base-100 px-4 py-10 text-center text-sm text-base-content/55">
+      Keine Jobs gefunden.
+    </p>
+  <% else %>
+    <div class="overflow-hidden rounded-2xl border border-base-200 bg-base-100 shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Status</th>
+              <th>Queue</th>
+              <th>Worker</th>
+              <th>Versuche</th>
+              <th>Zeitpunkte</th>
+              <th>Args</th>
+              <th>Letzter Fehler</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for job <- @jobs do %>
+              <tr id={"job-#{job.id}"}>
+                <td class="font-mono text-xs">{job.id}</td>
+                <td>
+                  <span class={[
+                    "inline-flex rounded-full px-2 py-1 text-xs font-medium",
+                    state_badge_class(job.state)
+                  ]}>
+                    {job.state}
+                  </span>
+                </td>
+                <td class="font-mono text-xs">{job.queue}</td>
+                <td class="max-w-xs">
+                  <div class="truncate text-sm font-medium" title={job.worker}>
+                    {short_worker(job.worker)}
+                  </div>
+                </td>
+                <td class="text-xs">
+                  {job.attempt}/{job.max_attempts}
+                </td>
+                <td class="space-y-1 text-xs text-base-content/60">
+                  <div>erstellt: <.datetime datetime={job.inserted_at} /></div>
+                  <div :if={job.scheduled_at}>
+                    geplant: <.datetime datetime={job.scheduled_at} />
+                  </div>
+                  <div :if={job.attempted_at}>
+                    versucht: <.datetime datetime={job.attempted_at} />
+                  </div>
+                  <div :if={job.completed_at}>
+                    fertig: <.datetime datetime={job.completed_at} />
+                  </div>
+                </td>
+                <td class="max-w-sm">
+                  <pre class="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-base-200/70 p-3 text-xs">{Jason.encode_to_iodata!(job.args, pretty: true)}</pre>
+                </td>
+                <td class="max-w-sm">
+                  <%= if error = last_error_message(job) do %>
+                    <div class="rounded-xl bg-error/10 p-3 text-xs text-error">
+                      {error}
+                    </div>
+                  <% else %>
+                    <span class="text-xs text-base-content/40">–</span>
+                  <% end %>
+                </td>
+                <td class="text-right">
+                  <.action_link
+                    :if={job.state not in ["available", "executing"]}
+                    href={~p"/admin/jobs/#{job.id}/retry?#{page_params(@filters, @page)}"}
+                    method="post"
+                    data-confirm="Job jetzt erneut ausfuehren?"
+                    tone={:success}
+                  >
+                    Retry
+                  </.action_link>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <%= if @page > 1 do %>
+        <.link navigate={~p"/admin/jobs?#{page_params(@filters, @page - 1)}"} class="btn btn-soft">
+          Vorherige
+        </.link>
+      <% else %>
+        <span></span>
+      <% end %>
+
+      <%= if @page < @total_pages do %>
+        <.link navigate={~p"/admin/jobs?#{page_params(@filters, @page + 1)}"} class="btn btn-soft">
+          Naechste
+        </.link>
+      <% end %>
+    </div>
+  <% end %>
+</div>

@@ -6,7 +6,9 @@ defmodule Whistle.Accounts do
   import Ecto.Query, warn: false
   alias Whistle.Repo
 
-  alias Whistle.Accounts.{User, UserToken, UserNotifier, Role, UserView}
+  alias Whistle.Accounts.{Role, User, UserToken, UserView}
+  alias Whistle.Oban
+  alias Whistle.Workers.DeliverUserEmail
 
   ## Database getters
 
@@ -280,10 +282,14 @@ defmodule Whistle.Accounts do
   def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
+    url = update_email_url_fun.(encoded_token)
 
-    deliver_user_token(user_token, fn ->
-      UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
-    end)
+    enqueue_user_email(user_token, %{
+      recipient: user.email,
+      type: "change_email",
+      url: url,
+      username: user.username
+    })
   end
 
   @doc """
@@ -354,16 +360,14 @@ defmodule Whistle.Accounts do
     :ok
   end
 
-  defp deliver_user_token(user_token, deliver_fun) when is_function(deliver_fun, 0) do
-    inserted_token = Repo.insert!(user_token)
-
-    case deliver_fun.() do
-      {:ok, _email} = ok ->
-        ok
-
-      {:error, _reason} = error ->
-        Repo.delete(inserted_token)
-        error
+  defp enqueue_user_email(user_token, args) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:user_token, user_token)
+    |> Oban.insert(:mail_job, DeliverUserEmail.new(args))
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{mail_job: job}} -> {:ok, job}
+      {:error, _step, reason, _changes} -> {:error, reason}
     end
   end
 
@@ -387,10 +391,14 @@ defmodule Whistle.Accounts do
       {:error, :already_confirmed}
     else
       {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
+      url = confirmation_url_fun.(encoded_token)
 
-      deliver_user_token(user_token, fn ->
-        UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
-      end)
+      enqueue_user_email(user_token, %{
+        recipient: user.email,
+        type: "confirm",
+        url: url,
+        username: user.username
+      })
     end
   end
 
@@ -430,13 +438,14 @@ defmodule Whistle.Accounts do
   def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
       when is_function(reset_password_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_email_token(user, "reset_password")
+    url = reset_password_url_fun.(encoded_token)
 
-    deliver_user_token(user_token, fn ->
-      UserNotifier.deliver_reset_password_instructions(
-        user,
-        reset_password_url_fun.(encoded_token)
-      )
-    end)
+    enqueue_user_email(user_token, %{
+      recipient: user.email,
+      type: "reset_password",
+      url: url,
+      username: user.username
+    })
   end
 
   @doc """

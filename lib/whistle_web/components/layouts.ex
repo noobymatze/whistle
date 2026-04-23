@@ -186,6 +186,14 @@ defmodule WhistleWeb.Layouts do
                     tone={:blue}
                     active={path_active?(@current_path, "/admin/associations")}
                   />
+                  <.nav_item
+                    :if={Role.super_admin?(@current_user)}
+                    href={~p"/admin/jobs"}
+                    icon="hero-server-stack"
+                    label="Jobs"
+                    tone={:violet}
+                    active={path_active?(@current_path, "/admin/jobs")}
+                  />
                 </div>
               </nav>
 

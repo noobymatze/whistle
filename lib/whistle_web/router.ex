@@ -128,6 +128,8 @@ defmodule WhistleWeb.Router do
     resources "/clubs", ClubController, except: [:show]
     resources "/associations", AssociationController, except: [:show]
     resources "/seasons", SeasonController, except: [:show]
+    get "/jobs", JobController, :index
+    post "/jobs/:id/retry", JobController, :retry
   end
 
   # My Courses and exam participant (any authenticated user)
