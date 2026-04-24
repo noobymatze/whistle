@@ -87,7 +87,11 @@ defmodule WhistleWeb.Router do
     get "/users/settings", UserSettingsController, :edit
     put "/users/settings", UserSettingsController, :update
     get "/users/settings/confirm_email/:token", UserSettingsController, :confirm_email
-    live "/", RegistrationLive
+
+    live_session :registration,
+      on_mount: [{WhistleWeb.UserAuth, :ensure_club}] do
+      live "/", RegistrationLive
+    end
   end
 
   # Course-area admin routes: INSTRUCTOR, ADMIN, SUPER_ADMIN
@@ -102,12 +106,17 @@ defmodule WhistleWeb.Router do
     post "/questions/:id/deactivate", QuestionController, :deactivate
   end
 
-  # Course new/edit LiveViews: INSTRUCTOR, ADMIN, SUPER_ADMIN
+  # Course-area LiveViews: INSTRUCTOR, ADMIN, SUPER_ADMIN
   scope "/", WhistleWeb do
     pipe_through [:browser, :require_authenticated_user, :require_course_area]
 
-    live "/admin/courses/new", CourseEditLive
-    live "/admin/courses/:id/edit", CourseEditLive
+    live_session :course_area,
+      on_mount: [{WhistleWeb.UserAuth, :ensure_course_area}] do
+      live "/admin/courses/new", CourseEditLive
+      live "/admin/courses/:id/edit", CourseEditLive
+      live "/admin/courses/:course_id/exams/new", ExamCreationLive
+      live "/admin/exams/:id", ExamInstructorLive
+    end
   end
 
   # Club-area admin routes: CLUB_ADMIN, ADMIN, SUPER_ADMIN
@@ -136,17 +145,12 @@ defmodule WhistleWeb.Router do
   scope "/", WhistleWeb do
     pipe_through [:browser, :require_authenticated_user]
 
-    live "/my-courses", MyCoursesLive
-    live "/my-exams", MyExamsLive
-    live "/exams/:id", ExamParticipantLive
-  end
-
-  # Exam admin LiveViews: INSTRUCTOR, ADMIN, SUPER_ADMIN
-  scope "/", WhistleWeb do
-    pipe_through [:browser, :require_authenticated_user, :require_course_area]
-
-    live "/admin/courses/:course_id/exams/new", ExamCreationLive
-    live "/admin/exams/:id", ExamInstructorLive
+    live_session :authenticated,
+      on_mount: [{WhistleWeb.UserAuth, :ensure_authenticated}] do
+      live "/my-courses", MyCoursesLive
+      live "/my-exams", MyExamsLive
+      live "/exams/:id", ExamParticipantLive
+    end
   end
 
   scope "/", WhistleWeb do

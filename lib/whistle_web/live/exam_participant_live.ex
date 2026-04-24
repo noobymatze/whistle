@@ -1,8 +1,6 @@
 defmodule WhistleWeb.ExamParticipantLive do
   use WhistleWeb, :live_view
 
-  on_mount WhistleWeb.UserAuthLive
-
   alias Whistle.Exams
 
   @presence_topic_prefix "exam_presence:"
@@ -176,30 +174,33 @@ defmodule WhistleWeb.ExamParticipantLive do
     if !can_answer do
       {:noreply, socket}
     else
-      qid = String.to_integer(qid_str)
-      cid = String.to_integer(cid_str)
-      question = Enum.find(socket.assigns.questions, &(&1.id == qid))
+      with {:ok, qid} <- parse_id(qid_str),
+           {:ok, cid} <- parse_id(cid_str),
+           question when not is_nil(question) <-
+             Enum.find(socket.assigns.questions, &(&1.id == qid)) do
+        new_answers_map =
+          if question.type == "single_choice" do
+            Map.put(socket.assigns.answers_map, qid, MapSet.new([cid]))
+          else
+            current = Map.get(socket.assigns.answers_map, qid, MapSet.new())
 
-      new_answers_map =
-        if question.type == "single_choice" do
-          Map.put(socket.assigns.answers_map, qid, MapSet.new([cid]))
-        else
-          current = Map.get(socket.assigns.answers_map, qid, MapSet.new())
+            updated =
+              if MapSet.member?(current, cid) do
+                MapSet.delete(current, cid)
+              else
+                MapSet.put(current, cid)
+              end
 
-          updated =
-            if MapSet.member?(current, cid) do
-              MapSet.delete(current, cid)
-            else
-              MapSet.put(current, cid)
-            end
+            Map.put(socket.assigns.answers_map, qid, updated)
+          end
 
-          Map.put(socket.assigns.answers_map, qid, updated)
-        end
+        choice_ids = MapSet.to_list(Map.get(new_answers_map, qid, MapSet.new()))
+        Exams.upsert_answer(participant, question, choice_ids)
 
-      choice_ids = MapSet.to_list(Map.get(new_answers_map, qid, MapSet.new()))
-      Exams.upsert_answer(participant, question, choice_ids)
-
-      {:noreply, assign(socket, :answers_map, new_answers_map)}
+        {:noreply, assign(socket, :answers_map, new_answers_map)}
+      else
+        _ -> {:noreply, socket}
+      end
     end
   end
 
@@ -217,9 +218,14 @@ defmodule WhistleWeb.ExamParticipantLive do
 
   @impl true
   def handle_event("goto", %{"index" => idx_str}, socket) do
-    idx = String.to_integer(idx_str)
-    max_idx = length(socket.assigns.questions) - 1
-    {:noreply, assign(socket, :current_index, max(0, min(idx, max_idx)))}
+    case Integer.parse(idx_str) do
+      {idx, ""} ->
+        max_idx = length(socket.assigns.questions) - 1
+        {:noreply, assign(socket, :current_index, max(0, min(idx, max_idx)))}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -684,9 +690,11 @@ defmodule WhistleWeb.ExamParticipantLive do
   defp render_markdown(""), do: ""
 
   defp render_markdown(markdown) do
-    case Earmark.as_html(markdown, escape: false) do
+    case Earmark.as_html(markdown, escape: true) do
       {:ok, html, _} -> Phoenix.HTML.raw(html)
       {:error, _, _} -> Phoenix.HTML.raw(Phoenix.HTML.html_escape(markdown))
     end
   end
+
+  defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 end

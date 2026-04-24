@@ -20,47 +20,48 @@ defmodule WhistleWeb.RegistrationController do
         id -> id
       end
 
-    # Build filter options based on user role
-    filter_opts =
-      if selected_season_id do
-        [season_id: String.to_integer(selected_season_id)]
-      else
-        []
-      end
+    with {:ok, season_id} <- parse_optional_id(selected_season_id) do
+      filter_opts = if season_id, do: [season_id: season_id], else: []
 
-    filter_opts =
-      if Role.has_role?(current_user, "CLUB_ADMIN") do
-        Keyword.put(filter_opts, :club_id, current_user.club_id)
-      else
-        filter_opts
-      end
+      filter_opts =
+        if Role.has_role?(current_user, "CLUB_ADMIN") do
+          Keyword.put(filter_opts, :club_id, current_user.club_id)
+        else
+          filter_opts
+        end
 
-    registrations = Registrations.list_registrations_view(filter_opts)
+      registrations = Registrations.list_registrations_view(filter_opts)
 
-    render(conn, :index,
-      registrations: registrations,
-      current_user: current_user,
-      current_season: current_season,
-      seasons: all_seasons,
-      selected_season_id: selected_season_id
-    )
+      render(conn, :index,
+        registrations: registrations,
+        current_user: current_user,
+        current_season: current_season,
+        seasons: all_seasons,
+        selected_season_id: selected_season_id
+      )
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def delete(conn, %{"course_id" => course_id, "user_id" => user_id}) do
-    course_id = String.to_integer(course_id)
-    user_id = String.to_integer(user_id)
     current_user = conn.assigns.current_user
 
-    case Registrations.sign_out(course_id, user_id, current_user.id) do
-      {:ok, _registration} ->
-        conn
-        |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")
-        |> redirect(to: ~p"/admin/registrations")
+    with {:ok, course_id} <- parse_id(course_id),
+         {:ok, user_id} <- parse_id(user_id) do
+      case Registrations.sign_out(course_id, user_id, current_user.id) do
+        {:ok, _registration} ->
+          conn
+          |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")
+          |> redirect(to: ~p"/admin/registrations")
 
-      {:error, :not_found} ->
-        conn
-        |> put_flash(:error, "Anmeldung nicht gefunden.")
-        |> redirect(to: ~p"/admin/registrations")
+        {:error, :not_found} ->
+          conn
+          |> put_flash(:error, "Anmeldung nicht gefunden.")
+          |> redirect(to: ~p"/admin/registrations")
+      end
+    else
+      _ -> render_not_found(conn)
     end
   end
 
@@ -68,38 +69,32 @@ defmodule WhistleWeb.RegistrationController do
     current_user = conn.assigns.current_user
     selected_season_id = params["season_id"]
 
-    # Build filter options based on user role (same as index action)
-    filter_opts =
-      if selected_season_id do
-        [season_id: String.to_integer(selected_season_id)]
-      else
-        []
-      end
+    with {:ok, season_id} <- parse_optional_id(selected_season_id) do
+      filter_opts = if season_id, do: [season_id: season_id], else: []
 
-    filter_opts =
-      if Role.has_role?(current_user, "CLUB_ADMIN") do
-        Keyword.put(filter_opts, :club_id, current_user.club_id)
-      else
-        filter_opts
-      end
+      filter_opts =
+        if Role.has_role?(current_user, "CLUB_ADMIN") do
+          Keyword.put(filter_opts, :club_id, current_user.club_id)
+        else
+          filter_opts
+        end
 
-    # Include unenrolled registrations in export
-    filter_opts = Keyword.put(filter_opts, :include_unenrolled, true)
+      filter_opts = Keyword.put(filter_opts, :include_unenrolled, true)
 
-    registrations = Registrations.list_registrations_view(filter_opts)
-    date_selections = Courses.list_all_date_selections()
+      registrations = Registrations.list_registrations_view(filter_opts)
+      date_selections = Courses.list_all_date_selections()
+      csv_content = generate_csv(registrations, date_selections)
 
-    # Generate CSV
-    csv_content = generate_csv(registrations, date_selections)
+      timestamp = Calendar.strftime(DateTime.now!("Europe/Berlin"), "%d%m%Y%H%M")
+      filename = "Anmeldungen-#{timestamp}.csv"
 
-    # Generate filename with timestamp: Anmeldungen-DDMMYYYYHHMM.csv
-    timestamp = Calendar.strftime(DateTime.now!("Europe/Berlin"), "%d%m%Y%H%M")
-    filename = "Anmeldungen-#{timestamp}.csv"
-
-    conn
-    |> put_resp_content_type("text/csv")
-    |> put_resp_header("content-disposition", "attachment; filename=\"#{filename}\"")
-    |> send_resp(200, csv_content)
+      conn
+      |> put_resp_content_type("text/csv")
+      |> put_resp_header("content-disposition", "attachment; filename=\"#{filename}\"")
+      |> send_resp(200, csv_content)
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   defp generate_csv(registrations, date_selections) do
@@ -148,6 +143,10 @@ defmodule WhistleWeb.RegistrationController do
 
   defp format_datetime(nil), do: ""
   defp format_datetime(datetime), do: Calendar.strftime(datetime, "%d.%m.%Y %H:%M")
+
+  defp parse_optional_id(nil), do: {:ok, nil}
+  defp parse_optional_id(""), do: {:ok, nil}
+  defp parse_optional_id(id), do: parse_id(id)
 
   defp escape_csv_field(value) when is_binary(value) do
     if String.contains?(value, [",", "\"", "\n"]) do

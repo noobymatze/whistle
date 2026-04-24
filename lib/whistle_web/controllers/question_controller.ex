@@ -191,7 +191,7 @@ defmodule WhistleWeb.QuestionController do
     end)
 
     choices_params
-    |> Enum.sort_by(fn {k, _} -> String.to_integer(k) end)
+    |> Enum.sort_by(fn {key, _} -> choice_position(key) end)
     |> Enum.with_index(1)
     |> Enum.each(fn {{_k, choice_attrs}, position} ->
       body = Map.get(choice_attrs, "body_markdown", "") |> String.trim()
@@ -227,7 +227,7 @@ defmodule WhistleWeb.QuestionController do
       [blank_choice_changeset(1), blank_choice_changeset(2)]
     else
       choices_params
-      |> Enum.sort_by(fn {k, _} -> String.to_integer(k) end)
+      |> Enum.sort_by(fn {key, _} -> choice_position(key) end)
       |> Enum.with_index(1)
       |> Enum.map(fn {{_k, attrs}, pos} ->
         Exams.change_question_choice(%QuestionChoice{position: pos}, attrs)
@@ -236,4 +236,11 @@ defmodule WhistleWeb.QuestionController do
   end
 
   defp build_choice_changesets(_), do: [blank_choice_changeset(1), blank_choice_changeset(2)]
+
+  defp choice_position(key) do
+    case parse_id(key) do
+      {:ok, position} -> position
+      :error -> 0
+    end
+  end
 end

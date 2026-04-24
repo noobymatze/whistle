@@ -7,8 +7,6 @@ defmodule WhistleWeb.RegistrationLive do
   use WhistleWeb, :live_view
   require Logger
 
-  on_mount WhistleWeb.UserAuthLive
-
   def mount(_params, _session, socket) do
     subscribe()
 
@@ -77,31 +75,37 @@ defmodule WhistleWeb.RegistrationLive do
   end
 
   def handle_event("toggle_course", %{"course-id" => course_id_str}, socket) do
-    course_id = String.to_integer(course_id_str)
-    selected = socket.assigns.selected_courses
+    with {:ok, course_id} <- parse_id(course_id_str) do
+      selected = socket.assigns.selected_courses
 
-    new_selected =
-      if MapSet.member?(selected, course_id) do
-        MapSet.delete(selected, course_id)
-      else
-        MapSet.put(selected, course_id)
-      end
+      new_selected =
+        if MapSet.member?(selected, course_id) do
+          MapSet.delete(selected, course_id)
+        else
+          MapSet.put(selected, course_id)
+        end
 
-    {:noreply, assign(socket, :selected_courses, new_selected)}
+      {:noreply, assign(socket, :selected_courses, new_selected)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_online_course", %{"course-id" => course_id_str}, socket) do
-    course_id = String.to_integer(course_id_str)
-    selected = socket.assigns.selected_online_courses
+    with {:ok, course_id} <- parse_id(course_id_str) do
+      selected = socket.assigns.selected_online_courses
 
-    new_selected =
-      if MapSet.member?(selected, course_id) do
-        MapSet.delete(selected, course_id)
-      else
-        MapSet.put(selected, course_id)
-      end
+      new_selected =
+        if MapSet.member?(selected, course_id) do
+          MapSet.delete(selected, course_id)
+        else
+          MapSet.put(selected, course_id)
+        end
 
-    {:noreply, assign(socket, :selected_online_courses, new_selected)}
+      {:noreply, assign(socket, :selected_online_courses, new_selected)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event(
@@ -109,14 +113,16 @@ defmodule WhistleWeb.RegistrationLive do
         %{"course-id" => course_id_str, "kind" => kind, "date-id" => date_id_str},
         socket
       ) do
-    course_id = String.to_integer(course_id_str)
-    date_id = String.to_integer(date_id_str)
+    with {:ok, course_id} <- parse_id(course_id_str),
+         {:ok, date_id} <- parse_id(date_id_str) do
+      new_selected =
+        socket.assigns.selected_online_dates
+        |> Map.update(course_id, %{kind => date_id}, &Map.put(&1, kind, date_id))
 
-    new_selected =
-      socket.assigns.selected_online_dates
-      |> Map.update(course_id, %{kind => date_id}, &Map.put(&1, kind, date_id))
-
-    {:noreply, assign(socket, :selected_online_dates, new_selected)}
+      {:noreply, assign(socket, :selected_online_dates, new_selected)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("select_member", %{"member_id" => ""}, socket) do
@@ -133,16 +139,20 @@ defmodule WhistleWeb.RegistrationLive do
   end
 
   def handle_event("select_member", %{"member_id" => member_id}, socket) do
-    member = Accounts.get_user!(String.to_integer(member_id))
-    season = socket.assigns.season
-    existing_registrations = load_existing_registrations(member, season)
-    existing_date_selections = load_existing_date_selections(member, season)
+    with {:ok, member_id} <- parse_id(member_id) do
+      member = Accounts.get_user!(member_id)
+      season = socket.assigns.season
+      existing_registrations = load_existing_registrations(member, season)
+      existing_date_selections = load_existing_date_selections(member, season)
 
-    {:noreply,
-     socket
-     |> assign(:selected_member_id, String.to_integer(member_id))
-     |> assign(:existing_registrations, existing_registrations)
-     |> assign(:existing_date_selections, existing_date_selections)}
+      {:noreply,
+       socket
+       |> assign(:selected_member_id, member_id)
+       |> assign(:existing_registrations, existing_registrations)
+       |> assign(:existing_date_selections, existing_date_selections)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("enroll", _params, socket) do
@@ -417,6 +427,8 @@ defmodule WhistleWeb.RegistrationLive do
       false
     end
   end
+
+  defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 
   def render(assigns) do
     ~H"""

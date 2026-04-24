@@ -4,8 +4,6 @@ defmodule WhistleWeb.MyExamsLive do
   alias Whistle.Repo
   alias Whistle.Exams.{Exam, ExamParticipant}
 
-  on_mount WhistleWeb.UserAuthLive
-
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
     exams = load_exams(user.id)

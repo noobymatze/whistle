@@ -1,48 +1,39 @@
 defmodule WhistleWeb.ExamCreationLive do
   use WhistleWeb, :live_view
 
-  on_mount WhistleWeb.UserAuthLive
-
   alias Whistle.Courses
   alias Whistle.Registrations
   alias Whistle.Exams
-  alias Whistle.Accounts.Role
 
   @impl true
   def mount(%{"course_id" => course_id}, _session, socket) do
-    user = socket.assigns.current_user
+    course = Courses.get_course!(course_id)
 
-    unless Role.can_access_course_area?(user) do
-      {:ok, push_navigate(socket, to: ~p"/")}
-    else
-      course = Courses.get_course!(course_id)
+    active_registrations =
+      Registrations.registrations_for_course(course)
+      |> Enum.reject(&(&1.unenrolled_at != nil))
 
-      active_registrations =
-        Registrations.registrations_for_course(course)
-        |> Enum.reject(&(&1.unenrolled_at != nil))
+    selected_ids = MapSet.new(active_registrations, & &1.user_id)
 
-      selected_ids = MapSet.new(active_registrations, & &1.user_id)
+    distribution = Exams.get_distribution_for_course_type(course.type)
+    questions_result = Exams.select_questions_for_course_type(course.type)
 
-      distribution = Exams.get_distribution_for_course_type(course.type)
-      questions_result = Exams.select_questions_for_course_type(course.type)
+    {selected_questions, questions_error} =
+      case questions_result do
+        {:ok, qs} -> {qs, nil}
+        {:error, reason} -> {[], reason}
+      end
 
-      {selected_questions, questions_error} =
-        case questions_result do
-          {:ok, qs} -> {qs, nil}
-          {:error, reason} -> {[], reason}
-        end
-
-      {:ok,
-       socket
-       |> assign(:course, course)
-       |> assign(:active_registrations, active_registrations)
-       |> assign(:selected_ids, selected_ids)
-       |> assign(:distribution, distribution)
-       |> assign(:selected_questions, selected_questions)
-       |> assign(:error, format_questions_error(questions_error))
-       |> assign(:creating, false)
-       |> assign(:execution_mode, "synchronous")}
-    end
+    {:ok,
+     socket
+     |> assign(:course, course)
+     |> assign(:active_registrations, active_registrations)
+     |> assign(:selected_ids, selected_ids)
+     |> assign(:distribution, distribution)
+     |> assign(:selected_questions, selected_questions)
+     |> assign(:error, format_questions_error(questions_error))
+     |> assign(:creating, false)
+     |> assign(:execution_mode, "synchronous")}
   end
 
   @impl true
@@ -53,17 +44,20 @@ defmodule WhistleWeb.ExamCreationLive do
 
   @impl true
   def handle_event("toggle_participant", %{"user-id" => user_id_str}, socket) do
-    user_id = String.to_integer(user_id_str)
-    selected = socket.assigns.selected_ids
+    with {:ok, user_id} <- parse_id(user_id_str) do
+      selected = socket.assigns.selected_ids
 
-    new_selected =
-      if MapSet.member?(selected, user_id) do
-        MapSet.delete(selected, user_id)
-      else
-        MapSet.put(selected, user_id)
-      end
+      new_selected =
+        if MapSet.member?(selected, user_id) do
+          MapSet.delete(selected, user_id)
+        else
+          MapSet.put(selected, user_id)
+        end
 
-    {:noreply, assign(socket, :selected_ids, new_selected)}
+      {:noreply, assign(socket, :selected_ids, new_selected)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   @impl true
@@ -131,6 +125,8 @@ defmodule WhistleWeb.ExamCreationLive do
   defp format_questions_error({:not_enough_questions, difficulty, needed, available}) do
     "Nicht genug Fragen (#{difficulty}): #{needed} benötigt, #{available} verfügbar."
   end
+
+  defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 
   @impl true
   def render(assigns) do

@@ -19,19 +19,23 @@ defmodule WhistleWeb.CourseController do
 
     all_seasons = Seasons.list_seasons()
 
-    courses =
-      if selected_season_id && selected_season_id != "" do
-        Courses.list_courses_view(season_id: String.to_integer(selected_season_id))
-      else
-        Courses.list_courses_view()
-      end
+    with {:ok, season_id} <- parse_optional_id(selected_season_id) do
+      courses =
+        if season_id do
+          Courses.list_courses_view(season_id: season_id)
+        else
+          Courses.list_courses_view()
+        end
 
-    render(conn, :index,
-      courses: courses,
-      seasons: all_seasons,
-      current_season: current_season,
-      selected_season_id: selected_season_id
-    )
+      render(conn, :index,
+        courses: courses,
+        seasons: all_seasons,
+        current_season: current_season,
+        selected_season_id: selected_season_id
+      )
+    else
+      _ -> render_not_found(conn)
+    end
   end
 
   def export(conn, %{"id" => id}) do
@@ -141,6 +145,10 @@ defmodule WhistleWeb.CourseController do
 
   defp format_datetime(nil), do: ""
   defp format_datetime(datetime), do: Calendar.strftime(datetime, "%d.%m.%Y %H:%M")
+
+  defp parse_optional_id(nil), do: {:ok, nil}
+  defp parse_optional_id(""), do: {:ok, nil}
+  defp parse_optional_id(id), do: parse_id(id)
 
   defp escape_csv_field(value) when is_binary(value) do
     if String.contains?(value, [",", "\"", "\n"]) do

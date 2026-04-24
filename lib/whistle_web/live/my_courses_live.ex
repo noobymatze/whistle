@@ -6,8 +6,6 @@ defmodule WhistleWeb.MyCoursesLive do
   alias Whistle.Registrations
   alias Whistle.Registrations.RegistrationView
 
-  on_mount WhistleWeb.UserAuthLive
-
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
     {registrations, date_selections, online_course_dates} = load_registrations(user.id)
@@ -25,41 +23,48 @@ defmodule WhistleWeb.MyCoursesLive do
   def handle_event("unenroll", %{"course_id" => course_id}, socket) do
     user = socket.assigns.current_user
 
-    case Registrations.sign_out(String.to_integer(course_id), user.id, user.id) do
-      {:ok, _} ->
-        {registrations, date_selections, online_course_dates} = load_registrations(user.id)
+    with {:ok, course_id} <- parse_id(course_id) do
+      case Registrations.sign_out(course_id, user.id, user.id) do
+        {:ok, _} ->
+          {registrations, date_selections, online_course_dates} = load_registrations(user.id)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Erfolgreich abgemeldet")
-         |> assign(
-           registrations: registrations,
-           date_selections: date_selections,
-           online_course_dates: online_course_dates,
-           editing_registration_id: nil,
-           editing_date_selections: %{}
-         )}
+          {:noreply,
+           socket
+           |> put_flash(:info, "Erfolgreich abgemeldet")
+           |> assign(
+             registrations: registrations,
+             date_selections: date_selections,
+             online_course_dates: online_course_dates,
+             editing_registration_id: nil,
+             editing_date_selections: %{}
+           )}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Fehler beim Abmelden")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Fehler beim Abmelden")}
+      end
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Fehler beim Abmelden")}
     end
   end
 
   def handle_event("start_reschedule", %{"registration_id" => registration_id}, socket) do
-    registration_id = String.to_integer(registration_id)
-    selections = Map.get(socket.assigns.date_selections, registration_id, [])
+    with {:ok, registration_id} <- parse_id(registration_id) do
+      selections = Map.get(socket.assigns.date_selections, registration_id, [])
 
-    editing_date_selections =
-      selections
-      |> Enum.reduce(%{}, fn %{date: date}, acc ->
-        Map.put(acc, Atom.to_string(date.kind), date.id)
-      end)
+      editing_date_selections =
+        selections
+        |> Enum.reduce(%{}, fn %{date: date}, acc ->
+          Map.put(acc, Atom.to_string(date.kind), date.id)
+        end)
 
-    {:noreply,
-     assign(socket,
-       editing_registration_id: registration_id,
-       editing_date_selections: editing_date_selections
-     )}
+      {:noreply,
+       assign(socket,
+         editing_registration_id: registration_id,
+         editing_date_selections: editing_date_selections
+       )}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("cancel_reschedule", _params, socket) do
@@ -71,78 +76,87 @@ defmodule WhistleWeb.MyCoursesLive do
         %{"kind" => kind, "date_id" => date_id, "registration_id" => registration_id},
         socket
       ) do
-    registration_id = String.to_integer(registration_id)
-    date_id = String.to_integer(date_id)
+    with {:ok, registration_id} <- parse_id(registration_id),
+         {:ok, date_id} <- parse_id(date_id) do
+      editing_date_selections =
+        if socket.assigns.editing_registration_id == registration_id do
+          Map.put(socket.assigns.editing_date_selections, kind, date_id)
+        else
+          socket.assigns.editing_date_selections
+        end
 
-    editing_date_selections =
-      if socket.assigns.editing_registration_id == registration_id do
-        Map.put(socket.assigns.editing_date_selections, kind, date_id)
-      else
-        socket.assigns.editing_date_selections
-      end
-
-    {:noreply, assign(socket, editing_date_selections: editing_date_selections)}
+      {:noreply, assign(socket, editing_date_selections: editing_date_selections)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("save_reschedule", %{"registration_id" => registration_id}, socket) do
-    registration_id = String.to_integer(registration_id)
-    user = socket.assigns.current_user
+    with {:ok, registration_id} <- parse_id(registration_id) do
+      user = socket.assigns.current_user
 
-    if registration_id != socket.assigns.editing_registration_id do
-      {:noreply,
-       socket
-       |> put_flash(:error, "Bitte öffne die Terminbearbeitung erneut.")
-       |> clear_reschedule()}
-    else
-      case Registrations.reschedule_online_dates(
-             user,
-             registration_id,
-             socket.assigns.editing_date_selections,
-             user.id
-           ) do
-        {:ok, _registration} ->
-          {registrations, date_selections, online_course_dates} = load_registrations(user.id)
+      if registration_id != socket.assigns.editing_registration_id do
+        {:noreply,
+         socket
+         |> put_flash(:error, "Bitte öffne die Terminbearbeitung erneut.")
+         |> clear_reschedule()}
+      else
+        case Registrations.reschedule_online_dates(
+               user,
+               registration_id,
+               socket.assigns.editing_date_selections,
+               user.id
+             ) do
+          {:ok, _registration} ->
+            {registrations, date_selections, online_course_dates} = load_registrations(user.id)
 
-          {:noreply,
-           socket
-           |> put_flash(:info, "Termine erfolgreich geändert")
-           |> assign(
-             registrations: registrations,
-             date_selections: date_selections,
-             online_course_dates: online_course_dates
-           )
-           |> clear_reschedule()}
+            {:noreply,
+             socket
+             |> put_flash(:info, "Termine erfolgreich geändert")
+             |> assign(
+               registrations: registrations,
+               date_selections: date_selections,
+               online_course_dates: online_course_dates
+             )
+             |> clear_reschedule()}
 
-        {:error, {:invalid_selection, _}} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Bitte wähle einen Pflicht- und einen Wahlpflichttermin.")
-           |> assign(:editing_registration_id, registration_id)}
+          {:error, {:invalid_selection, _}} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Bitte wähle einen Pflicht- und einen Wahlpflichttermin.")
+             |> assign(:editing_registration_id, registration_id)}
 
-        {:error, {:not_available, _date}} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Der gewählte Termin ist ausgebucht.")
-           |> assign(:editing_registration_id, registration_id)}
+          {:error, {:not_available, _date}} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Der gewählte Termin ist ausgebucht.")
+             |> assign(:editing_registration_id, registration_id)}
 
-        {:error, {:date_in_past, _}} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Ein gewählter Termin liegt in der Vergangenheit.")
-           |> assign(:editing_registration_id, registration_id)}
+          {:error, {:date_in_past, _}} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Ein gewählter Termin liegt in der Vergangenheit.")
+             |> assign(:editing_registration_id, registration_id)}
 
-        {:error, :not_found} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Anmeldung nicht gefunden.")
-           |> clear_reschedule()}
+          {:error, :not_found} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Anmeldung nicht gefunden.")
+             |> clear_reschedule()}
 
-        {:error, _reason} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Fehler beim Ändern der Termine")
-           |> assign(:editing_registration_id, registration_id)}
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Fehler beim Ändern der Termine")
+             |> assign(:editing_registration_id, registration_id)}
+        end
       end
+    else
+      _ ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Bitte öffne die Terminbearbeitung erneut.")
+         |> clear_reschedule()}
     end
   end
 
@@ -191,6 +205,8 @@ defmodule WhistleWeb.MyCoursesLive do
     Map.has_key?(editing_date_selections, "mandatory") and
       Map.has_key?(editing_date_selections, "elective")
   end
+
+  defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 
   def render(assigns) do
     ~H"""

@@ -1,8 +1,6 @@
 defmodule WhistleWeb.CourseEditLive do
   use WhistleWeb, :live_view
 
-  on_mount WhistleWeb.UserAuthLive
-
   alias Whistle.Accounts.Role
   alias Whistle.Clubs
   alias Whistle.Courses
@@ -12,20 +10,12 @@ defmodule WhistleWeb.CourseEditLive do
   alias Whistle.Seasons
 
   @impl true
-  def mount(_params, _session, socket) do
-    user = socket.assigns.current_user
-
-    unless Role.can_access_course_area?(user) do
-      {:ok, push_navigate(socket, to: ~p"/")}
-    else
-      {:ok, socket}
-    end
-  end
+  def mount(_params, _session, socket), do: {:ok, socket}
 
   @impl true
   def handle_params(%{"id" => id} = params, _uri, socket) do
-    case Integer.parse(id) do
-      {course_id, ""} ->
+    case parse_id(id) do
+      {:ok, course_id} ->
         case Courses.get_course(course_id) do
           nil ->
             {:noreply, push_navigate(socket, to: ~p"/admin/courses")}
@@ -52,10 +42,11 @@ defmodule WhistleWeb.CourseEditLive do
     {:noreply,
      socket
      |> assign(:course, nil)
-     |> assign(:changeset, Courses.change_course(%Course{season_id: season_id}))
+     |> assign_course_form(Courses.change_course(%Course{season_id: season_id}))
      |> assign(:types, Course.available_types())
      |> assign(:clubs, get_club_options())
      |> assign(:seasons, get_season_options())
+     |> assign_child_forms()
      |> assign(:tab, :kursdaten)
      |> assign(:course_dates, [])
      |> assign(:course_date_topics, [])
@@ -68,7 +59,7 @@ defmodule WhistleWeb.CourseEditLive do
   def handle_event("validate", %{"course" => params}, socket) do
     course = socket.assigns.course || %Course{}
     changeset = Courses.change_course(course, params)
-    {:noreply, assign(socket, :changeset, changeset)}
+    {:noreply, assign_course_form(socket, changeset)}
   end
 
   def handle_event("create", %{"course" => params}, socket) do
@@ -80,7 +71,7 @@ defmodule WhistleWeb.CourseEditLive do
          |> push_navigate(to: ~p"/admin/courses/#{course}/edit")}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :changeset, changeset)}
+        {:noreply, assign_course_form(socket, changeset)}
     end
   end
 
@@ -92,11 +83,11 @@ defmodule WhistleWeb.CourseEditLive do
         {:noreply,
          socket
          |> assign(:course, updated)
-         |> assign(:changeset, Courses.change_course(updated))
+         |> assign_course_form(Courses.change_course(updated))
          |> put_flash(:info, "Kurs wurde erfolgreich aktualisiert.")}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :changeset, changeset)}
+        {:noreply, assign_course_form(socket, changeset)}
     end
   end
 
@@ -108,7 +99,7 @@ defmodule WhistleWeb.CourseEditLive do
         {:noreply,
          socket
          |> assign(:course, updated)
-         |> assign(:changeset, Courses.change_course(updated))
+         |> assign_course_form(Courses.change_course(updated))
          |> put_flash(:info, "Der Kurs #{updated.name} wurde erfolgreich freigegeben.")}
 
       {:error, _} ->
@@ -144,8 +135,8 @@ defmodule WhistleWeb.CourseEditLive do
   end
 
   def handle_event("delete_date", %{"id" => id}, socket) do
-    case Integer.parse(id) do
-      {date_id, ""} ->
+    case parse_id(id) do
+      {:ok, date_id} ->
         course_dates = socket.assigns.course_dates
         date = Enum.find(course_dates, &(&1.id == date_id))
 
@@ -174,8 +165,8 @@ defmodule WhistleWeb.CourseEditLive do
   end
 
   def handle_event("delete_topic", %{"id" => id}, socket) do
-    case Integer.parse(id) do
-      {topic_id, ""} ->
+    case parse_id(id) do
+      {:ok, topic_id} ->
         topics = socket.assigns.course_date_topics
         topic = Enum.find(topics, &(&1.id == topic_id))
 
@@ -197,8 +188,8 @@ defmodule WhistleWeb.CourseEditLive do
   end
 
   def handle_event("cancel_exam", %{"exam-id" => exam_id}, socket) do
-    case Integer.parse(exam_id) do
-      {id, ""} ->
+    case parse_id(exam_id) do
+      {:ok, id} ->
         exam = Exams.get_exam(id)
 
         if exam && exam.course_id == socket.assigns.course.id &&
@@ -225,8 +216,8 @@ defmodule WhistleWeb.CourseEditLive do
     course = socket.assigns.course
     admin = socket.assigns.current_user
 
-    case Integer.parse(user_id_str) do
-      {user_id, ""} ->
+    case parse_id(user_id_str) do
+      {:ok, user_id} ->
         case Whistle.Registrations.sign_out(course.id, user_id, admin.id) do
           {:ok, _} ->
             date_selections =
@@ -273,10 +264,11 @@ defmodule WhistleWeb.CourseEditLive do
   defp assign_base(socket, course) do
     socket
     |> assign(:course, course)
-    |> assign(:changeset, Courses.change_course(course))
+    |> assign_course_form(Courses.change_course(course))
     |> assign(:types, Course.available_types())
     |> assign(:clubs, get_club_options())
     |> assign(:seasons, get_season_options())
+    |> assign_child_forms()
     |> assign(:tab, :kursdaten)
     |> assign(:course_dates, [])
     |> assign(:course_date_topics, [])
@@ -352,6 +344,24 @@ defmodule WhistleWeb.CourseEditLive do
     Seasons.list_seasons() |> Enum.map(&{"Saison #{&1.year}", &1.id})
   end
 
+  defp assign_course_form(socket, changeset) do
+    assign(socket, :form, to_form(changeset))
+  end
+
+  defp assign_child_forms(socket) do
+    socket
+    |> assign(:course_date_form, to_form(%{}, as: :course_date))
+    |> assign(:course_date_topic_form, to_form(%{}, as: :course_date_topic))
+  end
+
+  defp course_form_type?(form, type), do: form[:type].value == type
+
+  defp course_form_online?(form) do
+    form[:online].value in [true, "true", "on", "1"]
+  end
+
+  defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -390,38 +400,38 @@ defmodule WhistleWeb.CourseEditLive do
 
     <%= if !@course || @tab == :kursdaten do %>
       <.form
-        :let={f}
-        for={@changeset}
+        for={@form}
+        id="course-form"
         phx-change="validate"
         phx-submit={if @course, do: "save", else: "create"}
       >
         <div class="flex flex-col gap-2">
-          <.error :if={@changeset.action}>
+          <.error :if={@form.source.action}>
             Ups, es ist ein Fehler aufgetreten. Bitte prüfe die Fehler weiter unten.
           </.error>
-          <.input field={f[:name]} type="text" label="Name" />
+          <.input field={@form[:name]} type="text" label="Name" />
           <.input
-            field={f[:type]}
+            field={@form[:type]}
             options={@types}
             prompt="Bitte wähle den Typen"
             type="select"
             label="Typ"
           />
-          <%= if Ecto.Changeset.get_field(@changeset, :type) == "F" do %>
-            <.input field={f[:online]} type="checkbox" label="Online-Kurs" />
+          <%= if course_form_type?(@form, "F") do %>
+            <.input field={@form[:online]} type="checkbox" label="Online-Kurs" />
           <% end %>
           <.input
-            field={f[:season_id]}
+            field={@form[:season_id]}
             options={@seasons}
             prompt="Wähle eine Saison"
             type="select"
             label="Saison"
             required
           />
-          <%= if !Ecto.Changeset.get_field(@changeset, :online) && (!@course || !@course.online) do %>
-            <.input field={f[:date]} type="date" label="Datum" />
+          <%= if !course_form_online?(@form) && (!@course || !@course.online) do %>
+            <.input field={@form[:date]} type="date" label="Datum" />
             <.input
-              field={f[:organizer_id]}
+              field={@form[:organizer_id]}
               options={@clubs}
               prompt="Kein Ausrichter"
               type="select"
@@ -430,19 +440,19 @@ defmodule WhistleWeb.CourseEditLive do
           <% end %>
           <div class="flex flex-row gap-4 w-full">
             <div class="flex-1">
-              <.input field={f[:max_participants]} type="number" label="Maximale Teilnehmer" />
+              <.input field={@form[:max_participants]} type="number" label="Maximale Teilnehmer" />
             </div>
             <div class="flex-1">
               <.input
-                field={f[:max_per_club]}
+                field={@form[:max_per_club]}
                 type="number"
                 label="Maximale Teilnehmer pro Verein"
               />
             </div>
-            <%= if !Ecto.Changeset.get_field(@changeset, :online) && (!@course || !@course.online) do %>
+            <%= if !course_form_online?(@form) && (!@course || !@course.online) do %>
               <div class="flex-1">
                 <.input
-                  field={f[:max_organizer_participants]}
+                  field={@form[:max_organizer_participants]}
                   type="number"
                   label="Maximale Teilnehmer für Ausrichter"
                 />
@@ -501,28 +511,39 @@ defmodule WhistleWeb.CourseEditLive do
               <% end %>
             </div>
             <.form
-              for={%{}}
+              for={@course_date_form}
+              id="mandatory-course-date-form"
               phx-submit="add_date"
               class="flex items-end gap-2"
             >
-              <input type="hidden" name="course_date[kind]" value="mandatory" />
-              <input type="hidden" name="course_date[course_id]" value={@course.id} />
+              <.input
+                field={@course_date_form[:kind]}
+                id="mandatory-course-date-kind"
+                type="hidden"
+                value="mandatory"
+              />
+              <.input
+                field={@course_date_form[:course_id]}
+                id="mandatory-course-date-course-id"
+                type="hidden"
+                value={@course.id}
+              />
               <div>
-                <label class="block text-xs font-medium mb-1">Datum</label>
-                <input
+                <.input
+                  field={@course_date_form[:date]}
+                  id="mandatory-course-date-date"
                   type="date"
-                  name="course_date[date]"
+                  label="Datum"
                   required
-                  class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium mb-1">Uhrzeit</label>
-                <input
+                <.input
+                  field={@course_date_form[:time]}
+                  id="mandatory-course-date-time"
                   type="time"
-                  name="course_date[time]"
+                  label="Uhrzeit"
                   required
-                  class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
                 />
               </div>
               <.button type="submit">Hinzufügen</.button>
@@ -568,33 +589,45 @@ defmodule WhistleWeb.CourseEditLive do
                   <% end %>
                 </div>
                 <.form
-                  for={%{}}
+                  for={@course_date_form}
+                  id={"elective-course-date-form-#{topic.id}"}
                   phx-submit="add_date"
                   class="flex items-end gap-2"
                 >
-                  <input type="hidden" name="course_date[kind]" value="elective" />
-                  <input type="hidden" name="course_date[course_id]" value={@course.id} />
-                  <input
+                  <.input
+                    field={@course_date_form[:kind]}
+                    id={"elective-course-date-kind-#{topic.id}"}
                     type="hidden"
-                    name="course_date[course_date_topic_id]"
+                    value="elective"
+                  />
+                  <.input
+                    field={@course_date_form[:course_id]}
+                    id={"elective-course-date-course-id-#{topic.id}"}
+                    type="hidden"
+                    value={@course.id}
+                  />
+                  <.input
+                    field={@course_date_form[:course_date_topic_id]}
+                    id={"elective-course-date-topic-id-#{topic.id}"}
+                    type="hidden"
                     value={topic.id}
                   />
                   <div>
-                    <label class="block text-xs font-medium mb-1">Datum</label>
-                    <input
+                    <.input
+                      field={@course_date_form[:date]}
+                      id={"elective-course-date-date-#{topic.id}"}
                       type="date"
-                      name="course_date[date]"
+                      label="Datum"
                       required
-                      class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium mb-1">Uhrzeit</label>
-                    <input
+                    <.input
+                      field={@course_date_form[:time]}
+                      id={"elective-course-date-time-#{topic.id}"}
                       type="time"
-                      name="course_date[time]"
+                      label="Uhrzeit"
                       required
-                      class="rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
                     />
                   </div>
                   <.button type="submit">Hinzufügen</.button>
@@ -603,19 +636,25 @@ defmodule WhistleWeb.CourseEditLive do
             <% end %>
 
             <.form
-              for={%{}}
+              for={@course_date_topic_form}
+              id="course-date-topic-form"
               phx-submit="add_topic"
               class="flex items-end gap-2 mt-2"
             >
-              <input type="hidden" name="course_date_topic[course_id]" value={@course.id} />
+              <.input
+                field={@course_date_topic_form[:course_id]}
+                id="course-date-topic-course-id"
+                type="hidden"
+                value={@course.id}
+              />
               <div class="flex-1">
-                <label class="block text-xs font-medium mb-1">Neues Thema</label>
-                <input
+                <.input
+                  field={@course_date_topic_form[:name]}
+                  id="course-date-topic-name"
                   type="text"
-                  name="course_date_topic[name]"
+                  label="Neues Thema"
                   required
                   placeholder="z.B. Zitronentarte"
-                  class="w-full rounded-md border border-base-300 bg-base-100 px-3 py-1.5 text-sm"
                 />
               </div>
               <.button type="submit">Thema anlegen</.button>

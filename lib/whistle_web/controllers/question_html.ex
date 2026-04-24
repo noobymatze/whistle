@@ -10,7 +10,7 @@ defmodule WhistleWeb.QuestionHTML do
   def render_markdown(""), do: ""
 
   def render_markdown(markdown) when is_binary(markdown) do
-    case Earmark.as_html(markdown, escape: false) do
+    case Earmark.as_html(markdown, escape: true) do
       {:ok, html, _} -> Phoenix.HTML.raw(html)
       {:error, _, _} -> Phoenix.HTML.raw(Phoenix.HTML.html_escape(markdown))
     end

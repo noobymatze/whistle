@@ -13,7 +13,7 @@ defmodule Whistle.Registrations do
   alias Whistle.Courses.CourseDate
   alias Whistle.Courses.CourseDateSelection
   alias Whistle.Accounts.User
-  alias __MODULE__.Register
+  alias Whistle.Registrations.Enrollment
 
   @doc """
   Enrolls a user in one or more courses with full business logic validation.
@@ -84,10 +84,10 @@ defmodule Whistle.Registrations do
     _locked_course = Courses.get_and_lock_course(course.id)
 
     cond do
-      not Register.seat_available?(user, course, registrations_for_course(course)) ->
+      not Enrollment.seat_available?(user, course, registrations_for_course(course)) ->
         Repo.rollback({:not_available, course})
 
-      not Register.allowed?(user, course) ->
+      not Enrollment.allowed?(user, course) ->
         Repo.rollback({:not_allowed, course})
 
       true ->
@@ -651,99 +651,4 @@ defmodule Whistle.Registrations do
   end
 
   defp normalize_date_id(_date_id), do: {:error, {:invalid_selection, :invalid_date_id}}
-
-  defmodule Register do
-    @moduledoc """
-    Business logic for validating course registrations.
-    """
-
-    import Ecto.Query, warn: false
-    alias Whistle.Repo
-    alias Whistle.Registrations.Registration
-    alias Whistle.Courses
-    alias Whistle.Courses.Course
-    alias Whistle.Accounts.User
-
-    @doc """
-    Check if a seat is available for the user for the given course.
-
-    This accounts for:
-    - Organizer vs non-organizer limits
-    - Course release status
-    - Per-club limits
-    """
-    def seat_available?(%User{} = user, course, course_registrations) when is_struct(course) do
-      {from_organizer, others} = group_by_organizer(course_registrations, course)
-
-      from_organizer_and_allowed? =
-        user.club_id == course.organizer_id &&
-          length(from_organizer) < course.max_organizer_participants &&
-          course.max_organizer_participants > 0
-
-      # Calculate max available spots for non-organizers
-      max =
-        course.max_participants -
-          if course.released_at do
-            length(from_organizer)
-          else
-            course.max_organizer_participants
-          end
-
-      # Check per-club limit for non-organizers
-      others_by_club = Enum.group_by(others, & &1.user_club_id)
-      user_club_count = length(Map.get(others_by_club, user.club_id, []))
-
-      from_others_and_allowed? =
-        user.club_id != course.organizer_id &&
-          length(others) < max &&
-          max > 0 &&
-          user_club_count < course.max_per_club
-
-      from_others_and_allowed? or from_organizer_and_allowed?
-    end
-
-    @doc """
-    Check if the user is allowed to participate in the given course.
-
-    Rules:
-      1. User has not exceeded the 2-course limit for the season
-      2. User is not already registered for this specific course
-    """
-    def allowed?(%User{} = user, course) when is_struct(course) do
-      query =
-        from r in Registration,
-          join: c in Course,
-          on: c.id == r.course_id,
-          where:
-            r.user_id == ^user.id and c.season_id == ^course.season_id and is_nil(r.unenrolled_at)
-
-      registrations = Repo.all(query)
-
-      cond do
-        length(registrations) >= 2 ->
-          false
-
-        Enum.any?(registrations, fn r -> r.course_id == course.id end) ->
-          false
-
-        course.type == "F" and
-            Enum.any?(registrations, fn r ->
-              c = Repo.get!(Course, r.course_id)
-              c.type == "F"
-            end) ->
-          false
-
-        true ->
-          true
-      end
-    end
-
-    defp group_by_organizer(course_registrations, %Course{} = course) do
-      result =
-        course_registrations
-        |> Enum.group_by(fn r -> r.user_club_id == course.organizer_id end)
-
-      {Map.get(result, true, []), Map.get(result, false, [])}
-    end
-  end
 end

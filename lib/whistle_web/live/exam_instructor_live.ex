@@ -1,42 +1,33 @@
 defmodule WhistleWeb.ExamInstructorLive do
   use WhistleWeb, :live_view
 
-  on_mount WhistleWeb.UserAuthLive
-
   alias Whistle.Exams
   alias Whistle.Exams.ExamTimer
   alias Whistle.Accounts
-  alias Whistle.Accounts.Role
 
   @presence_topic_prefix "exam_presence:"
 
   @impl true
   def mount(%{"id" => exam_id}, _session, socket) do
-    user = socket.assigns.current_user
+    exam = Exams.get_exam_with_details!(exam_id)
 
-    unless Role.can_access_course_area?(user) do
-      {:ok, push_navigate(socket, to: ~p"/")}
-    else
-      exam = Exams.get_exam_with_details!(exam_id)
-
-      if connected?(socket) do
-        Exams.subscribe(exam.id)
-        Phoenix.PubSub.subscribe(Whistle.PubSub, @presence_topic_prefix <> exam_id)
-      end
-
-      participants = build_participant_list(exam)
-
-      answers_by_participant =
-        if exam.state == "finished", do: Exams.list_answers_for_exam(exam.id), else: %{}
-
-      {:ok,
-       socket
-       |> assign(:exam, exam)
-       |> assign(:participants, participants)
-       |> assign(:connected_user_ids, MapSet.new())
-       |> assign(:answers_by_participant, answers_by_participant)
-       |> assign(:expanded_participant_id, nil)}
+    if connected?(socket) do
+      Exams.subscribe(exam.id)
+      Phoenix.PubSub.subscribe(Whistle.PubSub, @presence_topic_prefix <> exam_id)
     end
+
+    participants = build_participant_list(exam)
+
+    answers_by_participant =
+      if exam.state == "finished", do: Exams.list_answers_for_exam(exam.id), else: %{}
+
+    {:ok,
+     socket
+     |> assign(:exam, exam)
+     |> assign(:participants, participants)
+     |> assign(:connected_user_ids, MapSet.new())
+     |> assign(:answers_by_participant, answers_by_participant)
+     |> assign(:expanded_participant_id, nil)}
   end
 
   @impl true
@@ -77,10 +68,13 @@ defmodule WhistleWeb.ExamInstructorLive do
 
   @impl true
   def handle_event("toggle_participant_detail", %{"id" => id_str}, socket) do
-    id = String.to_integer(id_str)
-    current = socket.assigns.expanded_participant_id
-    new_id = if current == id, do: nil, else: id
-    {:noreply, assign(socket, :expanded_participant_id, new_id)}
+    with {:ok, id} <- parse_id(id_str) do
+      current = socket.assigns.expanded_participant_id
+      new_id = if current == id, do: nil, else: id
+      {:noreply, assign(socket, :expanded_participant_id, new_id)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   @impl true
@@ -357,4 +351,6 @@ defmodule WhistleWeb.ExamInstructorLive do
   defp exam_outcome_label("fail"), do: "Nicht bestanden"
   defp exam_outcome_label("not_applicable"), do: "–"
   defp exam_outcome_label(o), do: o
+
+  defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 end

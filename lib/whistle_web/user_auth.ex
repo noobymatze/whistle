@@ -5,6 +5,7 @@ defmodule WhistleWeb.UserAuth do
   import Phoenix.Controller
 
   alias Whistle.Accounts
+  alias Whistle.Accounts.Role
 
   @max_age 60 * 60 * 24 * 60
   @remember_me_cookie "_whistle_user_remember_me"
@@ -152,6 +153,41 @@ defmodule WhistleWeb.UserAuth do
     end
   end
 
+  def on_mount(:ensure_club, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+
+    cond do
+      is_nil(socket.assigns.current_user) ->
+        {:halt, redirect_unauthenticated(socket)}
+
+      is_nil(socket.assigns.current_user.club_id) ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "Bitte wähle zuerst einen Verein aus.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/settings/clubs/select")
+
+        {:halt, socket}
+
+      true ->
+        {:cont, socket}
+    end
+  end
+
+  def on_mount(:ensure_course_area, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+    ensure_live_authorized(socket, &Role.can_access_course_area?/1)
+  end
+
+  def on_mount(:ensure_club_area, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+    ensure_live_authorized(socket, &Role.can_access_club_area?/1)
+  end
+
+  def on_mount(:ensure_global_area, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+    ensure_live_authorized(socket, &Role.can_access_global_area?/1)
+  end
+
   def on_mount(:redirect_if_user_is_authenticated, _params, session, socket) do
     socket = mount_current_user(session, socket)
 
@@ -171,6 +207,36 @@ defmodule WhistleWeb.UserAuth do
     end)
     |> Phoenix.Component.assign_new(:current_path, fn -> nil end)
     |> attach_current_path()
+  end
+
+  defp ensure_live_authorized(socket, authorized?) do
+    cond do
+      is_nil(socket.assigns.current_user) ->
+        {:halt, redirect_unauthenticated(socket)}
+
+      authorized?.(socket.assigns.current_user) ->
+        {:cont, socket}
+
+      true ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(
+            :error,
+            "Du hast keine Berechtigung, auf diese Seite zuzugreifen."
+          )
+          |> Phoenix.LiveView.redirect(to: ~p"/")
+
+        {:halt, socket}
+    end
+  end
+
+  defp redirect_unauthenticated(socket) do
+    socket
+    |> Phoenix.LiveView.put_flash(
+      :error,
+      "Du musst angemeldet sein, um auf diese Seite zuzugreifen."
+    )
+    |> Phoenix.LiveView.redirect(to: ~p"/users/log_in")
   end
 
   defp attach_current_path(socket) do
