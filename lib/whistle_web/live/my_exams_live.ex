@@ -2,7 +2,8 @@ defmodule WhistleWeb.MyExamsLive do
   use WhistleWeb, :live_view
   import Ecto.Query
   alias Whistle.Repo
-  alias Whistle.Exams.{Exam, ExamParticipant}
+  alias Whistle.Exams
+  alias Whistle.Exams.{Exam, ExamParticipant, ExamQuestion}
 
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
@@ -19,6 +20,7 @@ defmodule WhistleWeb.MyExamsLive do
       where: e.state not in ["canceled"],
       order_by: [desc: e.created_at],
       select: %{
+        participant_id: ep.id,
         exam_id: e.id,
         course_type: e.course_type,
         state: e.state,
@@ -29,6 +31,42 @@ defmodule WhistleWeb.MyExamsLive do
       }
     )
     |> Repo.all()
+    |> Enum.map(&Map.put(&1, :review, load_review(&1)))
+  end
+
+  defp load_review(%{achieved_points: nil}), do: []
+
+  defp load_review(%{exam_id: exam_id, participant_id: participant_id}) do
+    questions =
+      ExamQuestion
+      |> where([q], q.exam_id == ^exam_id)
+      |> order_by([q], asc: q.position)
+      |> Repo.all()
+      |> Repo.preload(:choices)
+
+    answers =
+      participant_id
+      |> Exams.list_answers_for_participant()
+      |> Map.new(&{&1.exam_question_id, &1})
+
+    Enum.map(questions, fn question ->
+      answer = Map.get(answers, question.id)
+
+      selected_choice_ids =
+        if answer do
+          MapSet.new(answer.answer_choices, & &1.exam_question_choice_id)
+        else
+          MapSet.new()
+        end
+
+      %{
+        question: question,
+        answer: answer,
+        selected_choices:
+          Enum.filter(question.choices, &MapSet.member?(selected_choice_ids, &1.id)),
+        correct_choices: Enum.filter(question.choices, & &1.is_correct)
+      }
+    end)
   end
 
   defp state_label("waiting_room"), do: "Warteraum"
@@ -93,6 +131,48 @@ defmodule WhistleWeb.MyExamsLive do
                 </div>
               <% end %>
 
+              <div
+                :if={exam.review != []}
+                id={"exam-review-#{exam.exam_id}"}
+                class="mt-4 border-t pt-4"
+              >
+                <h5 class="mb-3 text-sm font-semibold text-zinc-800">Auswertung</h5>
+                <div class="space-y-3">
+                  <%= for item <- exam.review do %>
+                    <div
+                      id={"review-question-#{item.question.id}"}
+                      class="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm"
+                    >
+                      <div class="mb-2 flex items-start justify-between gap-3">
+                        <p class="font-medium text-zinc-900">
+                          {item.question.position}. {item.question.body_markdown}
+                        </p>
+                        <span class={[
+                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                          item.answer && item.answer.is_correct && "bg-green-100 text-green-700",
+                          (!item.answer || !item.answer.is_correct) && "bg-red-100 text-red-700"
+                        ]}>
+                          <%= cond do %>
+                            <% item.answer == nil -> %>
+                              Nicht beantwortet
+                            <% item.answer.is_correct -> %>
+                              Richtig
+                            <% true -> %>
+                              Falsch
+                          <% end %>
+                        </span>
+                      </div>
+                      <p id={"review-selected-#{item.question.id}"} class="text-zinc-600">
+                        Deine Antwort: {choice_text(item.selected_choices)}
+                      </p>
+                      <p id={"review-correct-#{item.question.id}"} class="mt-1 text-zinc-600">
+                        Richtige Antwort: {choice_text(item.correct_choices)}
+                      </p>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+
               <%= if exam.state in ["waiting_room", "running"] do %>
                 <div class="flex justify-end mt-2">
                   <.link navigate={~p"/exams/#{exam.exam_id}"} class="underline font-bold text-sm">
@@ -106,5 +186,13 @@ defmodule WhistleWeb.MyExamsLive do
       <% end %>
     </div>
     """
+  end
+
+  defp choice_text([]), do: "Keine Antwort"
+
+  defp choice_text(choices) do
+    choices
+    |> Enum.map(& &1.body_markdown)
+    |> Enum.join(", ")
   end
 end

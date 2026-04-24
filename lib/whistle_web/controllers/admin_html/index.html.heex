@@ -13,6 +13,7 @@
       <% navigable = can_manage_user?(@current_user, user) %>
       <.link
         :if={navigable}
+        id={"user-row-#{user.id}"}
         navigate={~p"/admin/users/#{user}/edit"}
         class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3 transition-colors hover:border-base-300 cursor-pointer"
       >
@@ -21,17 +22,34 @@
           <div class="mt-0.5 text-xs text-base-content/55">
             {[user.email, user.club_name] |> Enum.filter(& &1) |> Enum.join(" · ")}
           </div>
+          <div class="mt-1 flex flex-wrap gap-2 text-xs text-base-content/55">
+            <span id={"user-license-number-#{user.id}"}>
+              Lizenznummer: {user.license_number || "–"}
+            </span>
+            <span id={"user-license-level-#{user.id}"}>
+              Lizenzstufe: {user.license_level || "–"}
+            </span>
+          </div>
         </div>
         <.icon name="hero-chevron-right" class="size-4 shrink-0 text-base-content/30" />
       </.link>
       <div
         :if={!navigable}
+        id={"user-row-#{user.id}"}
         class="flex items-center gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3"
       >
         <div class="min-w-0 flex-1">
           <div class="truncate text-sm font-medium">{user.username}</div>
           <div class="mt-0.5 text-xs text-base-content/55">
             {[user.email, user.club_name] |> Enum.filter(& &1) |> Enum.join(" · ")}
+          </div>
+          <div class="mt-1 flex flex-wrap gap-2 text-xs text-base-content/55">
+            <span id={"user-license-number-#{user.id}"}>
+              Lizenznummer: {user.license_number || "–"}
+            </span>
+            <span id={"user-license-level-#{user.id}"}>
+              Lizenzstufe: {user.license_level || "–"}
+            </span>
           </div>
         </div>
       </div>

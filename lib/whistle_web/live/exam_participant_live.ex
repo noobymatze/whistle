@@ -487,7 +487,7 @@ defmodule WhistleWeb.ExamParticipantLive do
         <div class="flex justify-between text-xs text-gray-500 mb-1">
           <span>Frage {@current_index + 1} von {length(@questions)}</span>
           <span>
-            {Enum.count(@answers_map)} beantwortet
+            {answered_count(@answers_map)} beantwortet
           </span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-1.5">
@@ -581,8 +581,9 @@ defmodule WhistleWeb.ExamParticipantLive do
             <.button phx-click="next" class="flex-1 py-3">Weiter →</.button>
           <% else %>
             <.button
+              id="submit-exam-button"
               phx-click="submit"
-              data-confirm="Wirklich abgeben? Antworten können danach nicht mehr geändert werden."
+              data-confirm={submit_confirmation(@questions, @answers_map)}
               class="flex-1 py-3"
             >
               Abgeben ✓
@@ -674,6 +675,23 @@ defmodule WhistleWeb.ExamParticipantLive do
     s = rem(seconds, 60)
     :io_lib.format("~2..0B:~2..0B", [m, s]) |> IO.iodata_to_binary()
   end
+
+  defp submit_confirmation(questions, answers_map) do
+    unanswered = max(length(questions) - answered_count(answers_map), 0)
+
+    if unanswered > 0 do
+      "Du hast noch #{unanswered} unbeantwortete #{question_word(unanswered)}. Wirklich abgeben? Antworten können danach nicht mehr geändert werden."
+    else
+      "Wirklich abgeben? Antworten können danach nicht mehr geändert werden."
+    end
+  end
+
+  defp answered_count(answers_map) do
+    Enum.count(answers_map, fn {_question_id, choice_ids} -> MapSet.size(choice_ids) > 0 end)
+  end
+
+  defp question_word(1), do: "Frage"
+  defp question_word(_), do: "Fragen"
 
   defp load_exam_questions(exam_id) do
     import Ecto.Query

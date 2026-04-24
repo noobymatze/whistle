@@ -92,6 +92,22 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
       html = render(lv)
       assert html =~ "Frage 1 von"
     end
+
+    test "submit button warns when not all questions are answered", %{conn: conn} do
+      %{user: user, exam: exam} = sync_exam_setup()
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
+
+      {:ok, running_exam} = Exams.update_exam_state(exam, "running")
+      send(lv.pid, {:exam_state_changed, running_exam})
+
+      render_click(lv, "goto", %{"index" => "19"})
+
+      assert has_element?(
+               lv,
+               "#submit-exam-button[data-confirm*='20 unbeantwortete Fragen']"
+             )
+    end
   end
 
   # ── 4. Async exam: pre-start screen ───────────────────────────────────────────

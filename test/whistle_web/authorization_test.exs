@@ -305,6 +305,26 @@ defmodule WhistleWeb.AuthorizationTest do
       assert html_response(conn, 200)
     end
 
+    test "user list shows license number and license level", %{conn: conn} do
+      target = user_fixture()
+
+      {:ok, target} =
+        Accounts.update_user_role(
+          target,
+          %{license_number: "FD-12345", license_level: "L2"},
+          %{role: "SUPER_ADMIN"}
+        )
+
+      conn = get(conn, ~p"/admin/users")
+      html = html_response(conn, 200)
+
+      assert html =~ ~s(id="user-row-#{target.id}")
+      assert html =~ ~s(id="user-license-number-#{target.id}")
+      assert html =~ "FD-12345"
+      assert html =~ ~s(id="user-license-level-#{target.id}")
+      assert html =~ "L2"
+    end
+
     test "cannot delete a course", %{conn: conn} do
       conn = delete(conn, ~p"/admin/courses/999999")
       assert redirected_to(conn) == "/"
