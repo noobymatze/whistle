@@ -4,6 +4,7 @@ defmodule WhistleWeb.AuthorizationTest do
   import Whistle.AccountsFixtures
   import Whistle.ClubsFixtures
 
+  alias Phoenix.Flash
   alias Whistle.Accounts
 
   # ---------------------------------------------------------------------------
@@ -73,6 +74,7 @@ defmodule WhistleWeb.AuthorizationTest do
     test "GET /admin/courses redirects to login", %{conn: conn} do
       conn = get(conn, ~p"/admin/courses")
       assert redirected_to(conn) =~ "/users/log_in"
+      refute Flash.get(conn.assigns.flash, :error)
     end
 
     test "GET /admin/registrations redirects to login", %{conn: conn} do

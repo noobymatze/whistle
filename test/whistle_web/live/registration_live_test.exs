@@ -7,6 +7,7 @@ defmodule WhistleWeb.RegistrationLiveTest do
   import Whistle.CoursesFixtures
   import Whistle.SeasonsFixtures
 
+  alias Phoenix.Flash
   alias Whistle.Accounts
   alias Whistle.Courses
   alias Whistle.Registrations
@@ -110,8 +111,11 @@ defmodule WhistleWeb.RegistrationLiveTest do
     end
 
     test "redirects unauthenticated users", %{conn: conn} do
-      assert {:error, {:redirect, %{to: path}}} = live(conn, ~p"/")
+      assert {:error, {:redirect, redirect}} = live(conn, ~p"/")
+      %{to: path} = redirect
+
       assert path =~ "/users/log_in"
+      refute Flash.get(redirect[:flash] || %{}, :error)
     end
 
     test "shows 'not open yet' when no season exists", %{conn: conn} do

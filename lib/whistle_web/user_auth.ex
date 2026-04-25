@@ -141,15 +141,7 @@ defmodule WhistleWeb.UserAuth do
     if socket.assigns.current_user do
       {:cont, socket}
     else
-      socket =
-        socket
-        |> Phoenix.LiveView.put_flash(
-          :error,
-          "Du musst angemeldet sein, um auf diese Seite zuzugreifen."
-        )
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log_in")
-
-      {:halt, socket}
+      {:halt, redirect_unauthenticated(socket)}
     end
   end
 
@@ -231,12 +223,7 @@ defmodule WhistleWeb.UserAuth do
   end
 
   defp redirect_unauthenticated(socket) do
-    socket
-    |> Phoenix.LiveView.put_flash(
-      :error,
-      "Du musst angemeldet sein, um auf diese Seite zuzugreifen."
-    )
-    |> Phoenix.LiveView.redirect(to: ~p"/users/log_in")
+    Phoenix.LiveView.redirect(socket, to: ~p"/users/log_in")
   end
 
   defp attach_current_path(socket) do
@@ -269,7 +256,6 @@ defmodule WhistleWeb.UserAuth do
       conn
     else
       conn
-      |> put_flash(:error, "Du musst angemeldet sein, um auf diese Seite zuzugreifen.")
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/log_in")
       |> halt()
