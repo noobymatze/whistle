@@ -14,26 +14,35 @@ defmodule WhistleWeb.ExamCreationLive do
       |> Enum.reject(&(&1.unenrolled_at != nil))
 
     selected_ids = MapSet.new(active_registrations, & &1.user_id)
-
-    distribution = Exams.get_distribution_for_course_type(course.type)
-    questions_result = Exams.select_questions_for_course_type(course.type)
-
-    {selected_questions, questions_error} =
-      case questions_result do
-        {:ok, qs} -> {qs, nil}
-        {:error, reason} -> {[], reason}
-      end
+    variants = Exams.list_enabled_exam_variants(course.type)
 
     {:ok,
      socket
      |> assign(:course, course)
      |> assign(:active_registrations, active_registrations)
      |> assign(:selected_ids, selected_ids)
-     |> assign(:distribution, distribution)
-     |> assign(:selected_questions, selected_questions)
-     |> assign(:error, format_questions_error(questions_error))
+     |> assign(:variants, variants)
+     |> assign(:selected_variant, nil)
+     |> assign(:selected_questions, [])
+     |> assign(:error, nil)
      |> assign(:creating, false)
      |> assign(:execution_mode, "synchronous")}
+  end
+
+  @impl true
+  def handle_event("select_variant", %{"exam_variant_id" => variant_id}, socket) do
+    socket =
+      case parse_id(variant_id) do
+        {:ok, id} ->
+          assign_selected_variant(socket, id)
+
+        _ ->
+          socket
+          |> assign(:selected_variant, nil)
+          |> assign(:selected_questions, [])
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -81,49 +90,86 @@ defmodule WhistleWeb.ExamCreationLive do
     course = socket.assigns.course
     user_ids = MapSet.to_list(socket.assigns.selected_ids)
 
-    if Enum.empty?(user_ids) do
-      {:noreply, assign(socket, :error, "Mindestens ein Teilnehmer muss ausgewählt sein.")}
-    else
-      socket = assign(socket, :creating, true)
+    cond do
+      Enum.empty?(user_ids) ->
+        {:noreply, assign(socket, :error, "Mindestens ein Teilnehmer muss ausgewählt sein.")}
 
-      case Exams.create_exam(course, user_ids, user.id,
-             questions: socket.assigns.selected_questions,
-             execution_mode: socket.assigns.execution_mode
-           ) do
-        {:ok, _exam} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "Test wurde erfolgreich erstellt.")
-           |> push_navigate(to: ~p"/admin/courses/#{course}/edit")}
+      is_nil(socket.assigns.selected_variant) ->
+        {:noreply, assign(socket, :error, "Bitte wähle eine Testvariante aus.")}
 
-        {:error, {:not_enough_questions, difficulty, needed, available}} ->
-          msg =
-            "Nicht genug Fragen (#{difficulty}): #{needed} benötigt, #{available} verfügbar."
+      true ->
+        socket = assign(socket, :creating, true)
 
-          {:noreply,
-           socket
-           |> assign(:creating, false)
-           |> assign(:error, msg)}
+        case Exams.create_exam(course, user_ids, user.id,
+               exam_variant_id: socket.assigns.selected_variant.id,
+               execution_mode: socket.assigns.execution_mode
+             ) do
+          {:ok, _exam} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Test wurde erfolgreich erstellt.")
+             |> push_navigate(to: ~p"/admin/courses/#{course}/edit")}
 
-        {:error, {:already_in_active_exam, _user_ids}} ->
-          {:noreply,
-           socket
-           |> assign(:creating, false)
-           |> assign(:error, "Einige Teilnehmer nehmen bereits an einem aktiven Test teil.")}
+          {:error, {:already_in_active_exam, _user_ids}} ->
+            {:noreply,
+             socket
+             |> assign(:creating, false)
+             |> assign(:error, "Einige Teilnehmer nehmen bereits an einem aktiven Test teil.")}
 
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(:creating, false)
-           |> assign(:error, "Fehler beim Erstellen des Tests: #{inspect(reason)}")}
-      end
+          {:error, reason} when is_atom(reason) ->
+            {:noreply,
+             socket
+             |> assign(:creating, false)
+             |> assign(:error, format_variant_error(reason))}
+
+          {:error, reason} ->
+            {:noreply,
+             socket
+             |> assign(:creating, false)
+             |> assign(:error, "Fehler beim Erstellen des Tests: #{inspect(reason)}")}
+        end
     end
   end
 
-  defp format_questions_error(nil), do: nil
+  defp assign_selected_variant(socket, variant_id) do
+    case Exams.load_enabled_variant_questions(variant_id, socket.assigns.course.type) do
+      {:ok, variant, questions} ->
+        socket
+        |> assign(:selected_variant, variant)
+        |> assign(:selected_questions, questions)
+        |> assign(:error, nil)
 
-  defp format_questions_error({:not_enough_questions, difficulty, needed, available}) do
-    "Nicht genug Fragen (#{difficulty}): #{needed} benötigt, #{available} verfügbar."
+      {:error, reason} ->
+        socket
+        |> assign(:selected_variant, nil)
+        |> assign(:selected_questions, [])
+        |> assign(:error, format_variant_error(reason))
+    end
+  end
+
+  defp format_variant_error(:exam_variant_not_found), do: "Die Testvariante wurde nicht gefunden."
+
+  defp format_variant_error(:exam_variant_not_enabled),
+    do: "Diese Testvariante ist nicht aktiviert."
+
+  defp format_variant_error(:exam_variant_course_type_mismatch) do
+    "Die Testvariante passt nicht zum Kurstyp."
+  end
+
+  defp format_variant_error(:exam_variant_has_no_questions) do
+    "Die Testvariante enthält keine Fragen."
+  end
+
+  defp format_variant_error(:exam_variant_has_inactive_questions) do
+    "Die Testvariante enthält deaktivierte Fragen."
+  end
+
+  defp format_variant_error(:exam_variant_has_wrong_course_type_questions) do
+    "Die Testvariante enthält Fragen mit falschem Kurstyp."
+  end
+
+  defp format_variant_error(:exam_variant_threshold_exceeds_max_points) do
+    "Die Punktegrenzen der Testvariante überschreiten die maximal erreichbaren Punkte."
   end
 
   defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
@@ -145,17 +191,47 @@ defmodule WhistleWeb.ExamCreationLive do
     <.error :if={@error}>{@error}</.error>
 
     <div class="mt-6 space-y-8 max-w-2xl">
-      <%!-- Distribution info --%>
-      <div class="rounded-md bg-gray-50 border border-gray-200 px-4 py-3">
-        <h3 class="text-sm font-semibold text-gray-700 mb-1">
-          Fragenverteilung (Kurstyp {@course.type})
-        </h3>
-        <p class="mt-1 text-xs text-gray-500">
-          {@distribution.question_count} Fragen ·
-          Dauer: {if @execution_mode == "asynchronous",
-            do: "30",
-            else: div(@distribution.duration_seconds, 60)} Minuten
-        </p>
+      <%!-- Variant selection --%>
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">Testvariante</h3>
+        <%= if @variants == [] do %>
+          <p class="rounded-md border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            Es gibt keine aktivierte Testvariante für diesen Kurstyp.
+          </p>
+        <% else %>
+          <form id="exam-variant-select-form" phx-change="select_variant">
+            <select
+              id="exam-variant-select"
+              name="exam_variant_id"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">Testvariante auswählen</option>
+              <%= for variant <- @variants do %>
+                <option
+                  value={variant.id}
+                  selected={@selected_variant && @selected_variant.id == variant.id}
+                >
+                  {variant.name}
+                </option>
+              <% end %>
+            </select>
+          </form>
+
+          <div
+            :if={@selected_variant}
+            class="mt-3 rounded-md bg-gray-50 border border-gray-200 px-4 py-3"
+          >
+            <h4 class="text-sm font-semibold text-gray-700 mb-1">
+              {@selected_variant.name}
+            </h4>
+            <p class="mt-1 text-xs text-gray-500">
+              {length(@selected_questions)} Fragen ·
+              Dauer: {if @execution_mode == "asynchronous",
+                do: "30",
+                else: div(@selected_variant.duration_seconds, 60)} Minuten
+            </p>
+          </div>
+        <% end %>
       </div>
 
       <%!-- Execution mode selection --%>
@@ -276,6 +352,11 @@ defmodule WhistleWeb.ExamCreationLive do
               </span>
               <span class="truncate text-gray-700">{q.body_markdown}</span>
             </div>
+          <% end %>
+          <%= if @selected_questions == [] do %>
+            <p class="px-4 py-8 text-center text-sm text-gray-500">
+              Wähle eine Testvariante, um die Fragen anzuzeigen.
+            </p>
           <% end %>
         </div>
       </div>

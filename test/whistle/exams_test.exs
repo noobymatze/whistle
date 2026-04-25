@@ -206,6 +206,49 @@ defmodule Whistle.ExamsTest do
     end
   end
 
+  describe "exam_variants" do
+    test "create_exam_variant/1 creates a draft variant without questions" do
+      assert {:ok, variant} =
+               Exams.create_exam_variant(%{
+                 name: "F1",
+                 course_type: "F",
+                 status: "draft",
+                 duration_seconds: 1800
+               })
+
+      assert variant.name == "F1"
+      assert variant.status == "draft"
+    end
+
+    test "enabled variants require assigned questions" do
+      variant = exam_variant_fixture(%{name: "F2"})
+
+      assert {:error, :exam_variant_has_no_questions} =
+               Exams.update_exam_variant(variant, %{status: "enabled"})
+    end
+
+    test "set_exam_variant_questions/2 stores ordered question assignments" do
+      variant = exam_variant_fixture(%{name: "F3"})
+      first = question_with_choices_fixture("F", "low")
+      second = question_with_choices_fixture("F", "medium")
+
+      assert {:ok, variant} =
+               Exams.set_exam_variant_questions(variant, [{second.id, 2}, {first.id, 1}])
+
+      assignments = variant.variant_questions
+      assert Enum.map(assignments, & &1.question_id) == [first.id, second.id]
+    end
+
+    test "list_enabled_exam_variants/1 returns only enabled variants for course type" do
+      enabled = enabled_exam_variant_fixture("F", 3)
+      _draft = exam_variant_fixture(%{name: "F draft", course_type: "F"})
+      _other = enabled_exam_variant_fixture("G", 1)
+
+      results = Exams.list_enabled_exam_variants("F")
+      assert Enum.map(results, & &1.id) == [enabled.id]
+    end
+  end
+
   describe "calculate_difficulty_counts/2" do
     test "produces counts that sum to question_count" do
       distribution = %{low_percentage: 50, medium_percentage: 30, high_percentage: 20}
@@ -285,6 +328,27 @@ defmodule Whistle.ExamsTest do
       assert {:ok, exam} = Exams.create_exam(course, [user1.id, user2.id, user3.id], user1.id)
       exam_with_details = Exams.get_exam_with_details!(exam.id)
       assert length(exam_with_details.participants) == 3
+    end
+
+    test "creates exam from enabled variant in variant order", %{user: user, course: course} do
+      variant = enabled_exam_variant_fixture("F", 3)
+
+      assert {:ok, exam} =
+               Exams.create_exam(course, [user.id], user.id, exam_variant_id: variant.id)
+
+      exam_with_details = Exams.get_exam_with_details!(exam.id)
+
+      assert exam.exam_variant_id == variant.id
+      assert exam.question_count == 3
+      assert Enum.map(exam_with_details.questions, & &1.position) == [1, 2, 3]
+    end
+
+    test "rejects disabled variants", %{user: user, course: course} do
+      variant = enabled_exam_variant_fixture("F", 3)
+      assert {:ok, variant} = Exams.update_exam_variant(variant, %{status: "disabled"})
+
+      assert {:error, :exam_variant_not_enabled} =
+               Exams.create_exam(course, [user.id], user.id, exam_variant_id: variant.id)
     end
   end
 

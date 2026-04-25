@@ -67,4 +67,66 @@ defmodule Whistle.ExamsFixtures do
 
     :ok
   end
+
+  @doc """
+  Creates a draft exam variant.
+  """
+  def exam_variant_fixture(attrs \\ %{}) do
+    attrs =
+      Enum.into(attrs, %{
+        name: "F1",
+        course_type: "F",
+        status: "draft",
+        duration_seconds: 1800,
+        l3_threshold: 12,
+        l2_threshold: 15,
+        l1_threshold: 18
+      })
+
+    {:ok, variant} = Exams.create_exam_variant(attrs)
+    variant
+  end
+
+  @doc """
+  Creates an enabled exam variant with active questions.
+  """
+  def enabled_exam_variant_fixture(course_type \\ "F", question_count \\ 3) do
+    thresholds =
+      case course_type do
+        "F" -> %{l3_threshold: 1, l2_threshold: 2, l1_threshold: 3}
+        "G" -> %{pass_threshold: 1}
+        _ -> %{}
+      end
+
+    variant =
+      exam_variant_fixture(
+        Map.merge(
+          %{
+            name: "#{course_type}1",
+            course_type: course_type,
+            status: "draft",
+            duration_seconds: 1800,
+            l1_threshold: nil,
+            l2_threshold: nil,
+            l3_threshold: nil,
+            pass_threshold: nil
+          },
+          thresholds
+        )
+      )
+
+    questions =
+      for _ <- 1..question_count do
+        question_with_choices_fixture(course_type, "low")
+      end
+
+    question_positions =
+      questions
+      |> Enum.with_index(1)
+      |> Enum.map(fn {question, position} -> {question.id, position} end)
+
+    {:ok, _variant} = Exams.set_exam_variant_questions(variant, question_positions)
+    {:ok, variant} = Exams.update_exam_variant(variant, %{status: "enabled"})
+    Exams.get_exam_variant_with_questions!(variant.id)
+  end
 end

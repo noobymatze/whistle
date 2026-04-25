@@ -18,6 +18,7 @@ defmodule Whistle.Exams.Exam do
     field :ended_at, :naive_datetime
     field :remaining_seconds, :integer
     field :created_by, :id
+    field :exam_variant_id, :id
 
     # Threshold snapshot (from distribution at exam creation time)
     # F-course: l1/l2/l3 bands; G-course: pass_threshold
@@ -51,6 +52,7 @@ defmodule Whistle.Exams.Exam do
       :ended_at,
       :remaining_seconds,
       :created_by,
+      :exam_variant_id,
       :l1_threshold,
       :l2_threshold,
       :l3_threshold,

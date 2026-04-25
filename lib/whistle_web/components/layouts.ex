@@ -133,6 +133,13 @@ defmodule WhistleWeb.Layouts do
                     tone={:violet}
                     active={path_active?(@current_path, "/admin/questions")}
                   />
+                  <.nav_item
+                    href={~p"/admin/exam-variants"}
+                    icon="hero-clipboard-document-check"
+                    label="Testvarianten"
+                    tone={:emerald}
+                    active={path_active?(@current_path, "/admin/exam-variants")}
+                  />
                 </div>
 
                 <div

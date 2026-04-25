@@ -14,6 +14,8 @@ defmodule Whistle.Exams do
     QuestionChoice,
     QuestionCourseType,
     CourseTypeQuestionDistribution,
+    ExamVariant,
+    ExamVariantQuestion,
     Exam,
     ExamParticipant,
     ExamQuestion,
@@ -223,6 +225,172 @@ defmodule Whistle.Exams do
   end
 
   # ---------------------------------------------------------------------------
+  # Exam Variants
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Lists exam variants, optionally filtered.
+
+  ## Options
+
+    * `:course_type` - Filter to variants for this course type
+    * `:status` - Filter by variant status
+
+  """
+  def list_exam_variants(opts \\ []) do
+    course_type = Keyword.get(opts, :course_type)
+    status = Keyword.get(opts, :status)
+
+    query = from(v in ExamVariant, order_by: [asc: v.course_type, asc: v.name])
+
+    query =
+      if course_type do
+        from(v in query, where: v.course_type == ^course_type)
+      else
+        query
+      end
+
+    query =
+      if status do
+        from(v in query, where: v.status == ^status)
+      else
+        query
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Lists enabled variants that can be selected when creating an exam.
+  """
+  def list_enabled_exam_variants(course_type) do
+    list_exam_variants(course_type: course_type, status: "enabled")
+  end
+
+  @doc """
+  Gets an exam variant.
+  """
+  def get_exam_variant!(id), do: Repo.get!(ExamVariant, id)
+
+  @doc """
+  Gets an exam variant with ordered questions and choices preloaded.
+  """
+  def get_exam_variant_with_questions!(id) do
+    ExamVariant
+    |> Repo.get!(id)
+    |> Repo.preload(variant_questions: [question: :choices])
+  end
+
+  @doc """
+  Creates an exam variant.
+  """
+  def create_exam_variant(attrs \\ %{}) do
+    changeset = ExamVariant.changeset(%ExamVariant{}, attrs)
+
+    if Ecto.Changeset.get_field(changeset, :status) == "enabled" do
+      {:error,
+       Ecto.Changeset.add_error(changeset, :status, "kann erst mit Fragen aktiviert werden")}
+    else
+      Repo.insert(changeset)
+    end
+  end
+
+  @doc """
+  Updates an exam variant.
+  """
+  def update_exam_variant(%ExamVariant{} = variant, attrs) do
+    Repo.transaction(fn ->
+      case variant |> ExamVariant.changeset(attrs) |> Repo.update() do
+        {:ok, updated} ->
+          case validate_variant_ready(updated) do
+            :ok -> updated
+            {:error, reason} -> Repo.rollback(reason)
+          end
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Returns a changeset for an exam variant.
+  """
+  def change_exam_variant(%ExamVariant{} = variant, attrs \\ %{}) do
+    ExamVariant.changeset(variant, attrs)
+  end
+
+  @doc """
+  Replaces the ordered question assignments for an exam variant.
+  """
+  def set_exam_variant_questions(%ExamVariant{} = variant, question_positions)
+      when is_list(question_positions) do
+    case validate_question_positions(question_positions) do
+      :ok ->
+        Repo.transaction(fn ->
+          from(vq in ExamVariantQuestion, where: vq.exam_variant_id == ^variant.id)
+          |> Repo.delete_all()
+
+          now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+          question_positions
+          |> Enum.sort_by(fn {_question_id, position} -> position end)
+          |> Enum.each(fn {question_id, position} ->
+            %ExamVariantQuestion{}
+            |> ExamVariantQuestion.changeset(%{
+              exam_variant_id: variant.id,
+              question_id: question_id,
+              position: position
+            })
+            |> Ecto.Changeset.put_change(:created_at, now)
+            |> Repo.insert!()
+          end)
+
+          variant
+          |> Repo.reload!()
+          |> validate_variant_ready()
+          |> case do
+            :ok -> get_exam_variant_with_questions!(variant.id)
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Returns ordered variant question assignments.
+  """
+  def list_exam_variant_questions(%ExamVariant{} = variant) do
+    from(vq in ExamVariantQuestion,
+      where: vq.exam_variant_id == ^variant.id,
+      order_by: [asc: vq.position],
+      preload: [question: :choices]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Loads ordered, active questions for an enabled variant and course type.
+  """
+  def load_enabled_variant_questions(variant_id, course_type) do
+    with %ExamVariant{} = variant <- Repo.get(ExamVariant, variant_id),
+         :ok <- validate_variant_selectable(variant, course_type) do
+      questions =
+        variant
+        |> list_exam_variant_questions()
+        |> Enum.map(& &1.question)
+
+      {:ok, variant, questions}
+    else
+      nil -> {:error, :exam_variant_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Course Type Question Distributions
   # ---------------------------------------------------------------------------
 
@@ -346,8 +514,8 @@ defmodule Whistle.Exams do
   Creates an exam with a snapshot of selected questions and participants.
 
   This is the main exam creation entry point. It:
-  1. Loads the course type distribution (or defaults)
-  2. Selects questions by difficulty distribution
+  1. Loads an enabled exam variant when `:exam_variant_id` is provided
+  2. Falls back to course type distribution/random selection for legacy callers
   3. Creates the exam record
   4. Copies questions and choices into snapshot tables
   5. Creates exam_participant records for selected user IDs
@@ -356,11 +524,13 @@ defmodule Whistle.Exams do
 
   Possible error reasons:
   - `{:not_enough_questions, difficulty, needed, available}` - not enough questions for a difficulty level
+  - `:exam_variant_not_enabled` - selected variant is not enabled
   """
   def create_exam(course, user_ids, created_by_user_id, opts \\ []) do
     show_countdown = Keyword.get(opts, :show_countdown_to_participants, false)
     execution_mode = Keyword.get(opts, :execution_mode, "synchronous")
     preselected = Keyword.get(opts, :questions)
+    exam_variant_id = Keyword.get(opts, :exam_variant_id)
 
     active_states = ["waiting_room", "running", "paused"]
 
@@ -377,22 +547,13 @@ defmodule Whistle.Exams do
       {:error, {:already_in_active_exam, conflicting_user_ids}}
     else
       Repo.transaction(fn ->
-        distribution = get_distribution_for_course_type(course.type)
-        question_count = distribution.question_count
-
-        questions_result =
-          if preselected do
-            {:ok, preselected}
-          else
-            counts = calculate_difficulty_counts(question_count, distribution)
-            load_and_select_questions(course.type, counts)
-          end
+        questions_result = select_exam_questions(course, preselected, exam_variant_id)
 
         case questions_result do
           {:error, reason} ->
             Repo.rollback(reason)
 
-          {:ok, selected_questions} ->
+          {:ok, exam_config, selected_questions} ->
             now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
             initial_state =
@@ -406,11 +567,12 @@ defmodule Whistle.Exams do
                 state: initial_state,
                 execution_mode: execution_mode,
                 question_count: length(selected_questions),
-                duration_seconds: distribution.duration_seconds,
-                l1_threshold: distribution.l1_threshold,
-                l2_threshold: distribution.l2_threshold,
-                l3_threshold: distribution.l3_threshold,
-                pass_threshold: distribution.pass_threshold,
+                duration_seconds: exam_config.duration_seconds,
+                exam_variant_id: exam_variant_id,
+                l1_threshold: Map.get(exam_config, :l1_threshold),
+                l2_threshold: Map.get(exam_config, :l2_threshold),
+                l3_threshold: Map.get(exam_config, :l3_threshold),
+                pass_threshold: Map.get(exam_config, :pass_threshold),
                 show_countdown_to_participants: show_countdown,
                 created_by: created_by_user_id
               })
@@ -874,6 +1036,118 @@ defmodule Whistle.Exams do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp select_exam_questions(course, _preselected, exam_variant_id)
+       when not is_nil(exam_variant_id) do
+    case load_enabled_variant_questions(exam_variant_id, course.type) do
+      {:ok, variant, questions} ->
+        {:ok, variant, questions}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp select_exam_questions(course, preselected, _exam_variant_id) do
+    distribution = get_distribution_for_course_type(course.type)
+
+    if preselected do
+      {:ok, distribution, preselected}
+    else
+      counts = calculate_difficulty_counts(distribution.question_count, distribution)
+
+      case load_and_select_questions(course.type, counts) do
+        {:ok, questions} -> {:ok, distribution, questions}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp validate_question_positions(question_positions) do
+    question_ids = Enum.map(question_positions, fn {question_id, _position} -> question_id end)
+    positions = Enum.map(question_positions, fn {_question_id, position} -> position end)
+
+    cond do
+      Enum.uniq(question_ids) != question_ids ->
+        {:error, :exam_variant_duplicate_questions}
+
+      Enum.uniq(positions) != positions ->
+        {:error, :exam_variant_duplicate_positions}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_variant_selectable(%ExamVariant{status: status}, _course_type)
+       when status != "enabled" do
+    {:error, :exam_variant_not_enabled}
+  end
+
+  defp validate_variant_selectable(%ExamVariant{course_type: variant_type}, course_type)
+       when variant_type != course_type do
+    {:error, :exam_variant_course_type_mismatch}
+  end
+
+  defp validate_variant_selectable(%ExamVariant{} = variant, _course_type) do
+    validate_variant_ready(variant)
+  end
+
+  defp validate_variant_ready(%ExamVariant{status: status}) when status != "enabled", do: :ok
+
+  defp validate_variant_ready(%ExamVariant{} = variant) do
+    variant_questions = list_exam_variant_questions(variant)
+    questions = Enum.map(variant_questions, & &1.question)
+    max_points = max_variant_points(questions)
+
+    cond do
+      questions == [] ->
+        {:error, :exam_variant_has_no_questions}
+
+      Enum.any?(questions, &(&1.status != "active")) ->
+        {:error, :exam_variant_has_inactive_questions}
+
+      not questions_match_course_type?(variant, questions) ->
+        {:error, :exam_variant_has_wrong_course_type_questions}
+
+      threshold_exceeds_max?(variant, max_points) ->
+        {:error, :exam_variant_threshold_exceeds_max_points}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp max_variant_points(questions) do
+    Enum.reduce(questions, 0, fn question, total ->
+      total + points_for_difficulty(question.difficulty)
+    end)
+  end
+
+  defp questions_match_course_type?(%ExamVariant{course_type: course_type}, questions) do
+    question_ids = Enum.map(questions, & &1.id)
+
+    assigned_count =
+      from(qct in QuestionCourseType,
+        where: qct.question_id in ^question_ids and qct.course_type == ^course_type,
+        select: count(qct.id)
+      )
+      |> Repo.one()
+
+    assigned_count == length(question_ids)
+  end
+
+  defp threshold_exceeds_max?(%ExamVariant{course_type: "F"} = variant, max_points) do
+    [variant.l1_threshold, variant.l2_threshold, variant.l3_threshold]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.any?(&(&1 > max_points))
+  end
+
+  defp threshold_exceeds_max?(%ExamVariant{course_type: "G"} = variant, max_points) do
+    is_integer(variant.pass_threshold) and variant.pass_threshold > max_points
+  end
+
+  defp threshold_exceeds_max?(_variant, _max_points), do: false
 
   defp load_and_select_questions(course_type, %{
          low: low_count,
