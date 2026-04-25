@@ -314,6 +314,46 @@ defmodule Whistle.Exams do
   end
 
   @doc """
+  Saves an exam variant and its ordered question assignments together.
+
+  This supports LiveView forms where a new variant can be composed before the
+  first database insert. If the submitted status is `enabled`, assignments are
+  persisted before the final activation validation runs.
+  """
+  def save_exam_variant_with_questions(variant, attrs, question_positions)
+      when is_nil(variant) or is_struct(variant, ExamVariant) do
+    case validate_question_positions(question_positions) do
+      :ok ->
+        Repo.transaction(fn ->
+          final_status = attr_value(attrs, "status") || (variant && variant.status) || "draft"
+          initial_attrs = put_attr_value(attrs, "status", interim_status(final_status))
+
+          variant =
+            case upsert_exam_variant(variant, initial_attrs) do
+              {:ok, saved} -> saved
+              {:error, changeset} -> Repo.rollback(changeset)
+            end
+
+          replace_exam_variant_questions(variant, question_positions)
+
+          case upsert_exam_variant(variant, attrs) do
+            {:ok, saved} ->
+              case validate_variant_ready(saved) do
+                :ok -> get_exam_variant_with_questions!(saved.id)
+                {:error, reason} -> Repo.rollback(reason)
+              end
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+        end)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Returns a changeset for an exam variant.
   """
   def change_exam_variant(%ExamVariant{} = variant, attrs \\ %{}) do
@@ -328,23 +368,7 @@ defmodule Whistle.Exams do
     case validate_question_positions(question_positions) do
       :ok ->
         Repo.transaction(fn ->
-          from(vq in ExamVariantQuestion, where: vq.exam_variant_id == ^variant.id)
-          |> Repo.delete_all()
-
-          now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
-
-          question_positions
-          |> Enum.sort_by(fn {_question_id, position} -> position end)
-          |> Enum.each(fn {question_id, position} ->
-            %ExamVariantQuestion{}
-            |> ExamVariantQuestion.changeset(%{
-              exam_variant_id: variant.id,
-              question_id: question_id,
-              position: position
-            })
-            |> Ecto.Changeset.put_change(:created_at, now)
-            |> Repo.insert!()
-          end)
+          replace_exam_variant_questions(variant, question_positions)
 
           variant
           |> Repo.reload!()
@@ -1061,6 +1085,53 @@ defmodule Whistle.Exams do
         {:error, reason} -> {:error, reason}
       end
     end
+  end
+
+  defp upsert_exam_variant(nil, attrs) do
+    %ExamVariant{}
+    |> ExamVariant.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  defp upsert_exam_variant(%ExamVariant{} = variant, attrs) do
+    variant
+    |> ExamVariant.changeset(attrs)
+    |> Repo.update()
+  end
+
+  defp interim_status("enabled"), do: "draft"
+  defp interim_status(status), do: status
+
+  defp attr_value(attrs, "status") when is_map(attrs) do
+    Map.get(attrs, "status") || Map.get(attrs, :status)
+  end
+
+  defp put_attr_value(attrs, "status", value) when is_map(attrs) do
+    cond do
+      Map.has_key?(attrs, "status") -> Map.put(attrs, "status", value)
+      Map.has_key?(attrs, :status) -> Map.put(attrs, :status, value)
+      true -> Map.put(attrs, "status", value)
+    end
+  end
+
+  defp replace_exam_variant_questions(%ExamVariant{} = variant, question_positions) do
+    from(vq in ExamVariantQuestion, where: vq.exam_variant_id == ^variant.id)
+    |> Repo.delete_all()
+
+    now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+    question_positions
+    |> Enum.sort_by(fn {_question_id, position} -> position end)
+    |> Enum.each(fn {question_id, position} ->
+      %ExamVariantQuestion{}
+      |> ExamVariantQuestion.changeset(%{
+        exam_variant_id: variant.id,
+        question_id: question_id,
+        position: position
+      })
+      |> Ecto.Changeset.put_change(:created_at, now)
+      |> Repo.insert!()
+    end)
   end
 
   defp validate_question_positions(question_positions) do

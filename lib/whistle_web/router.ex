@@ -104,8 +104,6 @@ defmodule WhistleWeb.Router do
     resources "/questions", QuestionController, except: [:show]
     post "/questions/:id/activate", QuestionController, :activate
     post "/questions/:id/deactivate", QuestionController, :deactivate
-    resources "/exam-variants", ExamVariantController, except: [:show, :delete]
-    post "/exam-variants/:id/questions", ExamVariantController, :update_questions
   end
 
   # Course-area LiveViews: INSTRUCTOR, ADMIN, SUPER_ADMIN
@@ -118,6 +116,9 @@ defmodule WhistleWeb.Router do
       live "/admin/courses/:id/edit", CourseEditLive
       live "/admin/courses/:course_id/exams/new", ExamCreationLive
       live "/admin/exams/:id", ExamInstructorLive
+      live "/admin/exam-variants", ExamVariantLive, :index
+      live "/admin/exam-variants/new", ExamVariantLive, :new
+      live "/admin/exam-variants/:id/edit", ExamVariantLive, :edit
     end
   end
 
