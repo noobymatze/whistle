@@ -107,6 +107,34 @@ defmodule WhistleWeb.CourseEditLive do
     end
   end
 
+  def handle_event("release_exam_solutions", _params, socket) do
+    case Courses.release_exam_solutions(socket.assigns.course) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign(:course, updated)
+         |> assign_course_form(Courses.change_course(updated))
+         |> put_flash(:info, "Lösungen wurden für diesen Kurs freigegeben.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Lösungen konnten nicht freigegeben werden.")}
+    end
+  end
+
+  def handle_event("hide_exam_solutions", _params, socket) do
+    case Courses.hide_exam_solutions(socket.assigns.course) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign(:course, updated)
+         |> assign_course_form(Courses.change_course(updated))
+         |> put_flash(:info, "Lösungen wurden für diesen Kurs verborgen.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Lösungen konnten nicht verborgen werden.")}
+    end
+  end
+
   def handle_event("delete", _params, socket) do
     course = socket.assigns.course
 
@@ -665,6 +693,44 @@ defmodule WhistleWeb.CourseEditLive do
     <% end %>
 
     <%= if @tab == :tests do %>
+      <div
+        id="exam-solutions-release-panel"
+        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm"
+      >
+        <div>
+          <p class="text-sm font-medium text-base-content">Lösungseinsicht</p>
+          <p class="mt-0.5 text-xs text-base-content/55">
+            <%= if @course.exam_solutions_released_at do %>
+              Freigegeben am {Whistle.Timezone.format_local(
+                @course.exam_solutions_released_at,
+                "%d.%m.%Y %H:%M"
+              )}
+            <% else %>
+              Noch nicht für Teilnehmende sichtbar.
+            <% end %>
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <.button
+            :if={is_nil(@course.exam_solutions_released_at)}
+            id="release-exam-solutions-button"
+            phx-click="release_exam_solutions"
+            type="button"
+          >
+            Lösungen freigeben
+          </.button>
+          <.button
+            :if={@course.exam_solutions_released_at}
+            id="hide-exam-solutions-button"
+            phx-click="hide_exam_solutions"
+            type="button"
+            data-confirm="Lösungen für Teilnehmende wieder verbergen?"
+          >
+            Lösungen verbergen
+          </.button>
+        </div>
+      </div>
+
       <div class="flex justify-end mb-4">
         <.button navigate={~p"/admin/courses/#{@course}/exams/new"}>Test erstellen</.button>
       </div>

@@ -16,12 +16,15 @@ defmodule WhistleWeb.MyExamsLive do
     from(ep in ExamParticipant,
       join: e in Exam,
       on: ep.exam_id == e.id,
+      join: c in Whistle.Courses.Course,
+      on: c.id == e.course_id,
       where: ep.user_id == ^user_id,
       where: e.state not in ["canceled"],
       order_by: [desc: e.created_at],
       select: %{
         participant_id: ep.id,
         exam_id: e.id,
+        exam_solutions_released_at: c.exam_solutions_released_at,
         course_type: e.course_type,
         state: e.state,
         started_at: e.started_at,
@@ -35,6 +38,7 @@ defmodule WhistleWeb.MyExamsLive do
   end
 
   defp load_review(%{achieved_points: nil}), do: []
+  defp load_review(%{exam_solutions_released_at: nil}), do: []
 
   defp load_review(%{exam_id: exam_id, participant_id: participant_id}) do
     questions =
@@ -129,6 +133,24 @@ defmodule WhistleWeb.MyExamsLive do
                     </span>
                   <% end %>
                 </div>
+              <% else %>
+                <%= if is_nil(exam.achieved_points) do %>
+                  <p
+                    id={"exam-score-pending-#{exam.exam_id}"}
+                    class="mb-3 text-sm font-medium text-amber-700"
+                  >
+                    Dein Score ist noch nicht freigegeben.
+                  </p>
+                <% end %>
+              <% end %>
+
+              <%= if exam.achieved_points && is_nil(exam.exam_solutions_released_at) do %>
+                <p
+                  id={"exam-solutions-locked-#{exam.exam_id}"}
+                  class="mt-4 border-t pt-4 text-sm text-zinc-500"
+                >
+                  Die Lösungen sind noch nicht freigegeben.
+                </p>
               <% end %>
 
               <div

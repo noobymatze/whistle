@@ -244,6 +244,26 @@ defmodule Whistle.Courses do
   end
 
   @doc """
+  Releases detailed exam solutions for participants of a course.
+  """
+  def release_exam_solutions(%Course{} = course) do
+    course
+    |> Ecto.Changeset.change(
+      exam_solutions_released_at: Whistle.Timezone.now_local() |> NaiveDateTime.truncate(:second)
+    )
+    |> Repo.update()
+  end
+
+  @doc """
+  Hides detailed exam solutions for participants of a course.
+  """
+  def hide_exam_solutions(%Course{} = course) do
+    course
+    |> Ecto.Changeset.change(exam_solutions_released_at: nil)
+    |> Repo.update()
+  end
+
+  @doc """
   Returns a map of registration_id => [CourseDate] for an online course.
   """
   def list_date_selections_for_registration(registration_id) do

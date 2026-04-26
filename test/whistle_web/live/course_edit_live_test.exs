@@ -6,6 +6,8 @@ defmodule WhistleWeb.CourseEditLiveTest do
   import Whistle.CoursesFixtures
   import Whistle.SeasonsFixtures
 
+  alias Whistle.Courses
+
   defp log_in(conn, user) do
     token = Whistle.Accounts.generate_user_session_token(user)
 
@@ -111,6 +113,36 @@ defmodule WhistleWeb.CourseEditLiveTest do
         |> render_change()
 
       refute html =~ "es ist ein Fehler aufgetreten"
+    end
+  end
+
+  describe "exam solution release controls" do
+    setup do
+      season = season_fixture(%{year: 2026, start: ~D[2026-01-01]})
+      course = course_fixture(%{season_id: season.id, type: "F"})
+      %{course: course}
+    end
+
+    test "instructor can release and hide exam solutions", %{conn: conn, course: course} do
+      user = instructor_fixture()
+
+      {:ok, view, _html} =
+        conn |> log_in(user) |> live(~p"/admin/courses/#{course}/edit?tab=tests")
+
+      assert has_element?(view, "#exam-solutions-release-panel", "Noch nicht")
+      assert has_element?(view, "#release-exam-solutions-button")
+
+      render_click(view, "release_exam_solutions")
+      html = render(view)
+
+      assert html =~ "Freigegeben am"
+      assert has_element?(view, "#hide-exam-solutions-button")
+      assert Courses.get_course!(course.id).exam_solutions_released_at != nil
+
+      render_click(view, "hide_exam_solutions")
+
+      assert has_element?(view, "#release-exam-solutions-button")
+      assert Courses.get_course!(course.id).exam_solutions_released_at == nil
     end
   end
 end

@@ -16,6 +16,7 @@ defmodule Whistle.Courses.Course do
     field :max_per_club, :integer
     field :max_organizer_participants, :integer
     field :released_at, :naive_datetime
+    field :exam_solutions_released_at, :naive_datetime
     field :organizer_id, :id
     field :season_id, :id
 
@@ -44,6 +45,7 @@ defmodule Whistle.Courses.Course do
       :max_per_club,
       :max_organizer_participants,
       :released_at,
+      :exam_solutions_released_at,
       :organizer_id,
       :season_id,
       :type
