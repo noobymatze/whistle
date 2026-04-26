@@ -30,6 +30,49 @@
   </.link>
 </div>
 
+<section id="exam-variants-on-questions" class="mb-8">
+  <div class="mb-3 flex items-center justify-between gap-4">
+    <h2 class="text-base font-semibold text-gray-900">Testvarianten</h2>
+    <.link
+      href={~p"/admin/exam-variants/new"}
+      class="text-sm font-medium text-blue-600 hover:text-blue-700"
+    >
+      Neue Testvariante
+    </.link>
+  </div>
+
+  <%= if @exam_variants == [] do %>
+    <p class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+      Keine Testvarianten angelegt.
+    </p>
+  <% else %>
+    <div class="grid gap-3 md:grid-cols-2">
+      <%= for variant <- @exam_variants do %>
+        <.link
+          id={"question-page-exam-variant-#{variant.id}"}
+          href={~p"/admin/exam-variants/#{variant}/edit"}
+          class="block rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm transition-colors hover:border-gray-300"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-gray-900">{variant.name}</div>
+              <div class="mt-1 text-xs text-gray-500">
+                {variant.course_type} · {length(variant.variant_questions)} Fragen · {div(
+                  variant.duration_seconds,
+                  60
+                )} Minuten
+              </div>
+            </div>
+            <span class={"shrink-0 rounded-full px-2 py-0.5 text-xs font-medium #{variant_status_class(variant.status)}"}>
+              {variant_status_label(variant.status)}
+            </span>
+          </div>
+        </.link>
+      <% end %>
+    </div>
+  <% end %>
+</section>
+
 <div class="space-y-3">
   <%= for q <- @questions do %>
     <% inactive = q.status != "active" %>

@@ -25,8 +25,13 @@ defmodule WhistleWeb.QuestionController do
       Exams.list_questions(opts)
       |> Whistle.Repo.preload(:course_type_assignments)
 
+    exam_variants =
+      Exams.list_exam_variants()
+      |> Whistle.Repo.preload(:variant_questions)
+
     render(conn, :index,
       questions: questions,
+      exam_variants: exam_variants,
       filter_status: status || "",
       filter_course_type: course_type || "",
       statuses: Question.valid_statuses(),

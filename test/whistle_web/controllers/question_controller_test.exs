@@ -2,6 +2,7 @@ defmodule WhistleWeb.QuestionControllerTest do
   use WhistleWeb.ConnCase, async: true
 
   import Whistle.AccountsFixtures
+  import Whistle.ExamsFixtures
 
   alias Whistle.Accounts
 
@@ -27,5 +28,16 @@ defmodule WhistleWeb.QuestionControllerTest do
     conn = get(conn, ~p"/admin/questions/abc/edit")
 
     assert html_response(conn, 404) =~ "Seite nicht gefunden"
+  end
+
+  test "index shows test variants", %{conn: conn} do
+    variant = exam_variant_fixture(%{name: "Fragenbereich F1"})
+
+    conn = get(conn, ~p"/admin/questions")
+    html = html_response(conn, 200)
+
+    assert html =~ ~s(id="exam-variants-on-questions")
+    assert html =~ ~s(id="question-page-exam-variant-#{variant.id}")
+    assert html =~ "Fragenbereich F1"
   end
 end

@@ -108,6 +108,24 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
                "#submit-exam-button[data-confirm*='20 unbeantwortete Fragen']"
              )
     end
+
+    test "submitting scores the participant immediately", %{conn: conn} do
+      %{user: user, exam: exam} = sync_exam_setup()
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
+
+      {:ok, running_exam} = Exams.update_exam_state(exam, "running")
+      send(lv.pid, {:exam_state_changed, running_exam})
+
+      render_click(lv, "submit")
+      html = render(lv)
+
+      participant = Exams.get_exam_participant(exam.id, user.id)
+      assert participant.achieved_points == 0
+      assert participant.max_points != nil
+      assert html =~ "0 /"
+      assert html =~ "Punkte"
+    end
   end
 
   # ── 4. Async exam: pre-start screen ───────────────────────────────────────────

@@ -327,6 +327,25 @@ defmodule WhistleWeb.AuthorizationTest do
       assert html =~ "L2"
     end
 
+    test "user list is sorted by club and then first name", %{conn: conn} do
+      alpha = club_fixture(%{name: "Alpha Club", short_name: "ALP"})
+      beta = club_fixture(%{name: "Beta Club", short_name: "BET"})
+
+      alpha_bob = user_fixture(%{club_id: alpha.id, first_name: "Bob", last_name: "Stone"})
+      beta_aaron = user_fixture(%{club_id: beta.id, first_name: "Aaron", last_name: "Stone"})
+      alpha_alice = user_fixture(%{club_id: alpha.id, first_name: "Alice", last_name: "Stone"})
+
+      conn = get(conn, ~p"/admin/users")
+      html = html_response(conn, 200)
+
+      alpha_alice_pos = :binary.match(html, ~s(id="user-row-#{alpha_alice.id}")) |> elem(0)
+      alpha_bob_pos = :binary.match(html, ~s(id="user-row-#{alpha_bob.id}")) |> elem(0)
+      beta_aaron_pos = :binary.match(html, ~s(id="user-row-#{beta_aaron.id}")) |> elem(0)
+
+      assert alpha_alice_pos < alpha_bob_pos
+      assert alpha_bob_pos < beta_aaron_pos
+    end
+
     test "cannot delete a course", %{conn: conn} do
       conn = delete(conn, ~p"/admin/courses/999999")
       assert redirected_to(conn) == "/"

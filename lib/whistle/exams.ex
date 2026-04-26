@@ -889,50 +889,58 @@ defmodule Whistle.Exams do
   """
   def score_exam(%Exam{} = exam) do
     exam = Repo.preload(exam, participants: [], questions: :choices)
-    questions = exam.questions
 
     Enum.each(exam.participants, fn participant ->
-      answers = list_answers_for_participant(participant.id)
+      {:ok, _participant} = score_participant(participant, exam)
+    end)
 
-      question_answer_pairs =
-        Enum.map(questions, fn question ->
-          answer = Enum.find(answers, fn a -> a.exam_question_id == question.id end)
+    reloaded = Repo.preload(Repo.reload!(exam), [:questions, participants: []])
+    broadcast(exam.id, {:exam_scored, reloaded})
+    :ok
+  end
 
-          choice_ids =
-            if answer do
-              answer
-              |> Repo.preload(:answer_choices)
-              |> Map.get(:answer_choices)
-              |> Enum.map(& &1.exam_question_choice_id)
-            else
-              []
-            end
+  @doc """
+  Scores a single participant without affecting other participants in the exam.
+  """
+  def score_participant(%ExamParticipant{} = participant, %Exam{} = exam) do
+    exam = Repo.preload(exam, questions: :choices)
+    answers = list_answers_for_participant(participant.id)
 
-          {question, choice_ids}
-        end)
-
-      Enum.each(question_answer_pairs, fn {question, choice_ids} ->
+    question_answer_pairs =
+      Enum.map(exam.questions, fn question ->
         answer = Enum.find(answers, fn a -> a.exam_question_id == question.id end)
 
-        if answer do
-          {awarded, correct} = Whistle.Exams.Scoring.score_answer(question, choice_ids)
+        choice_ids =
+          if answer do
+            answer
+            |> Repo.preload(:answer_choices)
+            |> Map.get(:answer_choices)
+            |> Enum.map(& &1.exam_question_choice_id)
+          else
+            []
+          end
 
-          answer
-          |> ExamAnswer.changeset(%{awarded_points: awarded, is_correct: correct})
-          |> Repo.update!()
-        end
+        {question, choice_ids}
       end)
 
-      result =
-        Whistle.Exams.Scoring.compute_total(
-          question_answer_pairs,
-          exam
-        )
+    Enum.each(question_answer_pairs, fn {question, choice_ids} ->
+      answer = Enum.find(answers, fn a -> a.exam_question_id == question.id end)
 
-      passed = result.outcome in [:l3_pass, :l2_pass, :l1_eligible]
-      license_decision = if passed, do: "granted", else: "denied"
-      l1_review_eligible = result.outcome == :l1_eligible
+      if answer do
+        {awarded, correct} = Whistle.Exams.Scoring.score_answer(question, choice_ids)
 
+        answer
+        |> ExamAnswer.changeset(%{awarded_points: awarded, is_correct: correct})
+        |> Repo.update!()
+      end
+    end)
+
+    result = Whistle.Exams.Scoring.compute_total(question_answer_pairs, exam)
+    passed = result.outcome in [:l3_pass, :l2_pass, :l1_eligible]
+    license_decision = if passed, do: "granted", else: "denied"
+    l1_review_eligible = result.outcome == :l1_eligible
+
+    updated =
       participant
       |> ExamParticipant.changeset(%{
         score: result.achieved_points,
@@ -946,14 +954,11 @@ defmodule Whistle.Exams do
       })
       |> Repo.update!()
 
-      if passed do
-        issue_seasonal_license(participant, exam, result.outcome)
-      end
-    end)
+    if passed do
+      issue_seasonal_license(updated, exam, result.outcome)
+    end
 
-    reloaded = Repo.preload(Repo.reload!(exam), [:questions, participants: []])
-    broadcast(exam.id, {:exam_scored, reloaded})
-    :ok
+    {:ok, updated}
   end
 
   @doc """

@@ -493,7 +493,9 @@ defmodule Whistle.Accounts do
   end
 
   def list_users() do
-    Repo.all(UserView)
+    UserView
+    |> order_users_for_admin()
+    |> Repo.all()
   end
 
   @doc """
@@ -543,21 +545,35 @@ defmodule Whistle.Accounts do
     case manager.role do
       "SUPER_ADMIN" ->
         from(u in UserView, where: u.role != "SUPER_ADMIN")
+        |> order_users_for_admin()
         |> Repo.all()
 
       "ADMIN" ->
         from(u in UserView, where: u.role not in ["SUPER_ADMIN", "ADMIN"])
+        |> order_users_for_admin()
         |> Repo.all()
 
       "CLUB_ADMIN" ->
         from(u in UserView,
           where: u.club_id == ^manager.club_id and u.role in ["INSTRUCTOR", "USER"]
         )
+        |> order_users_for_admin()
         |> Repo.all()
 
       _ ->
         []
     end
+  end
+
+  defp order_users_for_admin(query) do
+    from(u in query,
+      order_by: [
+        asc_nulls_last: u.club_name,
+        asc_nulls_last: u.first_name,
+        asc_nulls_last: u.last_name,
+        asc: u.username
+      ]
+    )
   end
 
   @doc """

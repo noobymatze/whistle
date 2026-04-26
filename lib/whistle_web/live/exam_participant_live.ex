@@ -116,16 +116,13 @@ defmodule WhistleWeb.ExamParticipantLive do
 
     if Exams.async_deadline_passed?(participant) && !socket.assigns.submitted do
       {:ok, updated} = Exams.update_participant_state(participant, "submitted")
+      {:ok, scored} = Exams.score_participant(updated, exam)
 
-      Exams.broadcast(exam.id, {:participant_submitted, updated.user_id})
-      Exams.score_exam(exam)
+      Exams.broadcast(exam.id, {:participant_submitted, scored.user_id})
 
       {:noreply,
        socket
-       |> assign(
-         :participant,
-         Exams.get_exam_participant(exam.id, socket.assigns.current_user.id)
-       )
+       |> assign(:participant, scored)
        |> assign(:submitted, true)
        |> assign(:remaining_seconds, 0)}
     else
@@ -258,12 +255,13 @@ defmodule WhistleWeb.ExamParticipantLive do
         {:noreply, socket}
       else
         {:ok, updated} = Exams.update_participant_state(participant, "submitted")
+        {:ok, scored} = Exams.score_participant(updated, exam)
 
-        Exams.broadcast(exam.id, {:participant_submitted, updated.user_id})
+        Exams.broadcast(exam.id, {:participant_submitted, scored.user_id})
 
         {:noreply,
          socket
-         |> assign(:participant, updated)
+         |> assign(:participant, scored)
          |> assign(:submitted, true)}
       end
     end
@@ -651,10 +649,9 @@ defmodule WhistleWeb.ExamParticipantLive do
 
     if exam.execution_mode == "asynchronous" && deadline_passed && not_yet_submitted do
       {:ok, updated} = Exams.update_participant_state(participant, "submitted")
-      Exams.broadcast(exam.id, {:participant_submitted, updated.user_id})
-      Exams.score_exam(exam)
-      fresh = Exams.get_exam_participant(exam.id, participant.user_id)
-      {fresh, true}
+      {:ok, scored} = Exams.score_participant(updated, exam)
+      Exams.broadcast(exam.id, {:participant_submitted, scored.user_id})
+      {scored, true}
     else
       {participant, false}
     end
