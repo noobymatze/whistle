@@ -78,6 +78,29 @@ defmodule WhistleWeb.ExamInstructorLive do
   end
 
   @impl true
+  def handle_event(
+        "set_license_result",
+        %{"participant_id" => participant_id, "license_result" => result},
+        socket
+      ) do
+    with {:ok, participant_id} <- parse_id(participant_id),
+         true <- result in ["L1", "L2", "L3", "fail"],
+         {:ok, _participant} <- Exams.set_participant_license_result(participant_id, result) do
+      exam = Exams.get_exam_with_details!(socket.assigns.exam.id)
+
+      {:noreply,
+       socket
+       |> assign(:exam, exam)
+       |> assign(:participants, build_participant_list(exam))
+       |> put_flash(:info, "Lizenzentscheidung wurde gespeichert.")}
+    else
+      _ ->
+        {:noreply,
+         put_flash(socket, :error, "Lizenzentscheidung konnte nicht gespeichert werden.")}
+    end
+  end
+
+  @impl true
   def handle_event("start", _params, socket) do
     {:ok, exam} = Exams.update_exam_state(socket.assigns.exam, "running")
     Exams.broadcast(exam.id, {:exam_state_changed, exam})
@@ -222,29 +245,36 @@ defmodule WhistleWeb.ExamInstructorLive do
                       {p.achieved_points} / {p.max_points} Pkt.
                     </span>
                   <% end %>
-                  <%= if p.exam_outcome != nil do %>
-                    <span
-                      id={"participant-outcome-#{p.user_id}"}
-                      class={[
-                        "text-xs px-2 py-0.5 rounded-full font-medium",
-                        p.exam_outcome == "l3_pass" && "bg-green-100 text-green-700",
-                        p.exam_outcome == "l2_pass" && "bg-blue-100 text-blue-700",
-                        p.exam_outcome == "l1_eligible" && "bg-purple-100 text-purple-700",
-                        p.exam_outcome == "fail" && "bg-red-100 text-red-600",
-                        p.exam_outcome == "not_applicable" && "bg-gray-100 text-gray-500"
-                      ]}
-                    >
-                      {exam_outcome_label(p.exam_outcome)}
-                    </span>
-                  <% end %>
-                  <%= if p.l1_review_eligible do %>
-                    <span
-                      id={"l1-review-badge-#{p.user_id}"}
-                      class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
-                    >
-                      L1-Prüfung erforderlich
-                    </span>
-                  <% end %>
+                  <form
+                    id={"license-result-form-#{p.id}"}
+                    phx-change="set_license_result"
+                    class="flex items-center gap-1 rounded-md border border-gray-200 bg-white p-1"
+                  >
+                    <input type="hidden" name="participant_id" value={p.id} />
+                    <%= for {label, value} <- [{"L1", "L1"}, {"L2", "L2"}, {"L3", "L3"}, {"Nicht bestanden", "fail"}] do %>
+                      <label
+                        id={"license-result-#{p.id}-#{value}"}
+                        class={[
+                          "cursor-pointer rounded px-2 py-0.5 text-xs font-medium transition-colors",
+                          participant_license_result(p) == value && value == "fail" &&
+                            "bg-red-100 text-red-700",
+                          participant_license_result(p) == value && value != "fail" &&
+                            "bg-blue-100 text-blue-700",
+                          participant_license_result(p) != value &&
+                            "text-gray-500 hover:bg-gray-50"
+                        ]}
+                      >
+                        <input
+                          type="radio"
+                          name="license_result"
+                          value={value}
+                          checked={participant_license_result(p) == value}
+                          class="sr-only"
+                        />
+                        {label}
+                      </label>
+                    <% end %>
+                  </form>
                   <%= if Map.has_key?(@answers_by_participant, p.id) do %>
                     <button
                       type="button"
@@ -345,12 +375,12 @@ defmodule WhistleWeb.ExamInstructorLive do
   defp execution_mode_label("asynchronous"), do: "Asynchron"
   defp execution_mode_label(m), do: m
 
-  defp exam_outcome_label("l3_pass"), do: "L3"
-  defp exam_outcome_label("l2_pass"), do: "L2"
-  defp exam_outcome_label("l1_eligible"), do: "L2 + L1-Prüfung"
-  defp exam_outcome_label("fail"), do: "Nicht bestanden"
-  defp exam_outcome_label("not_applicable"), do: "–"
-  defp exam_outcome_label(o), do: o
+  defp participant_license_result(%{exam_outcome: "l1_pass"}), do: "L1"
+  defp participant_license_result(%{exam_outcome: "l1_eligible"}), do: "L1"
+  defp participant_license_result(%{exam_outcome: "l2_pass"}), do: "L2"
+  defp participant_license_result(%{exam_outcome: "l3_pass"}), do: "L3"
+  defp participant_license_result(%{exam_outcome: "fail"}), do: "fail"
+  defp participant_license_result(_participant), do: nil
 
   defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 end

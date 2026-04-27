@@ -256,5 +256,25 @@ defmodule WhistleWeb.ExamInstructorLiveTest do
 
       assert html =~ "Pkt."
     end
+
+    test "license result selection updates the participant and user license level", %{conn: conn} do
+      %{instructor: instructor, participant: participant, exam: exam} = exam_setup()
+      {:ok, exam} = Exams.update_exam_state(exam, "running")
+      {:ok, exam} = Exams.update_exam_state(exam, "finished")
+      Exams.score_exam(exam)
+      participant_record = Exams.get_exam_participant(exam.id, participant.id)
+
+      {:ok, lv, _html} =
+        conn |> log_in(instructor) |> live(~p"/admin/exams/#{exam.id}")
+
+      render_change(lv, "set_license_result", %{
+        "participant_id" => to_string(participant_record.id),
+        "license_result" => "L2"
+      })
+
+      assert Accounts.get_user!(participant.id).license_level == "L2"
+      assert Exams.get_exam_participant(exam.id, participant.id).exam_outcome == "l2_pass"
+      assert has_element?(lv, "#license-result-#{participant_record.id}-L2")
+    end
   end
 end

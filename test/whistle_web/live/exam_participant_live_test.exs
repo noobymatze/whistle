@@ -126,6 +126,30 @@ defmodule WhistleWeb.ExamParticipantLiveTest do
       assert html =~ "0 /"
       assert html =~ "Punkte"
     end
+
+    test "submitted participant cannot edit answers after a reload/disconnect state", %{
+      conn: conn
+    } do
+      %{user: user, exam: exam} = sync_exam_setup()
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
+
+      {:ok, running_exam} = Exams.update_exam_state(exam, "running")
+      send(lv.pid, {:exam_state_changed, running_exam})
+
+      render_click(lv, "submit")
+
+      participant = Exams.get_exam_participant(exam.id, user.id)
+
+      participant
+      |> Ecto.Changeset.change(state: "disconnected")
+      |> Repo.update!()
+
+      {:ok, _lv, html} = conn |> log_in(user) |> live(~p"/exams/#{exam.id}")
+
+      assert html =~ "Abgegeben"
+      refute html =~ "Frage 1 von"
+    end
   end
 
   # ── 4. Async exam: pre-start screen ───────────────────────────────────────────

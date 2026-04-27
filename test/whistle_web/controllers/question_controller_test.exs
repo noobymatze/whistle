@@ -5,6 +5,7 @@ defmodule WhistleWeb.QuestionControllerTest do
   import Whistle.ExamsFixtures
 
   alias Whistle.Accounts
+  alias Whistle.Exams
 
   setup %{conn: conn} do
     admin = user_fixture(%{role: "ADMIN"})
@@ -39,5 +40,31 @@ defmodule WhistleWeb.QuestionControllerTest do
     assert html =~ ~s(id="exam-variants-on-questions")
     assert html =~ ~s(id="question-page-exam-variant-#{variant.id}")
     assert html =~ "Fragenbereich F1"
+  end
+
+  test "creating a question can assign it to an exam variant", %{conn: conn} do
+    variant = exam_variant_fixture(%{name: "Direktzuordnung"})
+
+    conn =
+      post(conn, ~p"/admin/questions", %{
+        "question" => %{
+          "type" => "single_choice",
+          "difficulty" => "low",
+          "body_markdown" => "Neue Frage fuer Variante?",
+          "status" => "active"
+        },
+        "choices" => %{
+          "0" => %{"body_markdown" => "Ja", "is_correct" => "true"},
+          "1" => %{"body_markdown" => "Nein"}
+        },
+        "course_types" => ["F"],
+        "exam_variants" => [to_string(variant.id)]
+      })
+
+    assert redirected_to(conn) =~ "/admin/questions/"
+
+    [assignment] = Exams.list_exam_variant_questions(variant)
+    assert assignment.question.body_markdown == "Neue Frage fuer Variante?"
+    assert assignment.position == 1
   end
 end

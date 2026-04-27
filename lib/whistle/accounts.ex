@@ -25,7 +25,14 @@ defmodule Whistle.Accounts do
 
   """
   def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
+    email = String.trim(email)
+
+    from(u in User,
+      where: u.email == ^email,
+      order_by: [desc_nulls_last: u.confirmed_at, asc: u.id],
+      limit: 1
+    )
+    |> Repo.one()
   end
 
   @doc """
@@ -59,7 +66,7 @@ defmodule Whistle.Accounts do
 
   """
   def get_user_by_username(username) when is_binary(username) do
-    Repo.get_by(User, username: username)
+    Repo.get_by(User, username: String.trim(username))
   end
 
   @doc """
@@ -100,6 +107,8 @@ defmodule Whistle.Accounts do
 
   """
   def get_user_by_username_or_email(username_or_email) when is_binary(username_or_email) do
+    username_or_email = String.trim(username_or_email)
+
     # First try to find by username
     case get_user_by_username(username_or_email) do
       nil ->
@@ -168,15 +177,52 @@ defmodule Whistle.Accounts do
       if admin.role == "CLUB_ADMIN" do
         admin.club_id
       else
-        Map.get(attrs, "club_id") || Map.get(attrs, :club_id)
+        attrs
+        |> Map.get("club_id", Map.get(attrs, :club_id))
+        |> normalize_id()
       end
 
     %User{}
     |> User.registration_changeset(attrs)
     |> Ecto.Changeset.put_change(:role, role)
     |> Ecto.Changeset.put_change(:club_id, club_id)
+    |> put_optional_change(
+      :license_number,
+      Map.get(attrs, "license_number") || Map.get(attrs, :license_number)
+    )
+    |> put_optional_change(
+      :license_level,
+      Map.get(attrs, "license_level") || Map.get(attrs, :license_level)
+    )
     |> Repo.insert()
   end
+
+  defp put_optional_change(changeset, field, value) do
+    value =
+      case value do
+        value when is_binary(value) ->
+          value = String.trim(value)
+          if value == "", do: nil, else: value
+
+        value ->
+          value
+      end
+
+    Ecto.Changeset.put_change(changeset, field, value)
+  end
+
+  defp normalize_id(value) when is_integer(value), do: value
+  defp normalize_id(nil), do: nil
+  defp normalize_id(""), do: nil
+
+  defp normalize_id(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  defp normalize_id(_value), do: nil
 
   @doc """
   Updates the club for a user.
@@ -528,6 +574,15 @@ defmodule Whistle.Accounts do
   # Backwards compatibility for when only role string is passed
   def update_user_role(user, role, updated_by) when is_binary(role) do
     update_user_role(user, %{role: role}, updated_by)
+  end
+
+  @doc """
+  Updates only the user's visible license level.
+  """
+  def update_user_license_level(%User{} = user, license_level) do
+    user
+    |> User.license_level_changeset(%{license_level: license_level})
+    |> Repo.update()
   end
 
   @doc """

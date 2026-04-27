@@ -36,7 +36,7 @@ defmodule WhistleWeb.ExamParticipantLive do
       {participant, already_submitted} =
         maybe_auto_submit_on_mount(exam, participant)
 
-      already_submitted = already_submitted || participant.state in ["submitted", "timed_out"]
+      already_submitted = already_submitted || participant_submitted?(participant)
 
       {questions, answers_map} = maybe_load_questions(exam, participant)
 
@@ -165,6 +165,7 @@ defmodule WhistleWeb.ExamParticipantLive do
     can_answer =
       exam.state == "running" &&
         !socket.assigns.submitted &&
+        !participant_submitted?(participant) &&
         (exam.execution_mode == "synchronous" || participant.async_started_at != nil) &&
         !Exams.async_deadline_passed?(participant)
 
@@ -633,7 +634,7 @@ defmodule WhistleWeb.ExamParticipantLive do
     needs_tick =
       exam.execution_mode == "asynchronous" &&
         participant.async_started_at != nil &&
-        participant.state not in ["submitted", "timed_out"] &&
+        !participant_submitted?(participant) &&
         !Exams.async_deadline_passed?(participant)
 
     if needs_tick do
@@ -645,7 +646,7 @@ defmodule WhistleWeb.ExamParticipantLive do
 
   defp maybe_auto_submit_on_mount(exam, participant) do
     deadline_passed = Exams.async_deadline_passed?(participant)
-    not_yet_submitted = participant.state not in ["submitted", "timed_out"]
+    not_yet_submitted = !participant_submitted?(participant)
 
     if exam.execution_mode == "asynchronous" && deadline_passed && not_yet_submitted do
       {:ok, updated} = Exams.update_participant_state(participant, "submitted")
@@ -689,6 +690,11 @@ defmodule WhistleWeb.ExamParticipantLive do
 
   defp question_word(1), do: "Frage"
   defp question_word(_), do: "Fragen"
+
+  defp participant_submitted?(participant) do
+    participant.state in ["submitted", "timed_out"] or participant.submitted_at != nil or
+      participant.score != nil or participant.achieved_points != nil
+  end
 
   defp load_exam_questions(exam_id) do
     import Ecto.Query

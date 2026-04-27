@@ -24,6 +24,8 @@ defmodule Whistle.Exams do
     ExamAnswerChoice
   }
 
+  alias Whistle.Accounts
+
   # ---------------------------------------------------------------------------
   # Questions
   # ---------------------------------------------------------------------------
@@ -92,7 +94,7 @@ defmodule Whistle.Exams do
   def get_question_with_details!(id) do
     Question
     |> Repo.get!(id)
-    |> Repo.preload([:choices, :course_type_assignments])
+    |> Repo.preload([:choices, :course_type_assignments, :variant_assignments])
   end
 
   @doc """
@@ -102,8 +104,11 @@ defmodule Whistle.Exams do
   """
   def get_question_with_details(id) do
     case Repo.get(Question, id) do
-      nil -> nil
-      question -> Repo.preload(question, [:choices, :course_type_assignments])
+      nil ->
+        nil
+
+      question ->
+        Repo.preload(question, [:choices, :course_type_assignments, :variant_assignments])
     end
   end
 
@@ -394,6 +399,68 @@ defmodule Whistle.Exams do
       preload: [question: :choices]
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Replaces the exam variant assignments for a question.
+
+  New assignments are appended to the end of each selected variant. Existing
+  assignments keep their current position.
+  """
+  def set_question_exam_variants(%Question{} = question, variant_ids) when is_list(variant_ids) do
+    variant_ids =
+      variant_ids
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    Repo.transaction(fn ->
+      if variant_ids == [] do
+        from(vq in ExamVariantQuestion, where: vq.question_id == ^question.id)
+      else
+        from(vq in ExamVariantQuestion,
+          where: vq.question_id == ^question.id and vq.exam_variant_id not in ^variant_ids
+        )
+      end
+      |> Repo.delete_all()
+
+      existing_variant_ids =
+        from(vq in ExamVariantQuestion,
+          where: vq.question_id == ^question.id and vq.exam_variant_id in ^variant_ids,
+          select: vq.exam_variant_id
+        )
+        |> Repo.all()
+        |> MapSet.new()
+
+      now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+      variant_ids
+      |> Enum.reject(&MapSet.member?(existing_variant_ids, &1))
+      |> Enum.each(fn variant_id ->
+        next_position =
+          from(vq in ExamVariantQuestion,
+            where: vq.exam_variant_id == ^variant_id,
+            select: max(vq.position)
+          )
+          |> Repo.one()
+          |> case do
+            nil -> 1
+            position -> position + 1
+          end
+
+        %ExamVariantQuestion{}
+        |> ExamVariantQuestion.changeset(%{
+          exam_variant_id: variant_id,
+          question_id: question.id,
+          position: next_position
+        })
+        |> Ecto.Changeset.put_change(:created_at, now)
+        |> Repo.insert!()
+      end)
+
+      question
+      |> Repo.reload!()
+      |> Repo.preload([:choices, :course_type_assignments, :variant_assignments])
+    end)
   end
 
   @doc """
@@ -708,7 +775,20 @@ defmodule Whistle.Exams do
   @doc """
   Updates an exam participant's state.
   """
+  def update_participant_state(%ExamParticipant{} = participant, new_state)
+      when new_state in ["connected", "disconnected"] do
+    if participant_submitted?(participant) do
+      {:ok, participant}
+    else
+      do_update_participant_state(participant, new_state)
+    end
+  end
+
   def update_participant_state(%ExamParticipant{} = participant, new_state) do
+    do_update_participant_state(participant, new_state)
+  end
+
+  defp do_update_participant_state(%ExamParticipant{} = participant, new_state) do
     now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
     attrs =
@@ -735,6 +815,82 @@ defmodule Whistle.Exams do
     |> Repo.update()
   end
 
+  @doc """
+  Sets the manually reviewed license result for one exam participant and syncs
+  the visible license level on the user record.
+  """
+  def set_participant_license_result(participant_id, result)
+      when result in ["L1", "L2", "L3", "fail"] do
+    Repo.transaction(fn ->
+      participant = Repo.get!(ExamParticipant, participant_id)
+      exam = Repo.get!(Exam, participant.exam_id)
+      user = Accounts.get_user!(participant.user_id)
+
+      attrs = participant_license_attrs(result)
+
+      updated_participant =
+        participant
+        |> ExamParticipant.changeset(attrs)
+        |> Repo.update!()
+
+      license_level = if result == "fail", do: nil, else: result
+
+      case Accounts.update_user_license_level(user, license_level) do
+        {:ok, _user} -> :ok
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+
+      if license_level do
+        issue_seasonal_license(updated_participant, exam, license_level_to_outcome(result))
+      end
+
+      updated_participant
+    end)
+  end
+
+  def set_participant_license_result(_participant_id, _result),
+    do: {:error, :invalid_license_result}
+
+  defp participant_license_attrs("L1") do
+    %{
+      passed: true,
+      license_decision: "granted",
+      exam_outcome: "l1_pass",
+      l1_review_eligible: false
+    }
+  end
+
+  defp participant_license_attrs("L2") do
+    %{
+      passed: true,
+      license_decision: "granted",
+      exam_outcome: "l2_pass",
+      l1_review_eligible: false
+    }
+  end
+
+  defp participant_license_attrs("L3") do
+    %{
+      passed: true,
+      license_decision: "granted",
+      exam_outcome: "l3_pass",
+      l1_review_eligible: false
+    }
+  end
+
+  defp participant_license_attrs("fail") do
+    %{
+      passed: false,
+      license_decision: "denied",
+      exam_outcome: "fail",
+      l1_review_eligible: false
+    }
+  end
+
+  defp license_level_to_outcome("L1"), do: :l1_pass
+  defp license_level_to_outcome("L2"), do: :l2_pass
+  defp license_level_to_outcome("L3"), do: :l3_pass
+
   # ---------------------------------------------------------------------------
   # Exam Answers
   # ---------------------------------------------------------------------------
@@ -745,10 +901,15 @@ defmodule Whistle.Exams do
   For choice questions, `choice_ids` should be the list of selected `exam_question_choice_id` values.
   """
   def upsert_answer(exam_participant, exam_question, choice_ids \\ []) do
-    if async_deadline_passed?(exam_participant) do
-      {:error, :deadline_passed}
-    else
-      do_upsert_answer(exam_participant, exam_question, choice_ids)
+    cond do
+      participant_submitted?(exam_participant) ->
+        {:error, :already_submitted}
+
+      async_deadline_passed?(exam_participant) ->
+        {:error, :deadline_passed}
+
+      true ->
+        do_upsert_answer(exam_participant, exam_question, choice_ids)
     end
   end
 
@@ -977,6 +1138,10 @@ defmodule Whistle.Exams do
     license_type = outcome_to_license_type(exam.course_type, outcome)
 
     if license_type do
+      if user = Repo.get(Whistle.Accounts.User, participant.user_id) do
+        Accounts.update_user_license_level(user, Atom.to_string(license_type))
+      end
+
       season_id = get_season_id_for_exam(exam)
 
       if season_id do
@@ -1013,11 +1178,17 @@ defmodule Whistle.Exams do
     end
   end
 
+  defp outcome_to_license_type("F", :l1_pass), do: :L1
   defp outcome_to_license_type("F", :l1_eligible), do: :L2
   defp outcome_to_license_type("F", :l2_pass), do: :L2
   defp outcome_to_license_type("F", :l3_pass), do: :L3
   defp outcome_to_license_type("G", :l3_pass), do: :L3
   defp outcome_to_license_type(_, _), do: nil
+
+  defp participant_submitted?(%ExamParticipant{} = participant) do
+    participant.state in ["submitted", "timed_out"] or participant.submitted_at != nil or
+      participant.score != nil or participant.achieved_points != nil
+  end
 
   @doc """
   Auto-submits all non-submitted participants when an exam times out.

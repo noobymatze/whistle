@@ -327,6 +327,34 @@ defmodule WhistleWeb.AuthorizationTest do
       assert html =~ "L2"
     end
 
+    test "can create a user with license fields from the admin form", %{conn: conn} do
+      email = unique_user_email()
+      username = unique_username()
+
+      conn =
+        post(conn, ~p"/admin/users", %{
+          "user" => %{
+            "email" => email,
+            "username" => username,
+            "password" => valid_user_password(),
+            "first_name" => "Admin",
+            "last_name" => "Created",
+            "birthday" => "1990-01-01",
+            "mobile" => "",
+            "phone" => "",
+            "license_number" => "FD-67890",
+            "license_level" => "L3",
+            "role" => "USER",
+            "club_id" => ""
+          }
+        })
+
+      assert redirected_to(conn) == "/admin/users"
+      user = Accounts.get_user_by_username(username)
+      assert user.license_number == "FD-67890"
+      assert user.license_level == "L3"
+    end
+
     test "user list is sorted by club and then first name", %{conn: conn} do
       alpha = club_fixture(%{name: "Alpha Club", short_name: "ALP"})
       beta = club_fixture(%{name: "Beta Club", short_name: "BET"})

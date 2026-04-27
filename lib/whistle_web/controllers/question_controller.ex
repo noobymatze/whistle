@@ -47,6 +47,8 @@ defmodule WhistleWeb.QuestionController do
       changeset: changeset,
       choice_changesets: [blank_choice_changeset(1), blank_choice_changeset(2)],
       course_type_assignments: [],
+      exam_variants: exam_variants_for_form(),
+      selected_exam_variant_ids: [],
       types: Question.valid_types(),
       difficulties: Question.valid_difficulties(),
       statuses: Question.valid_statuses()
@@ -62,6 +64,7 @@ defmodule WhistleWeb.QuestionController do
         question = Exams.get_question_with_details!(question.id)
         save_choices(question, params["choices"] || %{})
         save_course_types(question, params["course_types"] || [])
+        save_exam_variants(question, params["exam_variants"] || [])
 
         conn
         |> put_flash(:info, "Frage wurde erfolgreich erstellt.")
@@ -73,6 +76,8 @@ defmodule WhistleWeb.QuestionController do
           changeset: changeset,
           choice_changesets: build_choice_changesets(params["choices"] || %{}),
           course_type_assignments: params["course_types"] || [],
+          exam_variants: exam_variants_for_form(),
+          selected_exam_variant_ids: parse_selected_variant_ids(params["exam_variants"] || []),
           types: Question.valid_types(),
           difficulties: Question.valid_difficulties(),
           statuses: Question.valid_statuses(),
@@ -102,11 +107,17 @@ defmodule WhistleWeb.QuestionController do
         question.course_type_assignments
         |> Enum.map(& &1.course_type)
 
+      selected_exam_variant_ids =
+        question.variant_assignments
+        |> Enum.map(& &1.exam_variant_id)
+
       render(conn, :edit,
         question: question,
         changeset: changeset,
         choice_changesets: choice_changesets,
         course_type_assignments: course_types,
+        exam_variants: exam_variants_for_form(),
+        selected_exam_variant_ids: selected_exam_variant_ids,
         types: Question.valid_types(),
         difficulties: Question.valid_difficulties(),
         statuses: Question.valid_statuses()
@@ -123,6 +134,7 @@ defmodule WhistleWeb.QuestionController do
         {:ok, question} ->
           save_choices(question, params["choices"] || %{})
           save_course_types(question, params["course_types"] || [])
+          save_exam_variants(question, params["exam_variants"] || [])
 
           conn
           |> put_flash(:info, "Frage wurde erfolgreich aktualisiert.")
@@ -134,6 +146,8 @@ defmodule WhistleWeb.QuestionController do
             changeset: changeset,
             choice_changesets: build_choice_changesets(params["choices"] || %{}),
             course_type_assignments: params["course_types"] || [],
+            exam_variants: exam_variants_for_form(),
+            selected_exam_variant_ids: parse_selected_variant_ids(params["exam_variants"] || []),
             types: Question.valid_types(),
             difficulties: Question.valid_difficulties(),
             statuses: Question.valid_statuses(),
@@ -222,6 +236,29 @@ defmodule WhistleWeb.QuestionController do
   end
 
   defp save_course_types(question, _), do: Exams.set_question_course_types(question, [])
+
+  defp save_exam_variants(question, variant_ids) when is_list(variant_ids) do
+    Exams.set_question_exam_variants(question, parse_selected_variant_ids(variant_ids))
+  end
+
+  defp save_exam_variants(question, _), do: Exams.set_question_exam_variants(question, [])
+
+  defp parse_selected_variant_ids(variant_ids) when is_list(variant_ids) do
+    variant_ids
+    |> Enum.flat_map(fn id ->
+      case parse_id(id) do
+        {:ok, id} -> [id]
+        :error -> []
+      end
+    end)
+  end
+
+  defp parse_selected_variant_ids(_), do: []
+
+  defp exam_variants_for_form do
+    Exams.list_exam_variants()
+    |> Whistle.Repo.preload(:variant_questions)
+  end
 
   defp blank_choice_changeset(position) do
     Exams.change_question_choice(%QuestionChoice{position: position, is_correct: false})

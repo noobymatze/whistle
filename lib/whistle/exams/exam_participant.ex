@@ -4,7 +4,7 @@ defmodule Whistle.Exams.ExamParticipant do
 
   @valid_states ~w(waiting running paused submitted timed_out disconnected)
   @valid_license_decisions ~w(pending granted denied)
-  @valid_exam_outcomes ~w(l3_pass l2_pass l1_eligible fail not_applicable)
+  @valid_exam_outcomes ~w(l3_pass l2_pass l1_pass l1_eligible fail not_applicable)
 
   schema "exam_participants" do
     field :exam_id, :id

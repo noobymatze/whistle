@@ -172,6 +172,15 @@ defmodule Whistle.Accounts.User do
   end
 
   @doc """
+  A narrowly scoped changeset for updating the visible license level.
+  """
+  def license_level_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:license_level])
+    |> validate_inclusion(:license_level, ["L1", "L2", "L3", "LJ"])
+  end
+
+  @doc """
   A user changeset for changing the password.
 
   ## Options

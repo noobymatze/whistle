@@ -24,6 +24,8 @@ defmodule Whistle.Exams.Question do
 
     has_many :course_type_assignments, Whistle.Exams.QuestionCourseType, foreign_key: :question_id
 
+    has_many :variant_assignments, Whistle.Exams.ExamVariantQuestion, foreign_key: :question_id
+
     timestamps(type: :naive_datetime, inserted_at: :created_at)
   end
 

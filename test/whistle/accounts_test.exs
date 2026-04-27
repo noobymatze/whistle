@@ -75,6 +75,15 @@ defmodule Whistle.AccountsTest do
       assert %User{id: ^id} = Accounts.get_user_by_username_or_email(user.email)
     end
 
+    test "returns one matching user when email is shared by multiple users" do
+      shared_email = "shared-reset@example.com"
+      user_fixture(%{email: shared_email, username: "shared_one"})
+      user_fixture(%{email: shared_email, username: "shared_two"})
+
+      assert %User{email: ^shared_email} =
+               Accounts.get_user_by_username_or_email(" #{shared_email} ")
+    end
+
     test "returns nil when neither username nor email exists" do
       refute Accounts.get_user_by_username_or_email("unknown")
     end

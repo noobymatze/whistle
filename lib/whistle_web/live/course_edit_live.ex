@@ -799,7 +799,12 @@ defmodule WhistleWeb.CourseEditLive do
         <div class="space-y-2">
           <%= for reg <- @registrations do %>
             <% selected_dates = Map.get(@date_selections_by_registration, reg.registration_id, []) %>
-            <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
+            <% short_notice_unenrolled = short_notice_unenrollment?(reg, selected_dates) %>
+            <div class={[
+              "flex items-center justify-between gap-4 rounded-xl border shadow-sm px-4 py-3",
+              short_notice_unenrolled && "border-error/35 bg-error/5",
+              !short_notice_unenrolled && "border-base-200 bg-base-100"
+            ]}>
               <div class="min-w-0 flex-1">
                 <div class="truncate text-sm font-medium">
                   {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
@@ -809,11 +814,7 @@ defmodule WhistleWeb.CourseEditLive do
                 <div class="mt-0.5 text-xs text-base-content/55">
                   <%= if reg.unenrolled_at do %>
                     <% datum = Calendar.strftime(reg.unenrolled_at, "%d.%m.%Y %H:%M") %>
-                    <%= if reg.course_date &&
-                          Date.compare(
-                            Date.add(reg.course_date, -7),
-                            NaiveDateTime.to_date(reg.unenrolled_at)
-                          ) == :gt do %>
+                    <%= if short_notice_unenrolled do %>
                       Abgemeldet {datum}
                       <span class="ml-1 text-error font-medium">
                         Abmeldung weniger als 7 Tage vor Kurs
@@ -863,5 +864,23 @@ defmodule WhistleWeb.CourseEditLive do
       <% end %>
     <% end %>
     """
+  end
+
+  defp short_notice_unenrollment?(%{unenrolled_at: nil}, _selected_dates), do: false
+
+  defp short_notice_unenrollment?(reg, selected_dates) do
+    course_date =
+      reg.course_date ||
+        selected_dates
+        |> Enum.map(& &1.date)
+        |> Enum.sort()
+        |> List.first()
+
+    if course_date && reg.unenrolled_at do
+      days = Date.diff(course_date, NaiveDateTime.to_date(reg.unenrolled_at))
+      days >= 0 and days < 7
+    else
+      false
+    end
   end
 end

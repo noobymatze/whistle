@@ -7,6 +7,7 @@ defmodule WhistleWeb.CourseEditLiveTest do
   import Whistle.SeasonsFixtures
 
   alias Whistle.Courses
+  alias Whistle.Registrations
 
   defp log_in(conn, user) do
     token = Whistle.Accounts.generate_user_session_token(user)
@@ -143,6 +144,33 @@ defmodule WhistleWeb.CourseEditLiveTest do
 
       assert has_element?(view, "#release-exam-solutions-button")
       assert Courses.get_course!(course.id).exam_solutions_released_at == nil
+    end
+  end
+
+  describe "participant cancellation overview" do
+    test "marks participants who were signed out less than seven days before the course", %{
+      conn: conn
+    } do
+      instructor = instructor_fixture()
+      participant = user_fixture()
+      season = season_fixture(%{year: 2026, start: ~D[2026-01-01]})
+
+      course =
+        course_fixture(%{
+          season_id: season.id,
+          type: "F",
+          date: Date.add(Whistle.Timezone.today_local(), 3)
+        })
+
+      {:ok, _registration} =
+        Registrations.create_registration(%{course_id: course.id, user_id: participant.id})
+
+      {:ok, view, _html} =
+        conn |> log_in(instructor) |> live(~p"/admin/courses/#{course}/edit?tab=teilnehmer")
+
+      render_click(view, "sign_out_participant", %{"user-id" => to_string(participant.id)})
+
+      assert render(view) =~ "Abmeldung weniger als 7 Tage vor Kurs"
     end
   end
 end
