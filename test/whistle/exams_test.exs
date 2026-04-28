@@ -343,6 +343,71 @@ defmodule Whistle.ExamsTest do
       assert Enum.map(exam_with_details.questions, & &1.position) == [1, 2, 3]
     end
 
+    test "preserves variant positions as original question numbers", %{
+      user: user,
+      course: course
+    } do
+      variant = exam_variant_fixture(%{name: "Original Numbers", course_type: "F"})
+      first = question_with_choices_fixture("F", "low")
+      second = question_with_choices_fixture("F", "medium")
+
+      assert {:ok, variant} =
+               Exams.set_exam_variant_questions(variant, [{first.id, 7}, {second.id, 13}])
+
+      assert {:ok, variant} =
+               Exams.update_exam_variant(variant, %{
+                 status: "enabled",
+                 l1_threshold: 1,
+                 l2_threshold: 1,
+                 l3_threshold: 1
+               })
+
+      assert {:ok, exam} =
+               Exams.create_exam(course, [user.id], user.id, exam_variant_id: variant.id)
+
+      exam_with_details = Exams.get_exam_with_details!(exam.id)
+
+      assert exam_with_details.questions
+             |> Enum.sort_by(& &1.position)
+             |> Enum.map(&{&1.source_question_id, &1.position}) == [
+               {first.id, 7},
+               {second.id, 13}
+             ]
+    end
+
+    test "lists participant questions in a stable participant-specific order", %{
+      user: user,
+      course: course
+    } do
+      other_user = user_fixture()
+      variant = enabled_exam_variant_fixture("F", 5)
+
+      assert {:ok, exam} =
+               Exams.create_exam(course, [user.id, other_user.id], user.id,
+                 exam_variant_id: variant.id
+               )
+
+      participant = Exams.get_exam_participant(exam.id, user.id)
+      ordered = Exams.list_exam_questions_for_participant(exam, participant)
+
+      assert Enum.map(ordered, & &1.id) ==
+               exam.id
+               |> Exams.get_exam_with_details!()
+               |> then(& &1.questions)
+               |> Enum.sort_by(fn question ->
+                 {
+                   :crypto.hash(:sha256, "#{exam.id}:#{participant.id}:#{question.id}"),
+                   question.position
+                 }
+               end)
+               |> Enum.map(& &1.id)
+
+      assert Enum.map(ordered, & &1.id) ==
+               exam
+               |> Exams.list_exam_questions_for_participant(participant)
+               |> Enum.map(& &1.id)
+    end
+
     test "rejects disabled variants", %{user: user, course: course} do
       variant = enabled_exam_variant_fixture("F", 3)
       assert {:ok, variant} = Exams.update_exam_variant(variant, %{status: "disabled"})

@@ -334,9 +334,10 @@ defmodule WhistleWeb.ExamCreationLive do
           <span class="font-normal text-gray-500">({length(@selected_questions)} Fragen)</span>
         </h3>
         <div class="divide-y divide-gray-100 border border-gray-200 rounded-md overflow-hidden">
-          <%= for {q, i} <- Enum.with_index(@selected_questions, 1) do %>
+          <%= for {question_snapshot, i} <- Enum.with_index(@selected_questions, 1) do %>
+            <% {q, original_position} = selected_question_preview(question_snapshot, i) %>
             <div class="flex items-center gap-3 px-4 py-2 text-sm">
-              <span class="text-gray-400 w-5 text-right flex-shrink-0">{i}</span>
+              <span class="text-gray-400 w-5 text-right flex-shrink-0">{original_position}</span>
               <span class={[
                 "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0",
                 q.difficulty == "low" && "bg-green-100 text-green-700",
@@ -362,5 +363,13 @@ defmodule WhistleWeb.ExamCreationLive do
       </div>
     </div>
     """
+  end
+
+  defp selected_question_preview({question, original_position}, _fallback_position) do
+    {question, original_position}
+  end
+
+  defp selected_question_preview(question, fallback_position) do
+    {question, fallback_position}
   end
 end

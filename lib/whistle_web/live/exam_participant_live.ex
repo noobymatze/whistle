@@ -100,7 +100,7 @@ defmodule WhistleWeb.ExamParticipantLive do
     socket =
       if exam.state in ["running", "paused"] && Enum.empty?(socket.assigns.questions) &&
            exam.execution_mode == "synchronous" do
-        questions = load_exam_questions(exam.id)
+        questions = Exams.list_exam_questions_for_participant(exam, socket.assigns.participant)
         assign(socket, :questions, questions)
       else
         socket
@@ -142,7 +142,7 @@ defmodule WhistleWeb.ExamParticipantLive do
     else
       case Exams.start_async_participant(participant) do
         {:ok, updated_participant} ->
-          questions = load_exam_questions(exam.id)
+          questions = Exams.list_exam_questions_for_participant(exam, updated_participant)
           Process.send_after(self(), :tick, @tick_interval_ms)
 
           {:noreply,
@@ -615,7 +615,7 @@ defmodule WhistleWeb.ExamParticipantLive do
         (exam.execution_mode == "synchronous" || participant.async_started_at != nil)
 
     if should_load do
-      questions = load_exam_questions(exam.id)
+      questions = Exams.list_exam_questions_for_participant(exam, participant)
       answers = Exams.list_answers_for_participant(participant.id)
 
       answers_map =
@@ -694,17 +694,6 @@ defmodule WhistleWeb.ExamParticipantLive do
   defp participant_submitted?(participant) do
     participant.state in ["submitted", "timed_out"] or participant.submitted_at != nil or
       participant.score != nil or participant.achieved_points != nil
-  end
-
-  defp load_exam_questions(exam_id) do
-    import Ecto.Query
-    alias Whistle.Repo
-
-    Whistle.Exams.ExamQuestion
-    |> where([q], q.exam_id == ^exam_id)
-    |> order_by([q], asc: q.position)
-    |> Repo.all()
-    |> Repo.preload(choices: from(c in Whistle.Exams.ExamQuestionChoice, order_by: c.position))
   end
 
   defp render_markdown(nil), do: ""

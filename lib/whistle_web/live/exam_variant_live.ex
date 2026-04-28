@@ -415,7 +415,7 @@ defmodule WhistleWeb.ExamVariantLive do
           <div>
             <h2 class="text-sm font-semibold text-gray-900">Fragen</h2>
             <p class="mt-1 text-xs text-gray-500">
-              Die Position bestimmt die Reihenfolge im Test.
+              Die Position ist die Fragennummer aus dem Originaltest. Teilnehmende sehen die Fragen gemischt.
             </p>
           </div>
           <span id="exam-variant-question-count" class="text-xs text-gray-500">

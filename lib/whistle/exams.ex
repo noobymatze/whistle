@@ -469,12 +469,12 @@ defmodule Whistle.Exams do
   def load_enabled_variant_questions(variant_id, course_type) do
     with %ExamVariant{} = variant <- Repo.get(ExamVariant, variant_id),
          :ok <- validate_variant_selectable(variant, course_type) do
-      questions =
+      question_snapshots =
         variant
         |> list_exam_variant_questions()
-        |> Enum.map(& &1.question)
+        |> Enum.map(fn assignment -> {assignment.question, assignment.position} end)
 
-      {:ok, variant, questions}
+      {:ok, variant, question_snapshots}
     else
       nil -> {:error, :exam_variant_not_found}
       {:error, reason} -> {:error, reason}
@@ -990,6 +990,24 @@ defmodule Whistle.Exams do
     |> Enum.group_by(& &1.exam_participant_id)
   end
 
+  @doc """
+  Lists snapshot questions in a stable, participant-specific order.
+
+  The stored `position` on each exam question remains the original question
+  number from the exam variant. Participant delivery order is derived from the
+  exam, participant, and question IDs so reconnects keep the same order without
+  exposing the original numbering as the navigation order.
+  """
+  def list_exam_questions_for_participant(%Exam{} = exam, %ExamParticipant{} = participant) do
+    from(q in ExamQuestion,
+      where: q.exam_id == ^exam.id,
+      order_by: [asc: q.position]
+    )
+    |> Repo.all()
+    |> Repo.preload(choices: from(c in ExamQuestionChoice, order_by: c.position))
+    |> stable_participant_shuffle(exam.id, participant.id)
+  end
+
   # ---------------------------------------------------------------------------
   # Distribution calculation helpers
   # ---------------------------------------------------------------------------
@@ -1440,7 +1458,9 @@ defmodule Whistle.Exams do
   defp snapshot_questions(exam, questions, now) do
     questions
     |> Enum.with_index(1)
-    |> Enum.each(fn {question, position} ->
+    |> Enum.each(fn {question_snapshot, fallback_position} ->
+      {question, position} = normalize_question_snapshot(question_snapshot, fallback_position)
+
       {:ok, eq} =
         %ExamQuestion{}
         |> ExamQuestion.changeset(%{
@@ -1471,6 +1491,28 @@ defmodule Whistle.Exams do
         |> Repo.insert!()
       end)
     end)
+  end
+
+  defp normalize_question_snapshot({%Question{} = question, position}, _fallback_position)
+       when is_integer(position) do
+    {question, position}
+  end
+
+  defp normalize_question_snapshot(%Question{} = question, fallback_position) do
+    {question, fallback_position}
+  end
+
+  defp stable_participant_shuffle(questions, exam_id, participant_id) do
+    Enum.sort_by(questions, fn question ->
+      {
+        participant_question_sort_key(exam_id, participant_id, question.id),
+        question.position
+      }
+    end)
+  end
+
+  defp participant_question_sort_key(exam_id, participant_id, question_id) do
+    :crypto.hash(:sha256, "#{exam_id}:#{participant_id}:#{question_id}")
   end
 
   defp create_exam_participants(exam, user_ids, now) do
