@@ -1,0 +1,45 @@
+<.header>
+  Mitteilung an alle Benutzer
+  <:subtitle>
+    Verschickt eine einmalige E-Mail an alle Benutzer mit hinterlegter
+    E-Mail-Adresse. Re-Klick ist ein No-op (idempotent über Slug).
+  </:subtitle>
+</.header>
+
+<div class="space-y-4">
+  <div class="rounded-xl border border-base-200 bg-base-100 px-4 py-3 text-sm shadow-sm">
+    <div class="text-xs uppercase tracking-wider text-base-content/55">
+      Empfänger
+    </div>
+    <div class="mt-1 text-base font-semibold">
+      {@recipient_count} Benutzer
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm">
+    <div class="text-xs uppercase tracking-wider text-base-content/55">
+      Betreff
+    </div>
+    <div class="mt-1 text-sm font-medium">{@subject}</div>
+  </div>
+
+  <div class="rounded-xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm">
+    <div class="text-xs uppercase tracking-wider text-base-content/55">
+      Vorschau
+    </div>
+    <pre class="mt-2 whitespace-pre-wrap text-sm text-base-content/80">{@body}</pre>
+    <p class="mt-2 text-xs text-base-content/55">
+      <code>{"{username}"}</code> wird je Empfänger ersetzt.
+    </p>
+  </div>
+
+  <.form
+    for={%{}}
+    action={~p"/admin/announcement"}
+    method="post"
+    onsubmit="return confirm('Wirklich an alle senden?')"
+    class="flex justify-end"
+  >
+    <.button>An alle senden</.button>
+  </.form>
+</div>
