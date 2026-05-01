@@ -144,14 +144,6 @@ defmodule WhistleWeb.Router do
     post "/jobs/:id/retry", JobController, :retry
   end
 
-  # Admin-only one-shot announcement (gated by username == "admin" in the controller)
-  scope "/admin", WhistleWeb do
-    pipe_through [:browser, :require_authenticated_user]
-
-    get "/announcement", AnnouncementController, :index
-    post "/announcement", AnnouncementController, :create
-  end
-
   # My Courses and exam participant (any authenticated user)
   scope "/", WhistleWeb do
     pipe_through [:browser, :require_authenticated_user]

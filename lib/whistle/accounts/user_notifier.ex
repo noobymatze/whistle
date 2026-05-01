@@ -80,13 +80,6 @@ defmodule Whistle.Accounts.UserNotifier do
   end
 
   @doc """
-  Deliver a generic announcement email to the given user.
-  """
-  def deliver_announcement(user, subject, body) do
-    deliver(user.email, subject, body)
-  end
-
-  @doc """
   Deliver instructions to update a user email.
   """
   def deliver_update_email_instructions(user, url) do

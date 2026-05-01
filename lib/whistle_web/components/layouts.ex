@@ -201,14 +201,6 @@ defmodule WhistleWeb.Layouts do
                     tone={:violet}
                     active={path_active?(@current_path, "/admin/jobs")}
                   />
-                  <.nav_item
-                    :if={@current_user.username == "admin"}
-                    href={~p"/admin/announcement"}
-                    icon="hero-megaphone"
-                    label="Mitteilung"
-                    tone={:amber}
-                    active={path_active?(@current_path, "/admin/announcement")}
-                  />
                 </div>
               </nav>
 

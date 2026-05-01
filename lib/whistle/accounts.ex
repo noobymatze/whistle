@@ -8,7 +8,6 @@ defmodule Whistle.Accounts do
 
   alias Whistle.Accounts.{Role, User, UserToken, UserView}
   alias Whistle.Oban
-  alias Whistle.Workers.DeliverAnnouncement
   alias Whistle.Workers.DeliverUserEmail
 
   ## Database getters
@@ -405,48 +404,6 @@ defmodule Whistle.Accounts do
   def delete_user_session_token(token) do
     Repo.delete_all(UserToken.by_token_and_context_query(token, "session"))
     :ok
-  end
-
-  @doc """
-  Enqueues an announcement email for every user with a non-empty email
-  address. The body template may contain `{username}` which is replaced
-  with the recipient's username.
-
-  Idempotent per `slug`: re-running with the same slug is a no-op for any
-  recipient who already has a job for that slug.
-  """
-  def broadcast_announcement(slug, subject, body_template) do
-    jobs =
-      from(u in User,
-        where: not is_nil(u.email) and u.email != "",
-        select: %{email: u.email, username: u.username}
-      )
-      |> Repo.all()
-      |> Enum.map(fn u ->
-        body = String.replace(body_template, "{username}", u.username)
-
-        DeliverAnnouncement.new(%{
-          slug: slug,
-          recipient: u.email,
-          username: u.username,
-          subject: subject,
-          body: body
-        })
-      end)
-      |> Oban.insert_all()
-
-    {:ok, jobs}
-  end
-
-  @doc """
-  Counts the users that would receive a broadcast announcement.
-  """
-  def count_announcement_recipients do
-    from(u in User,
-      where: not is_nil(u.email) and u.email != "",
-      select: count(u.id)
-    )
-    |> Repo.one()
   end
 
   defp enqueue_user_email(user_token, args) do
