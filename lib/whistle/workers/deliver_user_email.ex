@@ -16,8 +16,12 @@ defmodule Whistle.Workers.DeliverUserEmail do
     user = %{email: recipient, username: username}
 
     case deliver(user, type, url) do
-      {:ok, _email} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:ok, _email} ->
+        Process.sleep(1_000)
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
