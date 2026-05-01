@@ -267,7 +267,10 @@ defmodule WhistleWeb.Layouts do
                 </span>
               </div>
 
-              <div class="mx-auto w-full max-w-6xl space-y-4">
+              <div class={[
+                "mx-auto w-full space-y-4",
+                if(assigns[:wide_layout], do: "max-w-none", else: "max-w-6xl")
+              ]}>
                 <%= if @inner_block != [] do %>
                   {render_slot(@inner_block)}
                 <% else %>

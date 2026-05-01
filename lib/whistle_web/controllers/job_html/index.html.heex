@@ -77,8 +77,8 @@
                   </span>
                 </td>
                 <td class="font-mono text-xs">{job.queue}</td>
-                <td class="max-w-xs">
-                  <div class="truncate text-sm font-medium" title={job.worker}>
+                <td>
+                  <div class="text-sm font-medium" title={job.worker}>
                     {short_worker(job.worker)}
                   </div>
                 </td>
@@ -97,12 +97,12 @@
                     fertig: <.datetime datetime={job.completed_at} />
                   </div>
                 </td>
-                <td class="max-w-sm">
+                <td class="max-w-lg">
                   <pre class="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-base-200/70 p-3 text-xs">{Jason.encode_to_iodata!(job.args, pretty: true)}</pre>
                 </td>
-                <td class="max-w-sm">
+                <td class="max-w-lg">
                   <%= if error = last_error_message(job) do %>
-                    <div class="rounded-xl bg-error/10 p-3 text-xs text-error">
+                    <div class="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-error/10 p-3 text-xs text-error">
                       {error}
                     </div>
                   <% else %>

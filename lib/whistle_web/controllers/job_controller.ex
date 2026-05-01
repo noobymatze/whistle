@@ -8,7 +8,9 @@ defmodule WhistleWeb.JobController do
   def index(conn, params) do
     job_page = Jobs.list_jobs(params)
 
-    render(conn, :index,
+    conn
+    |> assign(:wide_layout, true)
+    |> render(:index,
       jobs: job_page.jobs,
       page: job_page.page,
       per_page: job_page.per_page,
