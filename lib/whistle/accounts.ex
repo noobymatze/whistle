@@ -172,9 +172,9 @@ defmodule Whistle.Accounts do
   def create_user_as_admin(attrs, admin) do
     role = Map.get(attrs, "role") || Map.get(attrs, :role) || Role.default_role()
 
-    # CLUB_ADMIN always creates users within their own club.
+    # CLUB_ADMIN and INSTRUCTOR always create users within their own club.
     club_id =
-      if admin.role == "CLUB_ADMIN" do
+      if admin.role in ["CLUB_ADMIN", "INSTRUCTOR"] do
         admin.club_id
       else
         attrs
@@ -615,6 +615,13 @@ defmodule Whistle.Accounts do
         |> order_users_for_admin()
         |> Repo.all()
 
+      "INSTRUCTOR" ->
+        from(u in UserView,
+          where: u.club_id == ^manager.club_id and u.role == "USER"
+        )
+        |> order_users_for_admin()
+        |> Repo.all()
+
       _ ->
         []
     end
@@ -655,12 +662,11 @@ defmodule Whistle.Accounts do
           # Super admin and admin can manage anyone (subject to role hierarchy)
           can_manage_by_role
 
-        "CLUB_ADMIN" ->
-          # Club admin can only manage users in their club
+        role when role in ["CLUB_ADMIN", "INSTRUCTOR"] ->
+          # Club-scoped roles can only manage users in their own club
           can_manage_by_role and manager.club_id == target.club_id
 
         _ ->
-          # Other roles cannot manage users
           false
       end
     end

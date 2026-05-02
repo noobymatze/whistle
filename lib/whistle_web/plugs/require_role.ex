@@ -42,6 +42,9 @@ defmodule WhistleWeb.Plugs.RequireRole do
         opts[:club_area] ->
           Role.can_access_club_area?(user)
 
+        opts[:user_admin] ->
+          Role.can_access_user_admin?(user)
+
         opts[:global_area] ->
           Role.can_access_global_area?(user)
 

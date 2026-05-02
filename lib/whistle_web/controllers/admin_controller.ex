@@ -5,7 +5,7 @@ defmodule WhistleWeb.AdminController do
   alias Whistle.Accounts.Role
   alias Whistle.Clubs
 
-  plug WhistleWeb.Plugs.RequireRole, club_area: true
+  plug WhistleWeb.Plugs.RequireRole, user_admin: true
   plug WhistleWeb.Plugs.RequireRole, [role: "SUPER_ADMIN"] when action == :delete
 
   def index(conn, _params) do

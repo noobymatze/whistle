@@ -154,9 +154,9 @@ defmodule WhistleWeb.AuthorizationTest do
       assert redirected_to(conn) == "/"
     end
 
-    test "cannot access users (club area)", %{conn: conn} do
+    test "can access users (user admin area)", %{conn: conn} do
       conn = get(conn, ~p"/admin/users")
-      assert redirected_to(conn) == "/"
+      assert html_response(conn, 200)
     end
 
     test "cannot access clubs (global area)", %{conn: conn} do

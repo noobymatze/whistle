@@ -143,13 +143,14 @@ defmodule WhistleWeb.Layouts do
                 </div>
 
                 <div
-                  :if={Role.can_access_club_area?(@current_user)}
+                  :if={Role.can_access_user_admin?(@current_user)}
                   class="space-y-1"
                 >
                   <p class="px-3 text-[0.68rem] font-semibold uppercase text-base-content/38">
                     Vereinsverwaltung
                   </p>
                   <.nav_item
+                    :if={Role.can_access_club_area?(@current_user)}
                     href={~p"/admin/registrations"}
                     icon="hero-clipboard-document-list"
                     label="Anmeldungen"

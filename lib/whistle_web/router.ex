@@ -28,6 +28,11 @@ defmodule WhistleWeb.Router do
     plug WhistleWeb.Plugs.RequireRole, club_area: true
   end
 
+  # Requires INSTRUCTOR, CLUB_ADMIN, ADMIN, or SUPER_ADMIN (user admin area)
+  pipeline :require_user_admin do
+    plug WhistleWeb.Plugs.RequireRole, user_admin: true
+  end
+
   # Requires ADMIN or SUPER_ADMIN (global admin area)
   pipeline :require_global_area do
     plug WhistleWeb.Plugs.RequireRole, global_area: true
@@ -129,6 +134,12 @@ defmodule WhistleWeb.Router do
     get "/registrations", RegistrationController, :index
     get "/registrations/export", RegistrationController, :export
     delete "/registrations/:course_id/:user_id", RegistrationController, :delete
+  end
+
+  # User admin: INSTRUCTOR, CLUB_ADMIN, ADMIN, SUPER_ADMIN
+  scope "/admin", WhistleWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_user_admin]
+
     get "/users", AdminController, :index
     resources "/users", AdminController, only: [:new, :create, :edit, :update, :delete]
   end

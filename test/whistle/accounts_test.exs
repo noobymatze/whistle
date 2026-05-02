@@ -661,15 +661,25 @@ defmodule Whistle.AccountsTest do
       assert {:error, :unauthorized} = Accounts.update_user_role(user, "SUPER_ADMIN", admin)
     end
 
-    test "club admin can assign limited roles", %{club_admin: club_admin, user: user} do
-      {:ok, updated_user} = Accounts.update_user_role(user, "INSTRUCTOR", club_admin)
-      assert updated_user.role == "INSTRUCTOR"
+    test "club admin can assign CLUB_ADMIN and USER but not INSTRUCTOR", %{
+      club_admin: club_admin,
+      user: user
+    } do
+      {:ok, updated_user} = Accounts.update_user_role(user, "CLUB_ADMIN", club_admin)
+      assert updated_user.role == "CLUB_ADMIN"
+
+      assert {:error, :unauthorized} =
+               Accounts.update_user_role(user, "INSTRUCTOR", club_admin)
 
       assert {:error, :unauthorized} = Accounts.update_user_role(user, "ADMIN", club_admin)
     end
 
-    test "instructor cannot assign roles", %{instructor: instructor, user: user} do
-      assert {:error, :unauthorized} = Accounts.update_user_role(user, "USER", instructor)
+    test "instructor can assign INSTRUCTOR and USER", %{instructor: instructor, user: user} do
+      {:ok, updated_user} = Accounts.update_user_role(user, "INSTRUCTOR", instructor)
+      assert updated_user.role == "INSTRUCTOR"
+
+      assert {:error, :unauthorized} =
+               Accounts.update_user_role(user, "CLUB_ADMIN", instructor)
     end
 
     test "validates role value in update_user_role", %{super_admin: super_admin, user: user} do
@@ -732,9 +742,25 @@ defmodule Whistle.AccountsTest do
       refute club_admin.id in manageable_ids
     end
 
-    test "instructor cannot manage any users", %{instructor: instructor} do
+    test "instructor can manage USERs in their own club", %{
+      instructor: instructor,
+      user: user,
+      club_admin: club_admin
+    } do
       manageable = Accounts.list_manageable_users(instructor)
-      assert manageable == []
+      manageable_ids = Enum.map(manageable, & &1.id)
+
+      assert user.id in manageable_ids
+      refute club_admin.id in manageable_ids
+      refute instructor.id in manageable_ids
+    end
+
+    test "instructor cannot manage users from a different club", %{instructor: instructor} do
+      other_club = Whistle.ClubsFixtures.club_fixture()
+      other_user = user_fixture(%{role: "USER", club_id: other_club.id})
+
+      manageable = Accounts.list_manageable_users(instructor)
+      refute other_user.id in Enum.map(manageable, & &1.id)
     end
 
     test "can_manage_user returns true when manager can manage target", %{

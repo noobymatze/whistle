@@ -117,8 +117,14 @@ defmodule Whistle.Accounts.RoleTest do
       assert Role.can_manage_user?(club_admin, instructor)
       assert Role.can_manage_user?(club_admin, user)
 
-      # INSTRUCTOR and USER cannot manage anyone
-      refute Role.can_manage_user?(instructor, user)
+      # INSTRUCTOR can manage USER (so that they can promote to INSTRUCTOR)
+      refute Role.can_manage_user?(instructor, super_admin)
+      refute Role.can_manage_user?(instructor, admin)
+      refute Role.can_manage_user?(instructor, club_admin)
+      refute Role.can_manage_user?(instructor, instructor)
+      assert Role.can_manage_user?(instructor, user)
+
+      # USER cannot manage anyone
       refute Role.can_manage_user?(user, user)
     end
   end
@@ -144,21 +150,29 @@ defmodule Whistle.Accounts.RoleTest do
       assert Role.can_assign_role?(admin, "USER")
     end
 
-    test "club admin can assign limited roles" do
+    test "club admin can assign CLUB_ADMIN and USER but not INSTRUCTOR" do
       club_admin = %{role: "CLUB_ADMIN"}
 
       refute Role.can_assign_role?(club_admin, "SUPER_ADMIN")
       refute Role.can_assign_role?(club_admin, "ADMIN")
       assert Role.can_assign_role?(club_admin, "CLUB_ADMIN")
-      assert Role.can_assign_role?(club_admin, "INSTRUCTOR")
+      refute Role.can_assign_role?(club_admin, "INSTRUCTOR")
       assert Role.can_assign_role?(club_admin, "USER")
     end
 
-    test "instructor and user cannot assign roles" do
+    test "instructor can assign INSTRUCTOR and USER" do
       instructor = %{role: "INSTRUCTOR"}
+
+      refute Role.can_assign_role?(instructor, "SUPER_ADMIN")
+      refute Role.can_assign_role?(instructor, "ADMIN")
+      refute Role.can_assign_role?(instructor, "CLUB_ADMIN")
+      assert Role.can_assign_role?(instructor, "INSTRUCTOR")
+      assert Role.can_assign_role?(instructor, "USER")
+    end
+
+    test "user cannot assign roles" do
       user = %{role: "USER"}
 
-      refute Role.can_assign_role?(instructor, "USER")
       refute Role.can_assign_role?(user, "USER")
     end
   end
@@ -180,8 +194,8 @@ defmodule Whistle.Accounts.RoleTest do
              ]
 
       assert Role.assignable_roles(admin) == ["ADMIN", "CLUB_ADMIN", "INSTRUCTOR", "USER"]
-      assert Role.assignable_roles(club_admin) == ["CLUB_ADMIN", "INSTRUCTOR", "USER"]
-      assert Role.assignable_roles(instructor) == []
+      assert Role.assignable_roles(club_admin) == ["CLUB_ADMIN", "USER"]
+      assert Role.assignable_roles(instructor) == ["INSTRUCTOR", "USER"]
       assert Role.assignable_roles(user) == []
     end
   end

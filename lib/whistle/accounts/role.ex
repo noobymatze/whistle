@@ -84,7 +84,7 @@ defmodule Whistle.Accounts.Role do
 
   # Helper function to determine if a role can manage other users
   defp can_manage_roles?(role) do
-    role in ["SUPER_ADMIN", "ADMIN", "CLUB_ADMIN"]
+    role in ["SUPER_ADMIN", "ADMIN", "CLUB_ADMIN", "INSTRUCTOR"]
   end
 
   @doc """
@@ -101,11 +101,14 @@ defmodule Whistle.Accounts.Role do
         target_role != "SUPER_ADMIN"
 
       "CLUB_ADMIN" ->
-        # CLUB_ADMIN can only assign CLUB_ADMIN, INSTRUCTOR, and USER
-        target_role in ["CLUB_ADMIN", "INSTRUCTOR", "USER"]
+        # CLUB_ADMIN can only assign CLUB_ADMIN and USER
+        target_role in ["CLUB_ADMIN", "USER"]
+
+      "INSTRUCTOR" ->
+        # INSTRUCTOR can assign INSTRUCTOR and USER
+        target_role in ["INSTRUCTOR", "USER"]
 
       _ ->
-        # INSTRUCTOR and USER cannot assign roles
         false
     end
   end
@@ -117,7 +120,8 @@ defmodule Whistle.Accounts.Role do
     case user_role do
       "SUPER_ADMIN" -> @roles
       "ADMIN" -> @roles -- ["SUPER_ADMIN"]
-      "CLUB_ADMIN" -> ["CLUB_ADMIN", "INSTRUCTOR", "USER"]
+      "CLUB_ADMIN" -> ["CLUB_ADMIN", "USER"]
+      "INSTRUCTOR" -> ["INSTRUCTOR", "USER"]
       _ -> []
     end
   end
@@ -194,6 +198,15 @@ defmodule Whistle.Accounts.Role do
   """
   def can_access_club_area?(%{role: role}) do
     role in ["SUPER_ADMIN", "ADMIN", "CLUB_ADMIN"]
+  end
+
+  @doc """
+  Checks if a user can access the user admin area.
+  Allowed: SUPER_ADMIN, ADMIN, CLUB_ADMIN, INSTRUCTOR.
+  INSTRUCTOR is included so that they can promote club members to INSTRUCTOR.
+  """
+  def can_access_user_admin?(%{role: role}) do
+    role in ["SUPER_ADMIN", "ADMIN", "CLUB_ADMIN", "INSTRUCTOR"]
   end
 
   @doc """
