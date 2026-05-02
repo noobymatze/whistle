@@ -4,7 +4,7 @@ defmodule Whistle.MixProject do
   def project do
     [
       app: :whistle,
-      version: "0.1.39",
+      version: "0.1.40",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
