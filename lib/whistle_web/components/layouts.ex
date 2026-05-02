@@ -237,6 +237,13 @@ defmodule WhistleWeb.Layouts do
                       <% end %>
                     </div>
                     <.link
+                      href={~p"/users/settings"}
+                      class="inline-flex size-8.5 items-center justify-center rounded-xl border border-base-300/80 bg-base-100 text-base-content/65 transition hover:border-base-300 hover:text-base-content"
+                      title="Einstellungen"
+                    >
+                      <.icon name="hero-cog-6-tooth" class="size-3.5" />
+                    </.link>
+                    <.link
                       href={~p"/users/log_out"}
                       method="delete"
                       class="inline-flex size-8.5 items-center justify-center rounded-xl border border-base-300/80 bg-base-100 text-base-content/65 transition hover:border-base-300 hover:text-base-content"

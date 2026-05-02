@@ -49,6 +49,20 @@
     </div>
   <% end %>
 
+  <%!-- Club --%>
+  <div>
+    <h2 class="text-sm font-semibold text-zinc-800 mb-3">Verein</h2>
+    <p class="mt-1 text-xs text-gray-500 mb-3">
+      Du kannst deinen Verein über die Vereinsauswahl ändern.
+    </p>
+    <.link
+      href={~p"/users/settings/clubs/select"}
+      class="btn btn-soft"
+    >
+      Verein ändern
+    </.link>
+  </div>
+
   <%!-- Update email --%>
   <div>
     <h2 class="text-sm font-semibold text-zinc-800 mb-3">E-Mail ändern</h2>
