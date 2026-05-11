@@ -158,6 +158,15 @@ defmodule Whistle.AccountsTest do
       assert "has already been taken" in errors_on(changeset).username
     end
 
+    test "allows dots in usernames" do
+      {:ok, user} =
+        Accounts.register_user(
+          valid_user_attributes(username: "vor.name", email: unique_user_email())
+        )
+
+      assert user.username == "vor.name"
+    end
+
     test "allows multiple users with the same email but different usernames" do
       shared_email = unique_user_email()
 
@@ -688,6 +697,16 @@ defmodule Whistle.AccountsTest do
       assert "must be one of: SUPER_ADMIN, ADMIN, CLUB_ADMIN, INSTRUCTOR, USER" in errors_on(
                changeset
              ).role
+    end
+
+    test "allows admins to update usernames containing dots", %{
+      super_admin: super_admin,
+      user: user
+    } do
+      {:ok, updated_user} =
+        Accounts.update_user_role(user, %{username: "neuer.name", role: user.role}, super_admin)
+
+      assert updated_user.username == "neuer.name"
     end
 
     test "list_users_by_role returns users with specific role", %{

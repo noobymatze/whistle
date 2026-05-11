@@ -52,7 +52,8 @@ defmodule WhistleWeb.CourseEditLive do
      |> assign(:course_date_topics, [])
      |> assign(:exams, [])
      |> assign(:registrations, [])
-     |> assign(:date_selections_by_registration, %{})}
+     |> assign(:date_selections_by_registration, %{})
+     |> assign(:registrations_by_date, [])}
   end
 
   @impl true
@@ -253,28 +254,16 @@ defmodule WhistleWeb.CourseEditLive do
                 do: Courses.list_date_selections_for_course(course),
                 else: %{}
 
-            registrations =
-              Registrations.list_registrations_view(include_unenrolled: true)
-              |> Enum.filter(&(&1.course_id == course.id))
-              |> then(fn regs ->
-                if course.online do
-                  Enum.sort_by(regs, fn reg ->
-                    dates = Map.get(date_selections, reg.registration_id, [])
-                    first_date = dates |> Enum.sort_by(& &1.date) |> List.first()
-
-                    if first_date,
-                      do: {first_date.date, first_date.time},
-                      else: {~D[9999-01-01], ~T[00:00:00]}
-                  end)
-                else
-                  regs
-                end
-              end)
+            registrations = load_course_registrations(course, date_selections)
 
             {:noreply,
              socket
              |> assign(:registrations, registrations)
              |> assign(:date_selections_by_registration, date_selections)
+             |> assign(
+               :registrations_by_date,
+               registrations_by_date(course, registrations, date_selections)
+             )
              |> put_flash(:info, "Der Teilnehmer wurde erfolgreich abgemeldet.")}
 
           {:error, :not_found} ->
@@ -303,6 +292,7 @@ defmodule WhistleWeb.CourseEditLive do
     |> assign(:exams, [])
     |> assign(:registrations, [])
     |> assign(:date_selections_by_registration, %{})
+    |> assign(:registrations_by_date, [])
   end
 
   defp load_tab(socket, :kursdaten) do
@@ -315,6 +305,7 @@ defmodule WhistleWeb.CourseEditLive do
     |> assign(:exams, [])
     |> assign(:registrations, [])
     |> assign(:date_selections_by_registration, %{})
+    |> assign(:registrations_by_date, [])
   end
 
   defp load_tab(socket, :tests) do
@@ -327,41 +318,70 @@ defmodule WhistleWeb.CourseEditLive do
     |> assign(:course_date_topics, [])
     |> assign(:registrations, [])
     |> assign(:date_selections_by_registration, %{})
+    |> assign(:registrations_by_date, [])
   end
 
   defp load_tab(socket, :teilnehmer) do
     course = socket.assigns.course
-
-    registrations =
-      Registrations.list_registrations_view(include_unenrolled: true)
-      |> Enum.filter(&(&1.course_id == course.id))
 
     date_selections =
       if course.online,
         do: Courses.list_date_selections_for_course(course),
         else: %{}
 
-    registrations =
+    registrations = load_course_registrations(course, date_selections)
+
+    socket
+    |> assign(:tab, :teilnehmer)
+    |> assign(:registrations, registrations)
+    |> assign(:date_selections_by_registration, date_selections)
+    |> assign(
+      :registrations_by_date,
+      registrations_by_date(course, registrations, date_selections)
+    )
+    |> assign(:course_dates, [])
+    |> assign(:course_date_topics, [])
+    |> assign(:exams, [])
+  end
+
+  defp load_course_registrations(course, date_selections) do
+    Registrations.list_registrations_view(include_unenrolled: true)
+    |> Enum.filter(&(&1.course_id == course.id))
+    |> then(fn regs ->
       if course.online do
-        Enum.sort_by(registrations, fn reg ->
+        Enum.sort_by(regs, fn reg ->
           dates = Map.get(date_selections, reg.registration_id, [])
-          first_date = dates |> Enum.sort_by(& &1.date) |> List.first()
+          first_date = dates |> Enum.sort_by(&{&1.date, &1.time}) |> List.first()
 
           if first_date,
             do: {first_date.date, first_date.time},
             else: {~D[9999-01-01], ~T[00:00:00]}
         end)
       else
-        registrations
+        regs
       end
+    end)
+  end
 
-    socket
-    |> assign(:tab, :teilnehmer)
-    |> assign(:registrations, registrations)
-    |> assign(:date_selections_by_registration, date_selections)
-    |> assign(:course_dates, [])
-    |> assign(:course_date_topics, [])
-    |> assign(:exams, [])
+  defp registrations_by_date(%Course{online: false}, _registrations, _date_selections), do: []
+
+  defp registrations_by_date(%Course{} = course, registrations, date_selections) do
+    active_registrations = Enum.reject(registrations, & &1.unenrolled_at)
+
+    course
+    |> Courses.list_course_dates_with_topics()
+    |> Enum.map(fn date ->
+      registrations_for_date =
+        active_registrations
+        |> Enum.filter(fn reg ->
+          date_selections
+          |> Map.get(reg.registration_id, [])
+          |> Enum.any?(&(&1.id == date.id))
+        end)
+        |> Enum.sort_by(&{&1.user_last_name || "", &1.user_first_name || "", &1.username || ""})
+
+      %{date: date, registrations: registrations_for_date}
+    end)
   end
 
   defp get_club_options do
@@ -797,6 +817,61 @@ defmodule WhistleWeb.CourseEditLive do
           </div>
         </div>
         <div class="space-y-2">
+          <%= if @course.online do %>
+            <div id="online-date-participant-overview" class="mb-6 grid gap-3 lg:grid-cols-2">
+              <%= for %{date: date, registrations: date_registrations} <- @registrations_by_date do %>
+                <section
+                  id={"online-date-participants-#{date.id}"}
+                  class="rounded-xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold text-base-content">
+                        {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(date.time)
+                        |> String.slice(0, 5)} Uhr
+                      </p>
+                      <p class="mt-0.5 text-xs text-base-content/55">
+                        <%= if date.kind == :mandatory do %>
+                          Pflichttermin
+                        <% else %>
+                          Wahlpflichttermin
+                          <%= if date.topic do %>
+                            · {date.topic.name}
+                          <% end %>
+                        <% end %>
+                      </p>
+                    </div>
+                    <span class="rounded-full bg-base-200 px-2 py-0.5 text-xs font-semibold text-base-content/70">
+                      {length(date_registrations)} TN
+                    </span>
+                  </div>
+
+                  <%= if date_registrations == [] do %>
+                    <p class="mt-3 text-xs text-base-content/45">Noch keine Teilnehmenden.</p>
+                  <% else %>
+                    <ul class="mt-3 space-y-1.5">
+                      <%= for reg <- date_registrations do %>
+                        <li
+                          id={"online-date-participant-#{date.id}-#{reg.registration_id}"}
+                          class="text-sm"
+                        >
+                          <span class="font-medium">
+                            {[reg.user_first_name, reg.user_last_name]
+                            |> Enum.filter(& &1)
+                            |> Enum.join(" ")}
+                          </span>
+                          <span class="text-xs text-base-content/50">
+                            {reg.username && "(#{reg.username})"}
+                          </span>
+                        </li>
+                      <% end %>
+                    </ul>
+                  <% end %>
+                </section>
+              <% end %>
+            </div>
+          <% end %>
+
           <%= for reg <- @registrations do %>
             <% selected_dates = Map.get(@date_selections_by_registration, reg.registration_id, []) %>
             <% short_notice_unenrolled = short_notice_unenrollment?(reg, selected_dates) %>

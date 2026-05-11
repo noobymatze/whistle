@@ -421,6 +421,65 @@ defmodule WhistleWeb.RegistrationLiveTest do
       assert html =~ "Bitte wähle genau einen Pflichttermin"
     end
 
+    test "shows remaining seats for each online date and disables full dates", %{
+      conn: conn,
+      course: course,
+      mandatory: mandatory,
+      elective: elective
+    } do
+      other_user = user_fixture()
+      third_user = user_fixture()
+
+      {:ok, _registration} =
+        Registrations.enroll_one(other_user, course, nil, [mandatory.id, elective.id])
+
+      full_course = Courses.get_course!(course.id)
+      {:ok, course} = Courses.update_course(full_course, %{max_participants: 1})
+
+      {:ok, lv, _html} = conn |> log_in(third_user) |> live(~p"/")
+
+      lv
+      |> element("div[phx-click='toggle_online_course'][phx-value-course-id='#{course.id}']")
+      |> render_click()
+
+      assert has_element?(lv, "#online-date-capacity-#{mandatory.id}", "0 Plätze frei")
+      assert has_element?(lv, "#online-date-input-#{mandatory.id}[disabled]")
+      assert has_element?(lv, "#online-date-capacity-#{elective.id}", "0 Plätze frei")
+      assert has_element?(lv, "#online-date-input-#{elective.id}[disabled]")
+    end
+
+    test "names the full date when enrollment loses a capacity race", %{
+      conn: conn,
+      user: user,
+      course: course,
+      mandatory: mandatory,
+      elective: elective
+    } do
+      {:ok, course} = Courses.update_course(course, %{max_participants: 1})
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/")
+
+      lv
+      |> element("div[phx-click='toggle_online_course'][phx-value-course-id='#{course.id}']")
+      |> render_click()
+
+      lv
+      |> element("[phx-click='select_online_date'][phx-value-date-id='#{mandatory.id}']")
+      |> render_click()
+
+      lv
+      |> element("[phx-click='select_online_date'][phx-value-date-id='#{elective.id}']")
+      |> render_click()
+
+      other_user = user_fixture()
+
+      {:ok, _registration} =
+        Registrations.enroll_one(other_user, course, nil, [mandatory.id, elective.id])
+
+      html = lv |> form("#enroll-form") |> render_submit()
+
+      assert html =~ "Der Termin am 13.04.2026 um 14:00 Uhr ist ausgebucht."
+    end
+
     test "course shows as registered after successful enrollment", %{
       conn: conn,
       user: user,

@@ -197,6 +197,32 @@ defmodule Whistle.Courses do
     )
   end
 
+  def list_date_availability(%Course{id: course_id, max_participants: max_participants}) do
+    counts =
+      from(d in CourseDate,
+        left_join: s in CourseDateSelection,
+        on: s.course_date_id == d.id,
+        left_join: r in Registration,
+        on: r.id == s.registration_id and is_nil(r.unenrolled_at),
+        where: d.course_id == ^course_id,
+        group_by: d.id,
+        select: {d.id, count(r.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    counts
+    |> Enum.map(fn {date_id, selected_count} ->
+      remaining =
+        if is_integer(max_participants) do
+          max(max_participants - selected_count, 0)
+        end
+
+      {date_id, %{selected_count: selected_count, remaining: remaining}}
+    end)
+    |> Map.new()
+  end
+
   def delete_course_date(%CourseDate{} = course_date) do
     Repo.delete(course_date)
   end

@@ -172,5 +172,52 @@ defmodule WhistleWeb.CourseEditLiveTest do
 
       assert render(view) =~ "Abmeldung weniger als 7 Tage vor Kurs"
     end
+
+    test "groups online course participants by selected date", %{conn: conn} do
+      instructor = instructor_fixture()
+      participant = user_fixture(%{first_name: "Tina", last_name: "Termin"})
+      season = season_fixture(%{year: 2026, start: ~D[2026-01-01]})
+
+      course =
+        course_fixture(%{
+          season_id: season.id,
+          type: "F",
+          online: true,
+          date: nil,
+          max_participants: 10,
+          max_per_club: 10,
+          max_organizer_participants: 0
+        })
+
+      {:ok, topic} = Courses.create_course_date_topic(%{course_id: course.id, name: "Thema"})
+
+      {:ok, mandatory} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-13],
+          time: ~T[14:00:00],
+          kind: :mandatory
+        })
+
+      {:ok, elective} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-21],
+          time: ~T[16:00:00],
+          kind: :elective,
+          course_date_topic_id: topic.id
+        })
+
+      {:ok, registration} =
+        Registrations.enroll_one(participant, course, nil, [mandatory.id, elective.id])
+
+      {:ok, view, _html} =
+        conn |> log_in(instructor) |> live(~p"/admin/courses/#{course}/edit?tab=teilnehmer")
+
+      assert has_element?(view, "#online-date-participant-overview")
+      assert has_element?(view, "#online-date-participants-#{mandatory.id}")
+      assert has_element?(view, "#online-date-participant-#{mandatory.id}-#{registration.id}")
+      assert has_element?(view, "#online-date-participant-#{elective.id}-#{registration.id}")
+    end
   end
 end

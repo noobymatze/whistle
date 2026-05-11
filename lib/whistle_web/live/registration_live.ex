@@ -35,6 +35,7 @@ defmodule WhistleWeb.RegistrationLive do
      |> assign(:courses_by_date, offline_courses_by_date)
      |> assign(:online_courses, online_courses)
      |> assign(:online_course_dates, load_online_course_dates(online_courses))
+     |> assign(:online_date_availability, load_online_date_availability(online_courses))
      |> assign(:selected_courses, MapSet.new())
      |> assign(:selected_online_courses, MapSet.new())
      |> assign(:selected_online_dates, %{})
@@ -70,6 +71,7 @@ defmodule WhistleWeb.RegistrationLive do
      |> assign(:courses_by_date, offline_courses_by_date)
      |> assign(:online_courses, online_courses)
      |> assign(:online_course_dates, load_online_course_dates(online_courses))
+     |> assign(:online_date_availability, load_online_date_availability(online_courses))
      |> assign(:existing_registrations, existing_registrations)
      |> assign(:existing_date_selections, existing_date_selections)}
   end
@@ -269,6 +271,15 @@ defmodule WhistleWeb.RegistrationLive do
     |> Map.new()
   end
 
+  defp load_online_date_availability(online_courses) do
+    online_courses
+    |> Enum.map(fn course ->
+      full_course = Courses.get_course!(course.id)
+      {course.id, Courses.list_date_availability(full_course)}
+    end)
+    |> Map.new()
+  end
+
   # Compute the set of course types already "spoken for":
   # existing registrations + currently selected offline courses + currently selected online courses.
   defp active_types(
@@ -404,6 +415,10 @@ defmodule WhistleWeb.RegistrationLive do
     "Du bist bereits für diesen Kurs angemeldet."
   end
 
+  defp format_error({:not_available, %{date: date, time: time}}) do
+    "Der Termin am #{format_date_time(date, time)} ist ausgebucht."
+  end
+
   defp format_error({:not_available, _}) do
     "Dieser Termin ist ausgebucht."
   end
@@ -426,6 +441,27 @@ defmodule WhistleWeb.RegistrationLive do
     else
       false
     end
+  end
+
+  defp date_availability(date, course_id, availability_by_course) do
+    availability_by_course
+    |> Map.get(course_id, %{})
+    |> Map.get(date.id, %{selected_count: 0, remaining: nil})
+  end
+
+  defp date_full?(date, course_id, availability_by_course) do
+    case date_availability(date, course_id, availability_by_course).remaining do
+      0 -> true
+      _ -> false
+    end
+  end
+
+  defp availability_label(%{remaining: nil}), do: "Plätze verfügbar"
+  defp availability_label(%{remaining: 1}), do: "1 Platz frei"
+  defp availability_label(%{remaining: remaining}), do: "#{remaining} Plätze frei"
+
+  defp format_date_time(date, time) do
+    "#{Calendar.strftime(date, "%d.%m.%Y")} um #{Time.to_string(time) |> String.slice(0, 5)} Uhr"
   end
 
   defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
@@ -591,8 +627,21 @@ defmodule WhistleWeb.RegistrationLive do
                             </p>
                             <div class="space-y-1">
                               <%= for date <- mandatory_dates do %>
-                                <label class="flex items-center gap-2 cursor-pointer">
+                                <% availability =
+                                  date_availability(date, course.id, @online_date_availability) %>
+                                <% full = date_full?(date, course.id, @online_date_availability) %>
+                                <label
+                                  id={"online-date-option-#{course.id}-#{date.id}"}
+                                  class={[
+                                    "flex items-start gap-2 rounded-md px-2 py-1 transition",
+                                    if(full,
+                                      do: "cursor-not-allowed bg-zinc-50 text-zinc-400",
+                                      else: "cursor-pointer hover:bg-zinc-50"
+                                    )
+                                  ]}
+                                >
                                   <input
+                                    id={"online-date-input-#{date.id}"}
                                     type="radio"
                                     name={"mandatory_#{course.id}"}
                                     phx-click="select_online_date"
@@ -600,13 +649,25 @@ defmodule WhistleWeb.RegistrationLive do
                                     phx-value-kind="mandatory"
                                     phx-value-date-id={date.id}
                                     checked={Map.get(date_selection, "mandatory") == date.id}
-                                    class="h-4 w-4"
+                                    disabled={full}
+                                    class="mt-0.5 h-4 w-4"
                                   />
-                                  <span class="text-sm">
-                                    {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
-                                      date.time
-                                    )
-                                    |> String.slice(0, 5)} Uhr
+                                  <span class="min-w-0 text-sm">
+                                    <span>
+                                      {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                        date.time
+                                      )
+                                      |> String.slice(0, 5)} Uhr
+                                    </span>
+                                    <span
+                                      id={"online-date-capacity-#{date.id}"}
+                                      class={[
+                                        "ml-2 whitespace-nowrap text-xs font-medium",
+                                        if(full, do: "text-red-600", else: "text-emerald-700")
+                                      ]}
+                                    >
+                                      {availability_label(availability)}
+                                    </span>
                                   </span>
                                 </label>
                               <% end %>
@@ -627,8 +688,22 @@ defmodule WhistleWeb.RegistrationLive do
                                 <% end %>
                                 <div class="space-y-1">
                                   <%= for date <- topic_dates do %>
-                                    <label class="flex items-center gap-2 cursor-pointer">
+                                    <% availability =
+                                      date_availability(date, course.id, @online_date_availability) %>
+                                    <% full =
+                                      date_full?(date, course.id, @online_date_availability) %>
+                                    <label
+                                      id={"online-date-option-#{course.id}-#{date.id}"}
+                                      class={[
+                                        "flex items-start gap-2 rounded-md px-2 py-1 transition",
+                                        if(full,
+                                          do: "cursor-not-allowed bg-zinc-50 text-zinc-400",
+                                          else: "cursor-pointer hover:bg-zinc-50"
+                                        )
+                                      ]}
+                                    >
                                       <input
+                                        id={"online-date-input-#{date.id}"}
                                         type="radio"
                                         name={"elective_#{course.id}"}
                                         phx-click="select_online_date"
@@ -636,13 +711,25 @@ defmodule WhistleWeb.RegistrationLive do
                                         phx-value-kind="elective"
                                         phx-value-date-id={date.id}
                                         checked={Map.get(date_selection, "elective") == date.id}
-                                        class="h-4 w-4"
+                                        disabled={full}
+                                        class="mt-0.5 h-4 w-4"
                                       />
-                                      <span class="text-sm">
-                                        {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
-                                          date.time
-                                        )
-                                        |> String.slice(0, 5)} Uhr
+                                      <span class="min-w-0 text-sm">
+                                        <span>
+                                          {Calendar.strftime(date.date, "%d.%m.%Y")} · {Time.to_string(
+                                            date.time
+                                          )
+                                          |> String.slice(0, 5)} Uhr
+                                        </span>
+                                        <span
+                                          id={"online-date-capacity-#{date.id}"}
+                                          class={[
+                                            "ml-2 whitespace-nowrap text-xs font-medium",
+                                            if(full, do: "text-red-600", else: "text-emerald-700")
+                                          ]}
+                                        >
+                                          {availability_label(availability)}
+                                        </span>
                                       </span>
                                     </label>
                                   <% end %>
