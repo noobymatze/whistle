@@ -45,6 +45,8 @@ defmodule WhistleWeb.AuthorizationTest do
       assert html =~ "Deine Einladung wurde erkannt."
       assert html =~ ~s(id="registration-form")
       assert html =~ ~s(id="registration-data-heading")
+      assert html =~ ~s(id="user_email")
+      assert html =~ "readonly"
       assert html =~ "Daten"
       assert html =~ "Erstellen"
       refute html =~ ~s(id="registration-invite-notice")
