@@ -8,12 +8,14 @@ defmodule WhistleWeb.UserRegistrationController do
   alias WhistleWeb.UserAuth
 
   def new(conn, params) do
+    invite_code = Map.get(params, "invite_code", "")
+
     changeset =
       Accounts.change_user_registration(%User{}, %{
         "email" => Map.get(params, "email", "")
       })
 
-    render_registration_form(conn, changeset, Map.get(params, "invite_code", ""))
+    render_registration_form(conn, changeset, invite_code)
   end
 
   def create(conn, %{"user" => user_params} = params) do
@@ -60,7 +62,8 @@ defmodule WhistleWeb.UserRegistrationController do
     render(conn, :new,
       form: to_form(changeset),
       invite_code: invite_code,
-      invite_code_error: invite_code_error
+      invite_code_error: invite_code_error,
+      invitation_present?: invite_code != "" or not is_nil(invite_code_error)
     )
   end
 

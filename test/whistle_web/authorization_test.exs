@@ -26,6 +26,31 @@ defmodule WhistleWeb.AuthorizationTest do
   # ---------------------------------------------------------------------------
 
   describe "public registration role escalation prevention" do
+    test "GET /users/register without invite code only shows invite-only notice", %{conn: conn} do
+      conn = get(conn, ~p"/users/register")
+      html = html_response(conn, 200)
+
+      assert html =~ ~s(id="registration-invite-notice")
+      assert html =~ "oder bei der RSK"
+      refute html =~ ~s(id="registration-form")
+      refute html =~ "Bereits registriert?"
+    end
+
+    test "GET /users/register with invite code shows the registration form", %{conn: conn} do
+      {invitation, code} = invitation_fixture()
+
+      conn = get(conn, ~p"/users/register?email=#{invitation.email}&invite_code=#{code}")
+      html = html_response(conn, 200)
+
+      assert html =~ "Deine Einladung wurde erkannt."
+      assert html =~ ~s(id="registration-form")
+      assert html =~ ~s(id="registration-data-heading")
+      assert html =~ "Daten"
+      assert html =~ "Erstellen"
+      refute html =~ ~s(id="registration-invite-notice")
+      refute html =~ "Bereits registriert?"
+    end
+
     test "POST /users/register rejects missing invite code", %{conn: conn} do
       params = %{
         "user" => %{
