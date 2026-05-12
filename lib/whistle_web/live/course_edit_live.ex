@@ -410,6 +410,16 @@ defmodule WhistleWeb.CourseEditLive do
 
   defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 
+  defp mailto_bcc(registrations) do
+    registrations
+    |> Enum.filter(&is_nil(&1.unenrolled_at))
+    |> Enum.map(& &1.user_email)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.join(";")
+    |> then(&"mailto:?bcc=#{&1}")
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -809,10 +819,11 @@ defmodule WhistleWeb.CourseEditLive do
               <.icon name="hero-arrow-down-tray" class="size-4" /> CSV
             </.button>
             <.button
+              id="mail-all-participants"
               variant="primary"
-              href={"mailto:?bcc=#{@registrations |> Enum.filter(fn r -> is_nil(r.unenrolled_at) end) |> Enum.map(& &1.user_email) |> Enum.join(";")}"}
+              href={mailto_bcc(@registrations)}
             >
-              <.icon name="hero-envelope" class="size-4" /> Mail an alle
+              <.icon name="hero-envelope" class="size-4" /> Mail an alle TN
             </.button>
           </div>
         </div>
@@ -841,9 +852,19 @@ defmodule WhistleWeb.CourseEditLive do
                         <% end %>
                       </p>
                     </div>
-                    <span class="rounded-full bg-base-200 px-2 py-0.5 text-xs font-semibold text-base-content/70">
-                      {length(date_registrations)} TN
-                    </span>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <span class="rounded-full bg-base-200 px-2 py-0.5 text-xs font-semibold text-base-content/70">
+                        {length(date_registrations)} TN
+                      </span>
+                      <.button
+                        :if={date_registrations != []}
+                        id={"mail-online-date-#{date.id}"}
+                        href={mailto_bcc(date_registrations)}
+                        class="btn-sm"
+                      >
+                        <.icon name="hero-envelope" class="size-4" /> Mail
+                      </.button>
+                    </div>
                   </div>
 
                   <%= if date_registrations == [] do %>

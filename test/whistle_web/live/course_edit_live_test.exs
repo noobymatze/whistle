@@ -219,5 +219,94 @@ defmodule WhistleWeb.CourseEditLiveTest do
       assert has_element?(view, "#online-date-participant-#{mandatory.id}-#{registration.id}")
       assert has_element?(view, "#online-date-participant-#{elective.id}-#{registration.id}")
     end
+
+    test "offers mail links for participants of individual online dates", %{conn: conn} do
+      instructor = instructor_fixture()
+      first_participant = user_fixture(%{email: "first-date@example.com"})
+      second_participant = user_fixture(%{email: "second-date@example.com"})
+      season = season_fixture(%{year: 2026, start: ~D[2026-01-01]})
+
+      course =
+        course_fixture(%{
+          season_id: season.id,
+          type: "F",
+          online: true,
+          date: nil,
+          max_participants: 10,
+          max_per_club: 10,
+          max_organizer_participants: 0
+        })
+
+      {:ok, topic} = Courses.create_course_date_topic(%{course_id: course.id, name: "Thema"})
+
+      {:ok, first_mandatory} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-13],
+          time: ~T[14:00:00],
+          kind: :mandatory
+        })
+
+      {:ok, second_mandatory} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-14],
+          time: ~T[14:00:00],
+          kind: :mandatory
+        })
+
+      {:ok, first_elective} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-21],
+          time: ~T[16:00:00],
+          kind: :elective,
+          course_date_topic_id: topic.id
+        })
+
+      {:ok, second_elective} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-22],
+          time: ~T[16:00:00],
+          kind: :elective,
+          course_date_topic_id: topic.id
+        })
+
+      {:ok, _first_registration} =
+        Registrations.enroll_one(first_participant, course, nil, [
+          first_mandatory.id,
+          first_elective.id
+        ])
+
+      {:ok, _second_registration} =
+        Registrations.enroll_one(second_participant, course, nil, [
+          second_mandatory.id,
+          second_elective.id
+        ])
+
+      {:ok, view, _html} =
+        conn |> log_in(instructor) |> live(~p"/admin/courses/#{course}/edit?tab=teilnehmer")
+
+      assert has_element?(
+               view,
+               "#mail-all-participants[href='mailto:?bcc=first-date@example.com;second-date@example.com']"
+             )
+
+      assert has_element?(
+               view,
+               "#mail-online-date-#{first_mandatory.id}[href='mailto:?bcc=first-date@example.com']"
+             )
+
+      assert has_element?(
+               view,
+               "#mail-online-date-#{second_mandatory.id}[href='mailto:?bcc=second-date@example.com']"
+             )
+
+      refute has_element?(
+               view,
+               "#mail-online-date-#{first_mandatory.id}[href*='second-date@example.com']"
+             )
+    end
   end
 end
