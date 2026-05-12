@@ -10,22 +10,44 @@
     </:subtitle>
   </.header>
 
+  <div
+    id="registration-invite-notice"
+    class="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+  >
+    Aufgrund eines erhöhten Aufkommens von Bot-Anmeldungen haben wir die Registrierung auf Invite Only umgestellt. Bitte melde dich bei dem Verantwortlichen für deinen Verein, um eine Einladung zu erhalten.
+  </div>
+
   <.form for={@form} id="registration-form" action={~p"/users/register"}>
     <div class="flex flex-col gap-2">
       <.error :if={@form.source.action == :insert}>
         Hoppla, etwas ist schief gelaufen! Bitte überprüfe die Fehler unten.
       </.error>
 
-      <.input
-        id="registration-invite-code"
-        name="invite_code"
-        type="text"
-        label="Einladungscode"
-        value={@invite_code}
-        errors={if @invite_code_error, do: [@invite_code_error], else: []}
-        required
-        autocomplete="off"
-      />
+      <%= if @invite_code != "" && is_nil(@invite_code_error) do %>
+        <input
+          id="registration-invite-code"
+          type="hidden"
+          name="invite_code"
+          value={@invite_code}
+        />
+        <p
+          id="registration-invite-recognized"
+          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950"
+        >
+          Einladung erkannt. Du kannst dein Konto jetzt mit dieser E-Mail-Adresse anlegen.
+        </p>
+      <% else %>
+        <.input
+          id="registration-invite-code"
+          name="invite_code"
+          type="text"
+          label="Einladungscode"
+          value={@invite_code}
+          errors={if @invite_code_error, do: [@invite_code_error], else: []}
+          required
+          autocomplete="off"
+        />
+      <% end %>
       <.input field={@form[:username]} type="text" label="Benutzername" required />
       <.input field={@form[:email]} type="email" label="E-Mail" required />
       <.input field={@form[:password]} type="password" label="Passwort" required />

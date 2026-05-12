@@ -4,7 +4,7 @@ defmodule Whistle.AccountsTest do
   alias Whistle.Accounts
 
   import Whistle.AccountsFixtures
-  alias Whistle.Accounts.{User, UserToken}
+  alias Whistle.Accounts.{User, UserInvitation, UserToken}
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -204,6 +204,47 @@ defmodule Whistle.AccountsTest do
       assert is_binary(user.hashed_password)
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
+    end
+  end
+
+  describe "register_user_with_invitation/2" do
+    test "requires a valid invitation bound to the registration email" do
+      {invitation, code} = invitation_fixture()
+
+      assert {:error, :invalid_invitation, changeset} =
+               Accounts.register_user_with_invitation(
+                 valid_user_attributes(email: unique_user_email()),
+                 code
+               )
+
+      assert changeset.action == :insert
+
+      assert {:error, :invalid_invitation, changeset} =
+               Accounts.register_user_with_invitation(
+                 valid_user_attributes(email: invitation.email),
+                 "wrong-code"
+               )
+
+      assert changeset.action == :insert
+    end
+
+    test "creates the user with the invited club and consumes the invitation" do
+      {invitation, code} = invitation_fixture()
+
+      assert {:ok, user} =
+               Accounts.register_user_with_invitation(
+                 valid_user_attributes(email: invitation.email),
+                 code
+               )
+
+      assert user.club_id == invitation.club_id
+      refute is_nil(Repo.get!(UserInvitation, invitation.id).accepted_at)
+
+      assert {:error, :invalid_invitation, _changeset} =
+               Accounts.register_user_with_invitation(
+                 valid_user_attributes(email: invitation.email, username: unique_username()),
+                 code
+               )
     end
   end
 

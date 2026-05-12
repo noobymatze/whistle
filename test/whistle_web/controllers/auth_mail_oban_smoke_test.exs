@@ -14,9 +14,11 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
   test "registration and password reset emails flow through Oban and are visible to super admins",
        %{conn: conn} do
     Oban.Testing.with_testing_mode(:manual, fn ->
+      {invitation, code} = invitation_fixture()
+
       user_params = %{
         "username" => unique_username(),
-        "email" => unique_user_email(),
+        "email" => invitation.email,
         "password" => valid_user_password(),
         "first_name" => "Smoke",
         "last_name" => "Test",
@@ -25,7 +27,7 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
 
       conn =
         post(conn, ~p"/users/register", %{
-          "invite_code" => "test-invite",
+          "invite_code" => code,
           "user" => user_params
         })
 

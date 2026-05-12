@@ -21,15 +21,6 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
-  registration_invite_code =
-    System.get_env("REGISTRATION_INVITE_CODE") ||
-      raise """
-      environment variable REGISTRATION_INVITE_CODE is missing.
-      Public account registration is invite-only and requires this shared code.
-      """
-
-  config :whistle, registration_invite_code: registration_invite_code
-
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

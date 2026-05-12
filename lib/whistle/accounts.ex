@@ -6,7 +6,8 @@ defmodule Whistle.Accounts do
   import Ecto.Query, warn: false
   alias Whistle.Repo
 
-  alias Whistle.Accounts.{Role, User, UserToken, UserView}
+  alias Whistle.Accounts.{Role, User, UserInvitation, UserToken, UserView}
+  alias Whistle.Clubs.Club
   alias Whistle.Oban
   alias Whistle.Workers.DeliverUserEmail
 
@@ -161,6 +162,156 @@ defmodule Whistle.Accounts do
     %User{}
     |> User.registration_changeset(attrs)
     |> Repo.insert()
+  end
+
+  def register_user_with_invitation(attrs, invite_code) when is_map(attrs) do
+    email =
+      attrs |> Map.get("email", Map.get(attrs, :email, "")) |> UserInvitation.normalize_email()
+
+    Repo.transaction(fn ->
+      with %UserInvitation{} = invitation <- get_usable_invitation_for_update(email, invite_code) do
+        changeset =
+          %User{}
+          |> User.registration_changeset(attrs)
+          |> Ecto.Changeset.put_change(:club_id, invitation.club_id)
+
+        case Repo.insert(changeset) do
+          {:ok, user} ->
+            invitation
+            |> UserInvitation.accept_changeset()
+            |> Repo.update!()
+
+            user
+
+          {:error, changeset} ->
+            Repo.rollback({:error, changeset})
+        end
+      else
+        _ ->
+          changeset =
+            %User{}
+            |> change_user_registration(attrs)
+            |> Map.put(:action, :insert)
+
+          Repo.rollback({:error, :invalid_invitation, changeset})
+      end
+    end)
+    |> case do
+      {:ok, %User{} = user} ->
+        {:ok, user}
+
+      {:error, {:error, :invalid_invitation, changeset}} ->
+        {:error, :invalid_invitation, changeset}
+
+      {:error, {:error, changeset}} ->
+        {:error, changeset}
+    end
+  end
+
+  def change_user_invitation(%UserInvitation{} = invitation, attrs \\ %{}) do
+    UserInvitation.create_changeset(invitation, attrs)
+  end
+
+  def invite_user(%User{} = inviter, attrs, invitation_url_fun)
+      when is_function(invitation_url_fun, 2) do
+    if Role.can_access_user_admin?(inviter) do
+      do_invite_user(inviter, attrs, invitation_url_fun)
+    else
+      {:error, :unauthorized}
+    end
+  end
+
+  defp do_invite_user(inviter, attrs, invitation_url_fun) do
+    {code, code_hash} = UserInvitation.generate_code()
+
+    email =
+      attrs |> Map.get("email", Map.get(attrs, :email, "")) |> UserInvitation.normalize_email()
+
+    club_id = invite_club_id(inviter, attrs)
+
+    invitation_attrs = %{
+      email: email,
+      club_id: club_id,
+      invited_by_user_id: inviter.id,
+      expires_at: UserInvitation.expires_at(),
+      code_hash: code_hash
+    }
+
+    changeset = UserInvitation.create_changeset(%UserInvitation{}, invitation_attrs)
+    club = if club_id, do: Repo.get(Club, club_id), else: nil
+    invitation = struct(UserInvitation, Map.put(invitation_attrs, :club, club))
+    url = invitation_url_fun.(invitation, code)
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.update_all(
+      :revoke_existing,
+      pending_invitations_by_email_query(email),
+      set: [revoked_at: Whistle.Timezone.now_local() |> NaiveDateTime.truncate(:second)]
+    )
+    |> Ecto.Multi.insert(:invitation, changeset)
+    |> Oban.insert(
+      :mail_job,
+      DeliverUserEmail.new(%{
+        recipient: email,
+        type: "invitation",
+        url: url,
+        invite_code: code,
+        username: email,
+        inviter_name: user_display_name(inviter),
+        club_name: club && club.name
+      })
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{invitation: invitation, mail_job: job}} -> {:ok, invitation, job}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  defp get_usable_invitation_for_update(email, invite_code)
+       when is_binary(email) and is_binary(invite_code) do
+    code_hash = UserInvitation.hash_code(invite_code)
+
+    Repo.one(
+      from i in UserInvitation,
+        where:
+          i.email == ^email and i.code_hash == ^code_hash and is_nil(i.accepted_at) and
+            is_nil(i.revoked_at),
+        lock: "FOR UPDATE"
+    )
+    |> case do
+      %UserInvitation{} = invitation ->
+        if UserInvitation.usable?(invitation), do: invitation, else: nil
+
+      nil ->
+        nil
+    end
+  end
+
+  defp get_usable_invitation_for_update(_email, _invite_code), do: nil
+
+  defp pending_invitations_by_email_query(email) do
+    from i in UserInvitation,
+      where: i.email == ^email and is_nil(i.accepted_at) and is_nil(i.revoked_at)
+  end
+
+  defp invite_club_id(%User{role: role, club_id: club_id}, _attrs)
+       when role in ["CLUB_ADMIN", "INSTRUCTOR"],
+       do: club_id
+
+  defp invite_club_id(_inviter, attrs) do
+    attrs
+    |> Map.get("club_id", Map.get(attrs, :club_id))
+    |> normalize_id()
+  end
+
+  defp user_display_name(%User{} = user) do
+    [user.first_name, user.last_name]
+    |> Enum.filter(&(&1 && String.trim(&1) != ""))
+    |> case do
+      [] -> user.username || user.email
+      names -> Enum.join(names, " ")
+    end
   end
 
   @doc """

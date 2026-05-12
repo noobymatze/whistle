@@ -5,52 +5,57 @@ defmodule WhistleWeb.UserRegistrationController do
 
   alias Whistle.Accounts
   alias Whistle.Accounts.User
-  alias Whistle.RegistrationInvite
   alias WhistleWeb.UserAuth
 
-  def new(conn, _params) do
-    changeset = Accounts.change_user_registration(%User{})
-    render_registration_form(conn, changeset)
+  def new(conn, params) do
+    changeset =
+      Accounts.change_user_registration(%User{}, %{
+        "email" => Map.get(params, "email", "")
+      })
+
+    render_registration_form(conn, changeset, Map.get(params, "invite_code", ""))
   end
 
   def create(conn, %{"user" => user_params} = params) do
     invite_code = Map.get(params, "invite_code", "")
 
-    if RegistrationInvite.valid_code?(invite_code) do
-      case Accounts.register_user(user_params) do
-        {:ok, user} ->
-          conn
-          |> put_flash(
-            :info,
-            registration_flash_message(
-              Accounts.deliver_user_confirmation_instructions(
-                user,
-                &url(~p"/users/confirm/#{&1}")
-              )
+    case Accounts.register_user_with_invitation(user_params, invite_code) do
+      {:ok, user} ->
+        conn
+        |> put_flash(
+          :info,
+          registration_flash_message(
+            Accounts.deliver_user_confirmation_instructions(
+              user,
+              &url(~p"/users/confirm/#{&1}")
             )
           )
-          |> UserAuth.log_in_user(user)
+        )
+        |> UserAuth.log_in_user(user)
 
-        {:error, %Ecto.Changeset{} = changeset} ->
-          render_registration_form(conn, changeset, invite_code)
-      end
-    else
-      changeset =
-        %User{}
-        |> Accounts.change_user_registration(user_params)
-        |> Map.put(:action, :insert)
+      {:error, :invalid_invitation, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:forbidden)
+        |> render_registration_form(
+          changeset,
+          invite_code,
+          "Ungültige oder abgelaufene Einladung."
+        )
 
-      conn
-      |> put_status(:forbidden)
-      |> render_registration_form(changeset, invite_code, "Ungültiger Einladungscode.")
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_registration_form(conn, changeset, invite_code)
     end
+  end
+
+  defp render_registration_form(conn, %Ecto.Changeset{} = changeset, invite_code) do
+    render_registration_form(conn, changeset, invite_code, nil)
   end
 
   defp render_registration_form(
          conn,
          %Ecto.Changeset{} = changeset,
-         invite_code \\ "",
-         invite_code_error \\ nil
+         invite_code,
+         invite_code_error
        ) do
     render(conn, :new,
       form: to_form(changeset),

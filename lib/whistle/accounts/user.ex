@@ -52,7 +52,6 @@ defmodule Whistle.Accounts.User do
       :email,
       :username,
       :password,
-      :club_id,
       :first_name,
       :last_name,
       :mobile,

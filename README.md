@@ -7,7 +7,7 @@ To start your Phoenix server:
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
-Public registration is invite-only. In production set `REGISTRATION_INVITE_CODE` to the shared code that invited users must enter on `/users/register`.
+Public registration is invite-only. Admins, club admins, and instructors can send email-bound invitation codes from `/admin/users`.
 
 Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
 

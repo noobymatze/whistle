@@ -26,8 +26,6 @@ config :whistle, Whistle.Mailer, adapter: Swoosh.Adapters.Test
 
 config :whistle, Whistle.Oban, testing: :inline
 
-config :whistle, registration_invite_code: "test-invite"
-
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

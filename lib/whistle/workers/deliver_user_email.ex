@@ -6,6 +6,33 @@ defmodule Whistle.Workers.DeliverUserEmail do
 
   @impl Oban.Worker
   def perform(%Job{
+        args:
+          %{
+            "recipient" => recipient,
+            "type" => "invitation",
+            "url" => url,
+            "invite_code" => invite_code
+          } = args
+      }) do
+    invitation = %{
+      email: recipient,
+      url: url,
+      invite_code: invite_code,
+      inviter_name: args["inviter_name"],
+      club_name: args["club_name"]
+    }
+
+    case UserNotifier.deliver_invitation_instructions(invitation) do
+      {:ok, _email} ->
+        Process.sleep(1_000)
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def perform(%Job{
         args: %{
           "recipient" => recipient,
           "type" => type,

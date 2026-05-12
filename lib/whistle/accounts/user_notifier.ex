@@ -87,6 +87,46 @@ defmodule Whistle.Accounts.UserNotifier do
   end
 
   @doc """
+  Deliver a user invitation email.
+  """
+  def deliver_invitation_instructions(invitation) do
+    club_line =
+      case invitation[:club_name] do
+        nil -> ""
+        "" -> ""
+        club_name -> "\nDie Einladung ist für den Verein #{club_name} vorgemerkt.\n"
+      end
+
+    inviter_line =
+      case invitation[:inviter_name] do
+        nil -> "Du wurdest zu Whistle eingeladen."
+        "" -> "Du wurdest zu Whistle eingeladen."
+        inviter_name -> "#{inviter_name} hat dich zu Whistle eingeladen."
+      end
+
+    deliver(invitation.email, "Einladung zu Whistle", """
+
+    ==============================
+
+    Hallo,
+
+    #{inviter_line}
+    #{club_line}
+    Öffne den folgenden Link und fülle das Registrierungsformular aus:
+
+    #{invitation.url}
+
+    Dein Einladungscode lautet:
+
+    #{invitation.invite_code}
+
+    Falls du diese Einladung nicht erwartet hast, ignoriere diese E-Mail.
+
+    ==============================
+    """)
+  end
+
+  @doc """
   Deliver instructions to update a user email.
   """
   def deliver_update_email_instructions(user, url) do

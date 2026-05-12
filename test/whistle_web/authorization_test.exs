@@ -6,6 +6,8 @@ defmodule WhistleWeb.AuthorizationTest do
 
   alias Phoenix.Flash
   alias Whistle.Accounts
+  alias Whistle.Accounts.UserInvitation
+  alias Whistle.Repo
 
   # ---------------------------------------------------------------------------
   # Helpers
@@ -38,15 +40,17 @@ defmodule WhistleWeb.AuthorizationTest do
 
       conn = post(conn, ~p"/users/register", params)
 
-      assert html_response(conn, 403) =~ "Ungültiger Einladungscode."
+      assert html_response(conn, 403) =~ "Ungültige oder abgelaufene Einladung."
       assert Accounts.get_user_by_email("missing-invite@example.com") == nil
     end
 
     test "POST /users/register rejects invalid invite code", %{conn: conn} do
+      {invitation, _code} = invitation_fixture(email: "wrong-invite@example.com")
+
       params = %{
         "invite_code" => "wrong-code",
         "user" => %{
-          "email" => "wrong-invite@example.com",
+          "email" => invitation.email,
           "username" => "wronginvite",
           "password" => "supersecretpassword",
           "first_name" => "Wrong",
@@ -57,15 +61,17 @@ defmodule WhistleWeb.AuthorizationTest do
 
       conn = post(conn, ~p"/users/register", params)
 
-      assert html_response(conn, 403) =~ "Ungültiger Einladungscode."
+      assert html_response(conn, 403) =~ "Ungültige oder abgelaufene Einladung."
       assert Accounts.get_user_by_email("wrong-invite@example.com") == nil
     end
 
     test "POST /users/register ignores a crafted role param and creates USER", %{conn: conn} do
+      {invitation, code} = invitation_fixture(email: "hacker@example.com")
+
       params = %{
-        "invite_code" => "test-invite",
+        "invite_code" => code,
         "user" => %{
-          "email" => "hacker@example.com",
+          "email" => invitation.email,
           "username" => "hacker123",
           "password" => "supersecretpassword",
           "first_name" => "Evil",
@@ -84,10 +90,12 @@ defmodule WhistleWeb.AuthorizationTest do
     end
 
     test "POST /users/register also ignores ADMIN role attempt", %{conn: conn} do
+      {invitation, code} = invitation_fixture(email: "fakeadmin@example.com")
+
       params = %{
-        "invite_code" => "test-invite",
+        "invite_code" => code,
         "user" => %{
-          "email" => "fakeadmin@example.com",
+          "email" => invitation.email,
           "username" => "fakeadmin1",
           "password" => "supersecretpassword",
           "first_name" => "Fake",
@@ -232,7 +240,25 @@ defmodule WhistleWeb.AuthorizationTest do
 
     test "can access users", %{conn: conn} do
       conn = get(conn, ~p"/admin/users")
-      assert html_response(conn, 200)
+      html = html_response(conn, 200)
+      assert html =~ ~s(id="invite-user-button")
+      assert html =~ ~s(id="invite-user-form")
+    end
+
+    test "can invite a user and the invitation is scoped to own club", %{
+      conn: conn,
+      club: club
+    } do
+      email = unique_user_email()
+
+      conn =
+        post(conn, ~p"/admin/users/invitations", %{
+          "user_invitation" => %{"email" => email, "club_id" => ""}
+        })
+
+      assert redirected_to(conn) == "/admin/users"
+      invitation = Repo.get_by!(UserInvitation, email: email)
+      assert invitation.club_id == club.id
     end
 
     test "cannot access course list (course area)", %{conn: conn} do

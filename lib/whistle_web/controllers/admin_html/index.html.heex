@@ -1,9 +1,83 @@
+<input
+  id="invite-user-modal-toggle"
+  type="checkbox"
+  class="peer hidden"
+  checked={@invitation_form.source.action == :insert}
+/>
+
 <.header>
   Benutzer
   <:actions>
+    <label
+      id="invite-user-button"
+      for="invite-user-modal-toggle"
+      class="btn btn-primary btn-soft cursor-pointer"
+    >
+      <.icon name="hero-envelope" class="size-4" /> Jemanden einladen
+    </label>
     <.button navigate={~p"/admin/users/new"}>Neuer Benutzer</.button>
   </:actions>
 </.header>
+
+<div class="fixed inset-0 z-40 hidden place-items-center bg-base-content/35 px-4 py-6 peer-checked:grid">
+  <label
+    for="invite-user-modal-toggle"
+    class="absolute inset-0 cursor-pointer"
+    aria-label="Einladung schließen"
+  >
+  </label>
+  <div
+    id="invite-user-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="invite-user-modal-title"
+    class="relative w-full max-w-md rounded-lg border border-base-200 bg-base-100 p-5 shadow-xl"
+  >
+    <div class="mb-4 flex items-start justify-between gap-4">
+      <div>
+        <h2 id="invite-user-modal-title" class="text-lg font-semibold">Jemanden einladen</h2>
+        <p class="mt-1 text-sm text-base-content/60">
+          Die Person erhält eine E-Mail mit einem einmaligen Code für die Registrierung.
+        </p>
+      </div>
+      <label
+        for="invite-user-modal-toggle"
+        class="btn btn-ghost btn-sm btn-square cursor-pointer"
+        aria-label="Schließen"
+      >
+        <.icon name="hero-x-mark" class="size-5" />
+      </label>
+    </div>
+
+    <.form
+      for={@invitation_form}
+      id="invite-user-form"
+      action={~p"/admin/users/invitations"}
+      class="space-y-3"
+    >
+      <.input field={@invitation_form[:email]} type="email" label="E-Mail" required />
+      <.input
+        :if={@clubs != []}
+        field={@invitation_form[:club_id]}
+        type="select"
+        label="Verein"
+        prompt="Kein Verein vorauswählen"
+        options={@clubs}
+      />
+      <p :if={@clubs == [] && @current_user.club_id} class="text-sm text-base-content/60">
+        Dein Verein wird automatisch für die Einladung übernommen.
+      </p>
+      <div class="flex justify-end gap-2 pt-2">
+        <label for="invite-user-modal-toggle" class="btn btn-ghost cursor-pointer">
+          Abbrechen
+        </label>
+        <.button id="invite-user-submit" phx-disable-with="Einladung wird versendet...">
+          Einladung versenden
+        </.button>
+      </div>
+    </.form>
+  </div>
+</div>
 
 <div class="space-y-2">
   <%= if @users == [] do %>
