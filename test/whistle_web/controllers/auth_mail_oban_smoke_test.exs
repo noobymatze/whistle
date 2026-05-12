@@ -23,7 +23,11 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
         "birthday" => "1990-01-01"
       }
 
-      conn = post(conn, ~p"/users/register", %{"user" => user_params})
+      conn =
+        post(conn, ~p"/users/register", %{
+          "invite_code" => "test-invite",
+          "user" => user_params
+        })
 
       assert redirected_to(conn) == "/"
       assert Flash.get(conn.assigns.flash, :info) == "Benutzer erfolgreich erstellt."

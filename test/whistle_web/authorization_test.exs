@@ -24,8 +24,46 @@ defmodule WhistleWeb.AuthorizationTest do
   # ---------------------------------------------------------------------------
 
   describe "public registration role escalation prevention" do
+    test "POST /users/register rejects missing invite code", %{conn: conn} do
+      params = %{
+        "user" => %{
+          "email" => "missing-invite@example.com",
+          "username" => "missinginvite",
+          "password" => "supersecretpassword",
+          "first_name" => "Missing",
+          "last_name" => "Invite",
+          "birthday" => "1990-01-01"
+        }
+      }
+
+      conn = post(conn, ~p"/users/register", params)
+
+      assert html_response(conn, 403) =~ "Ungültiger Einladungscode."
+      assert Accounts.get_user_by_email("missing-invite@example.com") == nil
+    end
+
+    test "POST /users/register rejects invalid invite code", %{conn: conn} do
+      params = %{
+        "invite_code" => "wrong-code",
+        "user" => %{
+          "email" => "wrong-invite@example.com",
+          "username" => "wronginvite",
+          "password" => "supersecretpassword",
+          "first_name" => "Wrong",
+          "last_name" => "Invite",
+          "birthday" => "1990-01-01"
+        }
+      }
+
+      conn = post(conn, ~p"/users/register", params)
+
+      assert html_response(conn, 403) =~ "Ungültiger Einladungscode."
+      assert Accounts.get_user_by_email("wrong-invite@example.com") == nil
+    end
+
     test "POST /users/register ignores a crafted role param and creates USER", %{conn: conn} do
       params = %{
+        "invite_code" => "test-invite",
         "user" => %{
           "email" => "hacker@example.com",
           "username" => "hacker123",
@@ -47,6 +85,7 @@ defmodule WhistleWeb.AuthorizationTest do
 
     test "POST /users/register also ignores ADMIN role attempt", %{conn: conn} do
       params = %{
+        "invite_code" => "test-invite",
         "user" => %{
           "email" => "fakeadmin@example.com",
           "username" => "fakeadmin1",

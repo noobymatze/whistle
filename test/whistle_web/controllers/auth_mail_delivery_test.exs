@@ -24,6 +24,7 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
 
   test "registration succeeds even when confirmation delivery fails", %{conn: conn} do
     params = %{
+      "invite_code" => "test-invite",
       "user" => %{
         "username" => unique_username(),
         "email" => unique_user_email(),

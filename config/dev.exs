@@ -71,6 +71,9 @@ config :whistle, WhistleWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :whistle, dev_routes: true
 
+config :whistle,
+  registration_invite_code: System.get_env("REGISTRATION_INVITE_CODE") || "dev-invite"
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
