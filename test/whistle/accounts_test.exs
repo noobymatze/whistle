@@ -149,11 +149,9 @@ defmodule Whistle.AccountsTest do
       %{username: username} = user_fixture()
 
       {:error, changeset} =
-        Accounts.register_user(%{
-          username: username,
-          email: unique_user_email(),
-          password: valid_user_password()
-        })
+        Accounts.register_user(
+          valid_user_attributes(username: username, email: unique_user_email())
+        )
 
       assert "has already been taken" in errors_on(changeset).username
     end

@@ -14,6 +14,11 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
 
   # ── Helpers ──────────────────────────────────────────────────────────────────
 
+  defp future_date(days_from_today) do
+    Whistle.Timezone.today_local()
+    |> Date.add(days_from_today)
+  end
+
   defp online_course_fixture(season, attrs \\ %{}) do
     course_fixture(
       Map.merge(
@@ -35,7 +40,7 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
     {:ok, date} =
       Courses.create_course_date(
         Map.merge(
-          %{course_id: course.id, date: ~D[2026-05-13], time: ~T[14:00:00], kind: :mandatory},
+          %{course_id: course.id, date: future_date(7), time: ~T[14:00:00], kind: :mandatory},
           attrs
         )
       )
@@ -49,7 +54,7 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
         Map.merge(
           %{
             course_id: course.id,
-            date: ~D[2026-05-21],
+            date: future_date(14),
             time: ~T[16:00:00],
             kind: :elective,
             course_date_topic_id: topic.id
@@ -125,8 +130,8 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       season = season_fixture()
       course = online_course_fixture(season)
       topic = topic_fixture(course)
-      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-05-13]})
-      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-05-14]})
+      mandatory1 = mandatory_date_fixture(course, %{date: future_date(7)})
+      mandatory2 = mandatory_date_fixture(course, %{date: future_date(8)})
       elective = elective_date_fixture(course, topic)
 
       {:ok, registration} =
@@ -165,8 +170,8 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       season = season_fixture()
       course = online_course_fixture(season)
       topic = topic_fixture(course)
-      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-05-13], time: ~T[14:00:00]})
-      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-05-14], time: ~T[15:00:00]})
+      mandatory1 = mandatory_date_fixture(course, %{date: future_date(7), time: ~T[14:00:00]})
+      mandatory2 = mandatory_date_fixture(course, %{date: future_date(8), time: ~T[15:00:00]})
       elective = elective_date_fixture(course, topic)
 
       assert {:ok, registration} =
@@ -200,10 +205,10 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       mandatory = mandatory_date_fixture(course)
 
       elective1 =
-        elective_date_fixture(course, topic, %{date: ~D[2026-05-21], time: ~T[16:00:00]})
+        elective_date_fixture(course, topic, %{date: future_date(14), time: ~T[16:00:00]})
 
       elective2 =
-        elective_date_fixture(course, topic, %{date: ~D[2026-05-22], time: ~T[18:00:00]})
+        elective_date_fixture(course, topic, %{date: future_date(15), time: ~T[18:00:00]})
 
       assert {:ok, registration} =
                Registrations.enroll_one(user, course, nil, [mandatory.id, elective1.id])
@@ -234,14 +239,14 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
         })
 
       topic = topic_fixture(course)
-      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-05-13], time: ~T[14:00:00]})
-      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-05-14], time: ~T[15:00:00]})
+      mandatory1 = mandatory_date_fixture(course, %{date: future_date(7), time: ~T[14:00:00]})
+      mandatory2 = mandatory_date_fixture(course, %{date: future_date(8), time: ~T[15:00:00]})
 
       elective1 =
-        elective_date_fixture(course, topic, %{date: ~D[2026-05-21], time: ~T[16:00:00]})
+        elective_date_fixture(course, topic, %{date: future_date(14), time: ~T[16:00:00]})
 
       elective2 =
-        elective_date_fixture(course, topic, %{date: ~D[2026-05-22], time: ~T[18:00:00]})
+        elective_date_fixture(course, topic, %{date: future_date(15), time: ~T[18:00:00]})
 
       assert {:ok, registration1} =
                Registrations.enroll_one(user1, course, nil, [mandatory1.id, elective1.id])
@@ -293,10 +298,10 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
 
       other_course = online_course_fixture(season, %{name: "Anderer Online-Kurs"})
       other_topic = topic_fixture(other_course, "Thema B")
-      foreign_mandatory = mandatory_date_fixture(other_course, %{date: ~D[2026-05-15]})
+      foreign_mandatory = mandatory_date_fixture(other_course, %{date: future_date(9)})
 
       _foreign_elective =
-        elective_date_fixture(other_course, other_topic, %{date: ~D[2026-05-23]})
+        elective_date_fixture(other_course, other_topic, %{date: future_date(16)})
 
       assert {:ok, registration} =
                Registrations.enroll_one(user, course, nil, [mandatory.id, elective.id])
@@ -341,8 +346,8 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
     end
 
     test "fehler wenn 2 mandatory Termine übergeben", %{user: user, course: course} do
-      mandatory2 = mandatory_date_fixture(course, %{date: ~D[2026-05-14]})
-      mandatory1 = mandatory_date_fixture(course, %{date: ~D[2026-05-13]})
+      mandatory2 = mandatory_date_fixture(course, %{date: future_date(8)})
+      mandatory1 = mandatory_date_fixture(course, %{date: future_date(7)})
 
       assert {:error, {:invalid_selection, _}} =
                Registrations.enroll_one(user, course, nil, [mandatory1.id, mandatory2.id])
@@ -350,8 +355,8 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
 
     test "fehler wenn 2 elective Termine übergeben", %{user: user, course: course} do
       topic = topic_fixture(course, "Thema B")
-      elective2 = elective_date_fixture(course, topic, %{date: ~D[2026-05-22]})
-      elective1 = elective_date_fixture(course, topic, %{date: ~D[2026-05-21]})
+      elective2 = elective_date_fixture(course, topic, %{date: future_date(15)})
+      elective1 = elective_date_fixture(course, topic, %{date: future_date(14)})
 
       assert {:error, {:invalid_selection, _}} =
                Registrations.enroll_one(user, course, nil, [elective1.id, elective2.id])
@@ -390,7 +395,7 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       user = user_fixture(%{club_id: club.id})
       season = season_fixture()
 
-      offline_f = course_fixture(%{season_id: season.id, type: "F", date: ~D[2026-05-01]})
+      offline_f = course_fixture(%{season_id: season.id, type: "F", date: future_date(7)})
       Registrations.enroll_one(user, offline_f)
 
       online_f = online_course_fixture(season)
@@ -413,7 +418,7 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       elective = elective_date_fixture(online_f, topic)
       Registrations.enroll_one(user, online_f, nil, [mandatory.id, elective.id])
 
-      offline_f = course_fixture(%{season_id: season.id, type: "F", date: ~D[2026-05-01]})
+      offline_f = course_fixture(%{season_id: season.id, type: "F", date: future_date(7)})
 
       assert {:error, {:not_allowed, _}} = Registrations.enroll_one(user, offline_f)
     end
@@ -431,7 +436,7 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
         course_fixture(%{
           season_id: season.id,
           type: "F",
-          date: ~D[2026-05-01],
+          date: future_date(7),
           max_participants: 20,
           max_per_club: 6
         })
