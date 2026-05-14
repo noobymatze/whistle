@@ -4,7 +4,7 @@ defmodule Whistle.AccountsTest do
   alias Whistle.Accounts
 
   import Whistle.AccountsFixtures
-  alias Whistle.Accounts.{User, UserInvitation, UserToken}
+  alias Whistle.Accounts.{User, UserToken}
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -205,46 +205,54 @@ defmodule Whistle.AccountsTest do
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
     end
-  end
 
-  describe "register_user_with_invitation/2" do
-    test "requires a valid invitation bound to the registration email" do
-      {invitation, code} = invitation_fixture()
+    test "allows re-registration when an unconfirmed account is older than 3 days" do
+      attrs =
+        valid_user_attributes(
+          email: unique_user_email(),
+          username: unique_username()
+        )
 
-      assert {:error, :invalid_invitation, changeset} =
-               Accounts.register_user_with_invitation(
-                 valid_user_attributes(email: unique_user_email()),
-                 code
-               )
+      {:ok, stale_user} = Accounts.register_user(attrs)
 
-      assert changeset.action == :insert
+      {1, nil} =
+        Repo.update_all(
+          from(u in User, where: u.id == ^stale_user.id),
+          set: [created_at: ~N[2020-01-01 00:00:00]]
+        )
 
-      assert {:error, :invalid_invitation, changeset} =
-               Accounts.register_user_with_invitation(
-                 valid_user_attributes(email: invitation.email),
-                 "wrong-code"
-               )
+      token = Accounts.generate_user_session_token(stale_user)
+      assert Repo.get_by(UserToken, token: token)
 
-      assert changeset.action == :insert
+      assert {:ok, replacement_user} = Accounts.register_user(attrs)
+      assert replacement_user.id != stale_user.id
+      assert replacement_user.username == attrs.username
+      refute Repo.get(User, stale_user.id)
+      refute Repo.get_by(UserToken, token: token)
     end
 
-    test "creates the user with the invited club and consumes the invitation" do
-      {invitation, code} = invitation_fixture()
+    test "does not remove a stale confirmed account during re-registration" do
+      attrs =
+        valid_user_attributes(
+          email: unique_user_email(),
+          username: unique_username()
+        )
 
-      assert {:ok, user} =
-               Accounts.register_user_with_invitation(
-                 valid_user_attributes(email: invitation.email),
-                 code
-               )
+      {:ok, user} = Accounts.register_user(attrs)
 
-      assert user.club_id == invitation.club_id
-      refute is_nil(Repo.get!(UserInvitation, invitation.id).accepted_at)
+      user
+      |> User.confirm_changeset()
+      |> Repo.update!()
 
-      assert {:error, :invalid_invitation, _changeset} =
-               Accounts.register_user_with_invitation(
-                 valid_user_attributes(email: invitation.email, username: unique_username()),
-                 code
-               )
+      {1, nil} =
+        Repo.update_all(
+          from(u in User, where: u.id == ^user.id),
+          set: [created_at: ~N[2020-01-01 00:00:00]]
+        )
+
+      {:error, changeset} = Accounts.register_user(attrs)
+      assert "has already been taken" in errors_on(changeset).username
+      assert Repo.get(User, user.id)
     end
   end
 
@@ -539,6 +547,21 @@ defmodule Whistle.AccountsTest do
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
       assert user_token.context == "confirm"
+    end
+
+    test "does not send a new token for registrations older than 3 days", %{user: user} do
+      {1, nil} =
+        Repo.update_all(
+          from(u in User, where: u.id == ^user.id),
+          set: [created_at: ~N[2020-01-01 00:00:00]]
+        )
+
+      user = Repo.get!(User, user.id)
+
+      assert Accounts.deliver_user_confirmation_instructions(user, &"/confirm/#{&1}") ==
+               {:error, :registration_expired}
+
+      refute Repo.get_by(UserToken, user_id: user.id, context: "confirm")
     end
   end
 

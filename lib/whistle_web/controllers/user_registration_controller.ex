@@ -5,23 +5,18 @@ defmodule WhistleWeb.UserRegistrationController do
 
   alias Whistle.Accounts
   alias Whistle.Accounts.User
-  alias WhistleWeb.UserAuth
 
   def new(conn, params) do
-    invite_code = Map.get(params, "invite_code", "")
-
     changeset =
       Accounts.change_user_registration(%User{}, %{
         "email" => Map.get(params, "email", "")
       })
 
-    render_registration_form(conn, changeset, invite_code)
+    render_registration_form(conn, changeset)
   end
 
-  def create(conn, %{"user" => user_params} = params) do
-    invite_code = Map.get(params, "invite_code", "")
-
-    case Accounts.register_user_with_invitation(user_params, invite_code) do
+  def create(conn, %{"user" => user_params}) do
+    case Accounts.register_user(user_params) do
       {:ok, user} ->
         conn
         |> put_flash(
@@ -33,41 +28,20 @@ defmodule WhistleWeb.UserRegistrationController do
             )
           )
         )
-        |> UserAuth.log_in_user(user)
-
-      {:error, :invalid_invitation, %Ecto.Changeset{} = changeset} ->
-        conn
-        |> put_status(:forbidden)
-        |> render_registration_form(
-          changeset,
-          invite_code,
-          "Ungültige oder abgelaufene Einladung."
-        )
+        |> redirect(to: ~p"/users/confirm")
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render_registration_form(conn, changeset, invite_code)
+        render_registration_form(conn, changeset)
     end
   end
 
-  defp render_registration_form(conn, %Ecto.Changeset{} = changeset, invite_code) do
-    render_registration_form(conn, changeset, invite_code, nil)
+  defp render_registration_form(conn, %Ecto.Changeset{} = changeset) do
+    render(conn, :new, form: to_form(changeset))
   end
 
-  defp render_registration_form(
-         conn,
-         %Ecto.Changeset{} = changeset,
-         invite_code,
-         invite_code_error
-       ) do
-    render(conn, :new,
-      form: to_form(changeset),
-      invite_code: invite_code,
-      invite_code_error: invite_code_error,
-      invitation_present?: invite_code != "" or not is_nil(invite_code_error)
-    )
+  defp registration_flash_message({:ok, _email}) do
+    "Benutzer erfolgreich erstellt. Bitte bestätige deine E-Mail innerhalb von 3 Tagen."
   end
-
-  defp registration_flash_message({:ok, _email}), do: "Benutzer erfolgreich erstellt."
 
   defp registration_flash_message({:error, _reason}) do
     "Benutzer erfolgreich erstellt. Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden. Du kannst sie später erneut anfordern."

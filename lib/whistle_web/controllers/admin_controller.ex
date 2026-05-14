@@ -1,11 +1,8 @@
 defmodule WhistleWeb.AdminController do
   use WhistleWeb, :controller
 
-  import Phoenix.Component, only: [to_form: 1]
-
   alias Whistle.Accounts
   alias Whistle.Accounts.Role
-  alias Whistle.Accounts.UserInvitation
   alias Whistle.Clubs
 
   plug WhistleWeb.Plugs.RequireRole, user_admin: true
@@ -22,36 +19,6 @@ defmodule WhistleWeb.AdminController do
       end
 
     render_index(conn, users)
-  end
-
-  def create_invitation(conn, %{"user_invitation" => invitation_params}) do
-    current_user = conn.assigns.current_user
-
-    case Accounts.invite_user(current_user, invitation_params, fn invitation, code ->
-           url(~p"/users/register?#{[email: invitation.email, invite_code: code]}")
-         end) do
-      {:ok, invitation, _job} ->
-        conn
-        |> put_flash(:info, "Einladung an #{invitation.email} wurde versendet.")
-        |> redirect(to: ~p"/admin/users")
-
-      {:error, :unauthorized} ->
-        conn
-        |> put_flash(:error, "Du hast keine Berechtigung, Benutzer einzuladen.")
-        |> redirect(to: ~p"/admin/users")
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        users = users_for_admin(current_user)
-
-        conn
-        |> put_status(:unprocessable_entity)
-        |> render_index(users, changeset)
-
-      {:error, _reason} ->
-        conn
-        |> put_flash(:error, "Die Einladung konnte nicht versendet werden.")
-        |> redirect(to: ~p"/admin/users")
-    end
   end
 
   def new(conn, _params) do
@@ -213,27 +180,12 @@ defmodule WhistleWeb.AdminController do
     Clubs.list_clubs() |> Enum.map(&{&1.name, &1.id})
   end
 
-  defp render_index(conn, users, invitation_changeset \\ nil) do
+  defp render_index(conn, users) do
     current_user = conn.assigns.current_user
-
-    invitation_changeset =
-      invitation_changeset || Accounts.change_user_invitation(%UserInvitation{})
-
-    clubs = if Role.can_access_global_area?(current_user), do: clubs_for_select(), else: []
 
     render(conn, :index,
       users: users,
-      current_user: current_user,
-      clubs: clubs,
-      invitation_form: to_form(invitation_changeset)
+      current_user: current_user
     )
-  end
-
-  defp users_for_admin(current_user) do
-    if Role.can_access_global_area?(current_user) do
-      Accounts.list_users()
-    else
-      Accounts.list_manageable_users(current_user)
-    end
   end
 end

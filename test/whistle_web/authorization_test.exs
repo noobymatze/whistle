@@ -6,8 +6,6 @@ defmodule WhistleWeb.AuthorizationTest do
 
   alias Phoenix.Flash
   alias Whistle.Accounts
-  alias Whistle.Accounts.UserInvitation
-  alias Whistle.Repo
 
   # ---------------------------------------------------------------------------
   # Helpers
@@ -26,79 +24,52 @@ defmodule WhistleWeb.AuthorizationTest do
   # ---------------------------------------------------------------------------
 
   describe "public registration role escalation prevention" do
-    test "GET /users/register without invite code only shows invite-only notice", %{conn: conn} do
+    test "GET /users/register shows the public registration form", %{conn: conn} do
       conn = get(conn, ~p"/users/register")
       html = html_response(conn, 200)
 
-      assert html =~ ~s(id="registration-invite-notice")
-      assert html =~ "oder bei der RSK"
-      refute html =~ ~s(id="registration-form")
-      refute html =~ "Bereits registriert?"
-    end
-
-    test "GET /users/register with invite code shows the registration form", %{conn: conn} do
-      {invitation, code} = invitation_fixture()
-
-      conn = get(conn, ~p"/users/register?email=#{invitation.email}&invite_code=#{code}")
-      html = html_response(conn, 200)
-
-      assert html =~ "Deine Einladung wurde erkannt."
       assert html =~ ~s(id="registration-form")
       assert html =~ ~s(id="registration-data-heading")
       assert html =~ ~s(id="user_email")
-      assert html =~ "readonly"
-      assert html =~ "Daten"
-      assert html =~ "Erstellen"
+      assert html =~ "Bestätigungslink"
       refute html =~ ~s(id="registration-invite-notice")
+      refute html =~ "readonly"
       refute html =~ "Bereits registriert?"
     end
 
-    test "POST /users/register rejects missing invite code", %{conn: conn} do
-      params = %{
-        "user" => %{
-          "email" => "missing-invite@example.com",
-          "username" => "missinginvite",
-          "password" => "supersecretpassword",
-          "first_name" => "Missing",
-          "last_name" => "Invite",
-          "birthday" => "1990-01-01"
-        }
-      }
+    test "GET /users/register can prefill the email without locking it", %{conn: conn} do
+      conn = get(conn, ~p"/users/register?email=prefill@example.com")
+      html = html_response(conn, 200)
 
-      conn = post(conn, ~p"/users/register", params)
-
-      assert html_response(conn, 403) =~ "Ungültige oder abgelaufene Einladung."
-      assert Accounts.get_user_by_email("missing-invite@example.com") == nil
+      assert html =~ ~s(id="registration-form")
+      assert html =~ "prefill@example.com"
+      refute html =~ "readonly"
     end
 
-    test "POST /users/register rejects invalid invite code", %{conn: conn} do
-      {invitation, _code} = invitation_fixture(email: "wrong-invite@example.com")
-
+    test "POST /users/register creates an unconfirmed USER without an invite code", %{conn: conn} do
       params = %{
-        "invite_code" => "wrong-code",
         "user" => %{
-          "email" => invitation.email,
-          "username" => "wronginvite",
+          "email" => "public-register@example.com",
+          "username" => "publicregister",
           "password" => "supersecretpassword",
-          "first_name" => "Wrong",
-          "last_name" => "Invite",
+          "first_name" => "Public",
+          "last_name" => "Register",
           "birthday" => "1990-01-01"
         }
       }
 
       conn = post(conn, ~p"/users/register", params)
 
-      assert html_response(conn, 403) =~ "Ungültige oder abgelaufene Einladung."
-      assert Accounts.get_user_by_email("wrong-invite@example.com") == nil
+      assert redirected_to(conn) == "/users/confirm"
+      user = Accounts.get_user_by_email("public-register@example.com")
+      assert user.role == "USER"
+      assert is_nil(user.confirmed_at)
     end
 
     test "POST /users/register ignores a crafted role param and creates USER", %{conn: conn} do
-      {invitation, code} = invitation_fixture(email: "hacker@example.com")
-
       params = %{
-        "invite_code" => code,
         "user" => %{
-          "email" => invitation.email,
+          "email" => "hacker@example.com",
           "username" => "hacker123",
           "password" => "supersecretpassword",
           "first_name" => "Evil",
@@ -117,12 +88,9 @@ defmodule WhistleWeb.AuthorizationTest do
     end
 
     test "POST /users/register also ignores ADMIN role attempt", %{conn: conn} do
-      {invitation, code} = invitation_fixture(email: "fakeadmin@example.com")
-
       params = %{
-        "invite_code" => code,
         "user" => %{
-          "email" => invitation.email,
+          "email" => "fakeadmin@example.com",
           "username" => "fakeadmin1",
           "password" => "supersecretpassword",
           "first_name" => "Fake",
@@ -137,6 +105,20 @@ defmodule WhistleWeb.AuthorizationTest do
       user = Accounts.get_user_by_email("fakeadmin@example.com")
       assert user != nil
       assert user.role == "USER"
+    end
+
+    test "POST /users/log_in rejects unconfirmed users", %{conn: conn} do
+      {:ok, user} =
+        Accounts.register_user(
+          valid_user_attributes(username: "unconfirmed_login", email: unique_user_email())
+        )
+
+      conn =
+        post(conn, ~p"/users/log_in", %{
+          "user" => %{"username" => user.username, "password" => valid_user_password()}
+        })
+
+      assert html_response(conn, 200) =~ "Bitte bestätige zuerst deine E-Mail"
     end
   end
 
@@ -268,24 +250,8 @@ defmodule WhistleWeb.AuthorizationTest do
     test "can access users", %{conn: conn} do
       conn = get(conn, ~p"/admin/users")
       html = html_response(conn, 200)
-      assert html =~ ~s(id="invite-user-button")
-      assert html =~ ~s(id="invite-user-form")
-    end
-
-    test "can invite a user and the invitation is scoped to own club", %{
-      conn: conn,
-      club: club
-    } do
-      email = unique_user_email()
-
-      conn =
-        post(conn, ~p"/admin/users/invitations", %{
-          "user_invitation" => %{"email" => email, "club_id" => ""}
-        })
-
-      assert redirected_to(conn) == "/admin/users"
-      invitation = Repo.get_by!(UserInvitation, email: email)
-      assert invitation.club_id == club.id
+      assert html =~ ~s(id="new-user-button")
+      refute html =~ ~s(id="invite-user-form")
     end
 
     test "cannot access course list (course area)", %{conn: conn} do

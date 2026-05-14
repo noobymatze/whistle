@@ -11,6 +11,8 @@ defmodule Whistle.Accounts do
   alias Whistle.Oban
   alias Whistle.Workers.DeliverUserEmail
 
+  @unconfirmed_registration_validity_in_days 3
+
   ## Database getters
 
   @doc """
@@ -159,9 +161,50 @@ defmodule Whistle.Accounts do
 
   """
   def register_user(attrs) do
-    %User{}
-    |> User.registration_changeset(attrs)
-    |> Repo.insert()
+    preflight_changeset =
+      User.registration_changeset(%User{}, attrs,
+        hash_password: false,
+        validate_username: false
+      )
+
+    if preflight_changeset.valid? do
+      Repo.transaction(fn ->
+        purge_expired_unconfirmed_registration(preflight_changeset)
+        changeset = User.registration_changeset(%User{}, attrs)
+
+        case Repo.insert(changeset) do
+          {:ok, user} -> user
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+      |> case do
+        {:ok, %User{} = user} -> {:ok, user}
+        {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+      end
+    else
+      {:error, preflight_changeset}
+    end
+  end
+
+  defp purge_expired_unconfirmed_registration(changeset) do
+    cutoff =
+      Whistle.Timezone.now_local()
+      |> NaiveDateTime.add(-@unconfirmed_registration_validity_in_days, :day)
+      |> NaiveDateTime.truncate(:second)
+
+    email = Ecto.Changeset.get_field(changeset, :email)
+    username = Ecto.Changeset.get_field(changeset, :username)
+
+    users_query =
+      from u in User,
+        where:
+          is_nil(u.confirmed_at) and u.created_at <= ^cutoff and
+            (u.email == ^email or u.username == ^username)
+
+    user_ids_query = from u in users_query, select: u.id
+
+    Repo.delete_all(from t in UserToken, where: t.user_id in subquery(user_ids_query))
+    Repo.delete_all(users_query)
   end
 
   def register_user_with_invitation(attrs, invite_code) when is_map(attrs) do
@@ -584,19 +627,35 @@ defmodule Whistle.Accounts do
   """
   def deliver_user_confirmation_instructions(%User{} = user, confirmation_url_fun)
       when is_function(confirmation_url_fun, 1) do
-    if user.confirmed_at do
-      {:error, :already_confirmed}
-    else
-      {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
-      url = confirmation_url_fun.(encoded_token)
+    cond do
+      user.confirmed_at ->
+        {:error, :already_confirmed}
 
-      enqueue_user_email(user_token, %{
-        recipient: user.email,
-        type: "confirm",
-        url: url,
-        username: user.username
-      })
+      unconfirmed_registration_expired?(user) ->
+        {:error, :registration_expired}
+
+      true ->
+        {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
+        url = confirmation_url_fun.(encoded_token)
+
+        enqueue_user_email(user_token, %{
+          recipient: user.email,
+          type: "confirm",
+          url: url,
+          username: user.username
+        })
     end
+  end
+
+  defp unconfirmed_registration_expired?(%User{created_at: nil}), do: false
+
+  defp unconfirmed_registration_expired?(%User{created_at: created_at}) do
+    cutoff =
+      Whistle.Timezone.now_local()
+      |> NaiveDateTime.add(-@unconfirmed_registration_validity_in_days, :day)
+      |> NaiveDateTime.truncate(:second)
+
+    NaiveDateTime.compare(created_at, cutoff) != :gt
   end
 
   @doc """

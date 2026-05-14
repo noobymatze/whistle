@@ -23,13 +23,10 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
   end
 
   test "registration succeeds even when confirmation delivery fails", %{conn: conn} do
-    {invitation, code} = invitation_fixture()
-
     params = %{
-      "invite_code" => code,
       "user" => %{
         "username" => unique_username(),
-        "email" => invitation.email,
+        "email" => unique_user_email(),
         "password" => valid_user_password(),
         "first_name" => "Test",
         "last_name" => "User",
@@ -39,8 +36,8 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
 
     conn = post(conn, ~p"/users/register", params)
 
-    assert redirected_to(conn) == "/"
-    assert Flash.get(conn.assigns.flash, :info) == "Benutzer erfolgreich erstellt."
+    assert redirected_to(conn) == "/users/confirm"
+    assert Flash.get(conn.assigns.flash, :info) =~ "Benutzer erfolgreich erstellt"
   end
 
   test "reset password request stays successful even when the worker later fails", %{conn: conn} do

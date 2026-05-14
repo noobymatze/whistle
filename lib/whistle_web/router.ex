@@ -141,7 +141,6 @@ defmodule WhistleWeb.Router do
     pipe_through [:browser, :require_authenticated_user, :require_user_admin]
 
     get "/users", AdminController, :index
-    post "/users/invitations", AdminController, :create_invitation
     resources "/users", AdminController, only: [:new, :create, :edit, :update, :delete]
   end
 
