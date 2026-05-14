@@ -187,24 +187,49 @@ defmodule Whistle.Accounts do
   end
 
   defp purge_expired_unconfirmed_registration(changeset) do
-    cutoff =
-      Whistle.Timezone.now_local()
-      |> NaiveDateTime.add(-@unconfirmed_registration_validity_in_days, :day)
-      |> NaiveDateTime.truncate(:second)
-
     email = Ecto.Changeset.get_field(changeset, :email)
     username = Ecto.Changeset.get_field(changeset, :username)
 
-    users_query =
-      from u in User,
-        where:
-          is_nil(u.confirmed_at) and u.created_at <= ^cutoff and
-            (u.email == ^email or u.username == ^username)
+    expired_unconfirmed_users_query()
+    |> where([u], u.email == ^email or u.username == ^username)
+    |> delete_unconfirmed_users()
+  end
 
+  @doc """
+  Deletes unconfirmed users older than the registration confirmation window.
+
+  Returns the number of users deleted.
+  """
+  def prune_expired_unconfirmed_users do
+    Repo.transaction(fn ->
+      expired_unconfirmed_users_query()
+      |> delete_unconfirmed_users()
+    end)
+    |> case do
+      {:ok, count} -> {:ok, count}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp expired_unconfirmed_users_query do
+    cutoff = unconfirmed_registration_cutoff()
+
+    from u in User,
+      where: is_nil(u.confirmed_at) and u.created_at <= ^cutoff
+  end
+
+  defp delete_unconfirmed_users(users_query) do
     user_ids_query = from u in users_query, select: u.id
 
     Repo.delete_all(from t in UserToken, where: t.user_id in subquery(user_ids_query))
-    Repo.delete_all(users_query)
+    {count, _} = Repo.delete_all(users_query)
+    count
+  end
+
+  defp unconfirmed_registration_cutoff do
+    Whistle.Timezone.now_local()
+    |> NaiveDateTime.add(-@unconfirmed_registration_validity_in_days, :day)
+    |> NaiveDateTime.truncate(:second)
   end
 
   def register_user_with_invitation(attrs, invite_code) when is_map(attrs) do
@@ -650,12 +675,7 @@ defmodule Whistle.Accounts do
   defp unconfirmed_registration_expired?(%User{created_at: nil}), do: false
 
   defp unconfirmed_registration_expired?(%User{created_at: created_at}) do
-    cutoff =
-      Whistle.Timezone.now_local()
-      |> NaiveDateTime.add(-@unconfirmed_registration_validity_in_days, :day)
-      |> NaiveDateTime.truncate(:second)
-
-    NaiveDateTime.compare(created_at, cutoff) != :gt
+    NaiveDateTime.compare(created_at, unconfirmed_registration_cutoff()) != :gt
   end
 
   @doc """

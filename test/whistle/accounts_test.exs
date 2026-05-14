@@ -252,6 +252,37 @@ defmodule Whistle.AccountsTest do
       assert "has already been taken" in errors_on(changeset).username
       assert Repo.get(User, user.id)
     end
+
+    test "prunes all expired unconfirmed users and their tokens" do
+      {:ok, stale_user} = Accounts.register_user(valid_user_attributes())
+      {:ok, fresh_user} = Accounts.register_user(valid_user_attributes())
+      {:ok, confirmed_user} = Accounts.register_user(valid_user_attributes())
+
+      confirmed_user
+      |> User.confirm_changeset()
+      |> Repo.update!()
+
+      stale_token = Accounts.generate_user_session_token(stale_user)
+      fresh_token = Accounts.generate_user_session_token(fresh_user)
+      confirmed_token = Accounts.generate_user_session_token(confirmed_user)
+
+      {2, nil} =
+        Repo.update_all(
+          from(u in User, where: u.id in ^[stale_user.id, confirmed_user.id]),
+          set: [created_at: ~N[2020-01-01 00:00:00]]
+        )
+
+      assert Accounts.prune_expired_unconfirmed_users() == {:ok, 1}
+
+      refute Repo.get(User, stale_user.id)
+      refute Repo.get_by(UserToken, token: stale_token)
+
+      assert Repo.get(User, fresh_user.id)
+      assert Repo.get_by(UserToken, token: fresh_token)
+
+      assert Repo.get(User, confirmed_user.id)
+      assert Repo.get_by(UserToken, token: confirmed_token)
+    end
   end
 
   describe "change_user_registration/2" do

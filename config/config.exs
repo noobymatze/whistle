@@ -34,6 +34,12 @@ config :whistle, Whistle.Mailer, adapter: Swoosh.Adapters.Local
 config :whistle, Whistle.Oban,
   engine: Oban.Engines.Basic,
   repo: Whistle.Repo,
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 20 * * *", Whistle.Workers.PruneUnconfirmedUsers}
+     ]}
+  ],
   queues: [default: 10, mailers: 1]
 
 # Configure esbuild (the version is required)
