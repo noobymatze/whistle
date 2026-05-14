@@ -36,8 +36,9 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
 
     conn = post(conn, ~p"/users/register", params)
 
-    assert redirected_to(conn) == "/users/confirm"
-    assert Flash.get(conn.assigns.flash, :info) =~ "Benutzer erfolgreich erstellt"
+    html = html_response(conn, 201)
+    assert html =~ ~s(id="registration-success")
+    assert html =~ "Bestätigungslink"
   end
 
   test "reset password request stays successful even when the worker later fails", %{conn: conn} do

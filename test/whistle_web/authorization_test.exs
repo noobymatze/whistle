@@ -60,7 +60,11 @@ defmodule WhistleWeb.AuthorizationTest do
 
       conn = post(conn, ~p"/users/register", params)
 
-      assert redirected_to(conn) == "/users/confirm"
+      html = html_response(conn, 201)
+      assert html =~ ~s(id="registration-success")
+      assert html =~ "public-register@example.com"
+      refute html =~ ~s(id="registration-form")
+
       user = Accounts.get_user_by_email("public-register@example.com")
       assert user.role == "USER"
       assert is_nil(user.confirmed_at)
@@ -80,7 +84,7 @@ defmodule WhistleWeb.AuthorizationTest do
       }
 
       conn = post(conn, ~p"/users/register", params)
-      assert redirected_to(conn)
+      assert html_response(conn, 201) =~ ~s(id="registration-success")
 
       user = Accounts.get_user_by_email("hacker@example.com")
       assert user != nil

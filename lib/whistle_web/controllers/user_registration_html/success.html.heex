@@ -1,0 +1,42 @@
+<div id="registration-success" class="mx-auto max-w-md">
+  <div class="rounded-lg border border-base-200 bg-base-100 p-6 text-center shadow-sm">
+    <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+      <.icon name="hero-check" class="size-6" />
+    </div>
+
+    <.header class="mt-4 text-center">
+      Konto erstellt
+      <:subtitle>
+        Bitte bestätige deine E-Mail innerhalb von 3 Tagen, bevor du dich anmeldest.
+      </:subtitle>
+    </.header>
+
+    <p id="registration-success-email" class="mt-4 text-sm leading-6 text-base-content/70">
+      Wir haben den Bestätigungslink an
+      <span class="font-semibold text-base-content">{@email}</span>
+      gesendet.
+    </p>
+
+    <p
+      :if={match?({:error, _reason}, @confirmation_delivery)}
+      id="registration-confirmation-delivery-warning"
+      class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"
+    >
+      Die Bestätigungs-E-Mail konnte aktuell nicht automatisch gesendet werden. Du kannst sie gleich
+      erneut anfordern.
+    </p>
+
+    <div class="mt-6 flex flex-col gap-3">
+      <.link
+        id="registration-resend-link"
+        href={~p"/users/confirm"}
+        class="btn btn-primary w-full"
+      >
+        Bestätigungs-E-Mail erneut senden
+      </.link>
+      <.link id="registration-login-link" href={~p"/users/log_in"} class="btn btn-ghost w-full">
+        Zur Anmeldung
+      </.link>
+    </div>
+  </div>
+</div>

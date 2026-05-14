@@ -28,8 +28,9 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
           "user" => user_params
         })
 
-      assert redirected_to(conn) == "/users/confirm"
-      assert Flash.get(conn.assigns.flash, :info) =~ "Bitte bestätige deine E-Mail"
+      html = html_response(conn, 201)
+      assert html =~ ~s(id="registration-success")
+      assert html =~ user_params["email"]
 
       confirm_job = fetch_mail_job!("confirm")
       assert confirm_job.args["recipient"] == user_params["email"]
