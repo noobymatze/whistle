@@ -62,9 +62,7 @@ defmodule WhistleWeb.UserConfirmationController do
   def update(conn, %{"token" => token}) do
     case Accounts.confirm_user(token) do
       {:ok, _} ->
-        conn
-        |> put_flash(:info, "Benutzer erfolgreich bestätigt.")
-        |> redirect(to: ~p"/")
+        render(conn, :success)
 
       :error ->
         # If there is a current user and the account was already confirmed,

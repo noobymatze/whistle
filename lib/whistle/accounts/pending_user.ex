@@ -53,6 +53,7 @@ defmodule Whistle.Accounts.PendingUser do
     ])
     |> validate_email()
     |> validate_username(opts)
+    |> validate_birthday()
     |> validate_password(opts)
     |> unique_constraint(:confirmation_token_hash)
   end
@@ -151,6 +152,35 @@ defmodule Whistle.Accounts.PendingUser do
     changeset
     |> validate_length(:password, min: 12, max: 72)
     |> maybe_hash_password(opts)
+  end
+
+  defp validate_birthday(changeset) do
+    case get_field(changeset, :birthday) do
+      %Date{} = birthday ->
+        today = Timezone.today_local()
+        minimum_birthday = minimum_birthday(today)
+
+        cond do
+          Date.compare(birthday, today) == :gt ->
+            add_error(changeset, :birthday, "darf nicht in der Zukunft liegen")
+
+          Date.compare(birthday, minimum_birthday) == :gt ->
+            add_error(changeset, :birthday, "muss mindestens 7 Jahre zurückliegen")
+
+          true ->
+            changeset
+        end
+
+      _ ->
+        changeset
+    end
+  end
+
+  defp minimum_birthday(%Date{} = today) do
+    target_year = today.year - 7
+    days_in_month = Date.days_in_month(Date.new!(target_year, today.month, 1))
+
+    Date.new!(target_year, today.month, min(today.day, days_in_month))
   end
 
   defp maybe_hash_password(changeset, opts) do

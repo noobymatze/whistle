@@ -1,7 +1,7 @@
 defmodule WhistleWeb.UserRegistrationController do
   use WhistleWeb, :controller
 
-  import Phoenix.Component, only: [to_form: 1]
+  import Phoenix.Component, only: [to_form: 2]
 
   alias Whistle.Accounts
   alias Whistle.Accounts.User
@@ -31,6 +31,6 @@ defmodule WhistleWeb.UserRegistrationController do
   end
 
   defp render_registration_form(conn, %Ecto.Changeset{} = changeset) do
-    render(conn, :new, form: to_form(changeset))
+    render(conn, :new, form: to_form(changeset, as: :user))
   end
 end

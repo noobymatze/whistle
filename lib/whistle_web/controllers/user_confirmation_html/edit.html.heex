@@ -4,9 +4,4 @@
   <.form for={@conn.params["user"]} as={:user} action={~p"/users/confirm/#{@token}"}>
     <.button class="w-full">Mein Konto bestätigen</.button>
   </.form>
-
-  <p class="text-center mt-4">
-    <.link href={~p"/users/register"}>Registrieren</.link>
-    | <.link href={~p"/users/log_in"}>Anmelden</.link>
-  </p>
 </div>

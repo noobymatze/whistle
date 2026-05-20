@@ -71,6 +71,30 @@ defmodule WhistleWeb.AuthorizationTest do
       refute Repo.get_by(User, email: "public-register@example.com")
     end
 
+    test "POST /users/register shows birthday validation errors", %{conn: conn} do
+      params = %{
+        "user" => %{
+          "email" => "future-birthday@example.com",
+          "username" => "futurebirthday",
+          "password" => "supersecretpassword",
+          "first_name" => "Future",
+          "last_name" => "Birthday",
+          "birthday" => Date.utc_today() |> Date.add(1) |> Date.to_iso8601()
+        }
+      }
+
+      conn = post(conn, ~p"/users/register", params)
+      html = html_response(conn, 200)
+
+      assert html =~ ~s(id="registration-form")
+      assert html =~ "Hoppla, etwas ist schief gelaufen!"
+      assert html =~ "darf nicht in der Zukunft liegen"
+      assert html =~ ~s(name="user[birthday]")
+      refute html =~ ~s(name="pending_user[birthday]")
+      refute Repo.get_by(PendingUser, email: "future-birthday@example.com")
+      refute Repo.get_by(User, email: "future-birthday@example.com")
+    end
+
     test "POST /users/register ignores a crafted role param and creates a pending user", %{
       conn: conn
     } do

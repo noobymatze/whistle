@@ -222,7 +222,7 @@ defmodule Whistle.Accounts do
           {:error, reason}
       end
     else
-      {:error, preflight_changeset}
+      {:error, Map.put(preflight_changeset, :action, :insert)}
     end
   end
 

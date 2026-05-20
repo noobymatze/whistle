@@ -145,6 +145,24 @@ defmodule Whistle.AccountsTest do
       assert "should be at most 72 character(s)" in errors_on(changeset).password
     end
 
+    test "rejects birthdays in the future" do
+      birthday = Date.add(Date.utc_today(), 1)
+
+      {:error, changeset} =
+        Accounts.register_user(valid_user_attributes(birthday: birthday))
+
+      assert "darf nicht in der Zukunft liegen" in errors_on(changeset).birthday
+    end
+
+    test "rejects birthdays less than 7 years ago" do
+      birthday = Date.add(Date.utc_today(), -6 * 365)
+
+      {:error, changeset} =
+        Accounts.register_user(valid_user_attributes(birthday: birthday))
+
+      assert "muss mindestens 7 Jahre zurückliegen" in errors_on(changeset).birthday
+    end
+
     test "validates username uniqueness" do
       %{username: username} = user_fixture()
 
@@ -242,6 +260,30 @@ defmodule Whistle.AccountsTest do
       assert is_nil(pending_user.password)
       assert Repo.get(PendingUser, pending_user.id)
       refute Repo.get_by(User, username: attrs.username)
+    end
+
+    test "rejects birthdays in the future" do
+      birthday = Date.add(Date.utc_today(), 1)
+
+      {:error, changeset} =
+        Accounts.register_pending_user(
+          valid_user_attributes(birthday: birthday),
+          &"/users/confirm/#{&1}"
+        )
+
+      assert "darf nicht in der Zukunft liegen" in errors_on(changeset).birthday
+    end
+
+    test "rejects birthdays less than 7 years ago" do
+      birthday = Date.add(Date.utc_today(), -6 * 365)
+
+      {:error, changeset} =
+        Accounts.register_pending_user(
+          valid_user_attributes(birthday: birthday),
+          &"/users/confirm/#{&1}"
+        )
+
+      assert "muss mindestens 7 Jahre zurückliegen" in errors_on(changeset).birthday
     end
 
     test "rejects a username already used by a user" do

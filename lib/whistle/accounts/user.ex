@@ -59,6 +59,7 @@ defmodule Whistle.Accounts.User do
       :birthday
     ])
     |> validate_required([:first_name, :last_name, :birthday])
+    |> validate_birthday()
     |> validate_email(opts)
     |> validate_username(opts)
     |> validate_password(opts)
@@ -119,6 +120,35 @@ defmodule Whistle.Accounts.User do
     end
   end
 
+  defp validate_birthday(changeset) do
+    case get_field(changeset, :birthday) do
+      %Date{} = birthday ->
+        today = Whistle.Timezone.today_local()
+        minimum_birthday = minimum_birthday(today)
+
+        cond do
+          Date.compare(birthday, today) == :gt ->
+            add_error(changeset, :birthday, "darf nicht in der Zukunft liegen")
+
+          Date.compare(birthday, minimum_birthday) == :gt ->
+            add_error(changeset, :birthday, "muss mindestens 7 Jahre zurückliegen")
+
+          true ->
+            changeset
+        end
+
+      _ ->
+        changeset
+    end
+  end
+
+  defp minimum_birthday(%Date{} = today) do
+    target_year = today.year - 7
+    days_in_month = Date.days_in_month(Date.new!(target_year, today.month, 1))
+
+    Date.new!(target_year, today.month, min(today.day, days_in_month))
+  end
+
   @doc """
   A user changeset for changing the email.
 
@@ -163,6 +193,7 @@ defmodule Whistle.Accounts.User do
       :license_level
     ])
     |> validate_role()
+    |> validate_birthday()
     |> validate_username(validate_username: true)
     |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
     |> validate_length(:email, max: 160)

@@ -1,3 +1,6 @@
 [mcp_servers.tidewave]
 transport = "http"
 url = "http://localhost:4000/tidewave/mcp"
+
+[mcp_servers.tidewave.tools.get_logs]
+approval_mode = "approve"
