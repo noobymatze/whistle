@@ -39,7 +39,7 @@ config :whistle, Whistle.Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 20 * * *", Whistle.Workers.PruneUnconfirmedUsers}
+       {"0 20 * * *", Whistle.Workers.PruneExpiredPendingUsers}
      ]}
   ],
   queues: [default: 10, mailers: 1]

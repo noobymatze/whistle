@@ -1,5 +1,5 @@
 defmodule Whistle.AccountsFixtures do
-  alias Whistle.Accounts.UserInvitation
+  alias Whistle.Accounts.PendingUser
   alias Whistle.ClubsFixtures
   alias Whistle.Repo
 
@@ -62,28 +62,23 @@ defmodule Whistle.AccountsFixtures do
     user
   end
 
-  def invitation_fixture(attrs \\ %{}) do
-    attrs = Map.new(attrs)
-    inviter = Map.get(attrs, :invited_by_user) || user_fixture(%{role: "ADMIN"})
-    {code, code_hash} = UserInvitation.generate_code()
+  def pending_user_fixture(attrs \\ %{}) do
+    {encoded_token, token_hash} = PendingUser.generate_confirmation_token()
 
     attrs =
       attrs
-      |> Map.drop([:invited_by_user])
+      |> valid_user_attributes()
       |> Enum.into(%{
-        email: unique_user_email(),
-        code_hash: code_hash,
-        invited_by_user_id: inviter.id,
-        club_id: inviter.club_id,
-        expires_at: UserInvitation.expires_at()
+        confirmation_token_hash: token_hash,
+        expires_at: PendingUser.expires_at()
       })
 
-    {:ok, invitation} =
-      %UserInvitation{}
-      |> UserInvitation.create_changeset(attrs)
+    {:ok, pending_user} =
+      %PendingUser{}
+      |> PendingUser.registration_changeset(attrs)
       |> Repo.insert()
 
-    {invitation, code}
+    {pending_user, encoded_token}
   end
 
   def extract_user_token(fun) do

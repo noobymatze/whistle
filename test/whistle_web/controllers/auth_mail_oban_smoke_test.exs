@@ -8,6 +8,7 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
   alias Oban.Job
   alias Phoenix.Flash
   alias Whistle.Accounts
+  alias Whistle.Accounts.{PendingUser, User}
   alias Whistle.Repo
   alias Whistle.Workers.DeliverUserEmail
 
@@ -31,6 +32,8 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
       html = html_response(conn, 201)
       assert html =~ ~s(id="registration-success")
       assert html =~ user_params["email"]
+      assert Repo.get_by(PendingUser, email: user_params["email"])
+      refute Repo.get_by(User, email: user_params["email"])
 
       confirm_job = fetch_mail_job!("confirm")
       assert confirm_job.args["recipient"] == user_params["email"]
@@ -45,21 +48,23 @@ defmodule WhistleWeb.AuthMailObanSmokeTest do
 
       mark_job_completed!(confirm_job)
 
+      reset_user = user_fixture()
+
       conn =
         post(build_conn(), ~p"/users/reset_password", %{
-          "user" => %{"username_or_email" => user_params["username"]}
+          "user" => %{"username_or_email" => reset_user.username}
         })
 
       assert redirected_to(conn) == "/"
       assert Flash.get(conn.assigns.flash, :info) =~ "erhältst du in Kürze Anweisungen"
 
       reset_job = fetch_mail_job!("reset_password")
-      assert reset_job.args["recipient"] == user_params["email"]
+      assert reset_job.args["recipient"] == reset_user.email
 
       assert :ok = perform_job(DeliverUserEmail, reset_job.args)
 
       assert_email_sent(fn email ->
-        recipient?(email, user_params["email"]) and
+        recipient?(email, reset_user.email) and
           email.subject == "Passwort-Zurücksetzen Anweisungen" and
           email.text_body =~ "/users/reset_password/"
       end)

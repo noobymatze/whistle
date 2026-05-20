@@ -8,28 +8,49 @@ defmodule WhistleWeb.UserConfirmationController do
   end
 
   def create(conn, %{"user" => %{"email" => email}}) do
-    if user = Accounts.get_user_by_email(email) do
-      case Accounts.deliver_user_confirmation_instructions(
-             user,
-             &url(~p"/users/confirm/#{&1}")
-           ) do
-        {:ok, _email} ->
-          confirmation_sent(conn)
+    case Accounts.deliver_pending_user_confirmation_instructions(
+           email,
+           &url(~p"/users/confirm/#{&1}")
+         ) do
+      {:ok, _email} ->
+        confirmation_sent(conn)
 
-        {:error, :already_confirmed} ->
-          confirmation_sent(conn)
+      {:error, :not_found} ->
+        if user = Accounts.get_user_by_email(email) do
+          case Accounts.deliver_user_confirmation_instructions(
+                 user,
+                 &url(~p"/users/confirm/#{&1}")
+               ) do
+            {:ok, _email} ->
+              confirmation_sent(conn)
 
-        {:error, _reason} ->
-          conn
-          |> put_flash(
-            :error,
-            "Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden. Bitte versuche es später erneut."
-          )
-          |> render(:new)
-      end
-    else
-      confirmation_sent(conn)
+            {:error, :already_confirmed} ->
+              confirmation_sent(conn)
+
+            {:error, _reason} ->
+              conn
+              |> put_flash(
+                :error,
+                "Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden. Bitte versuche es später erneut."
+              )
+              |> render(:new)
+          end
+        else
+          confirmation_sent(conn)
+        end
+
+      {:error, _reason} ->
+        conn
+        |> put_flash(
+          :error,
+          "Die Bestätigungs-E-Mail konnte aktuell nicht gesendet werden. Bitte versuche es später erneut."
+        )
+        |> render(:new)
     end
+  end
+
+  def create(conn, _params) do
+    confirmation_sent(conn)
   end
 
   def edit(conn, %{"token" => token}) do

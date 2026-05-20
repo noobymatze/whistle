@@ -4,7 +4,9 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
   import Whistle.AccountsFixtures
 
   alias Whistle.Accounts
+  alias Whistle.Accounts.{PendingUser, User}
   alias Phoenix.Flash
+  alias Whistle.Repo
 
   setup do
     original_config = Application.get_env(:whistle, Whistle.Mailer)
@@ -39,6 +41,8 @@ defmodule WhistleWeb.AuthMailDeliveryTest do
     html = html_response(conn, 201)
     assert html =~ ~s(id="registration-success")
     assert html =~ "Bestätigungslink"
+    assert Repo.get_by(PendingUser, email: params["user"]["email"])
+    refute Repo.get_by(User, email: params["user"]["email"])
   end
 
   test "reset password request stays successful even when the worker later fails", %{conn: conn} do

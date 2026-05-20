@@ -16,18 +16,12 @@ defmodule WhistleWeb.UserRegistrationController do
   end
 
   def create(conn, %{"user" => user_params}) do
-    case Accounts.register_user(user_params) do
-      {:ok, user} ->
-        confirmation_delivery =
-          Accounts.deliver_user_confirmation_instructions(
-            user,
-            &url(~p"/users/confirm/#{&1}")
-          )
-
+    case Accounts.register_pending_user(user_params, &url(~p"/users/confirm/#{&1}")) do
+      {:ok, pending_user, confirmation_delivery} ->
         conn
         |> put_status(:created)
         |> render(:success,
-          email: user.email,
+          email: pending_user.email,
           confirmation_delivery: confirmation_delivery
         )
 

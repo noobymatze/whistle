@@ -4,7 +4,7 @@ defmodule Whistle.AccountsTest do
   alias Whistle.Accounts
 
   import Whistle.AccountsFixtures
-  alias Whistle.Accounts.{User, UserToken}
+  alias Whistle.Accounts.{PendingUser, User, UserToken}
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -204,31 +204,6 @@ defmodule Whistle.AccountsTest do
       assert is_nil(user.password)
     end
 
-    test "allows re-registration when an unconfirmed account is older than 3 days" do
-      attrs =
-        valid_user_attributes(
-          email: unique_user_email(),
-          username: unique_username()
-        )
-
-      {:ok, stale_user} = Accounts.register_user(attrs)
-
-      {1, nil} =
-        Repo.update_all(
-          from(u in User, where: u.id == ^stale_user.id),
-          set: [created_at: ~N[2020-01-01 00:00:00]]
-        )
-
-      token = Accounts.generate_user_session_token(stale_user)
-      assert Repo.get_by(UserToken, token: token)
-
-      assert {:ok, replacement_user} = Accounts.register_user(attrs)
-      assert replacement_user.id != stale_user.id
-      assert replacement_user.username == attrs.username
-      refute Repo.get(User, stale_user.id)
-      refute Repo.get_by(UserToken, token: token)
-    end
-
     test "does not remove a stale confirmed account during re-registration" do
       attrs =
         valid_user_attributes(
@@ -252,36 +227,85 @@ defmodule Whistle.AccountsTest do
       assert "has already been taken" in errors_on(changeset).username
       assert Repo.get(User, user.id)
     end
+  end
 
-    test "prunes all expired unconfirmed users and their tokens" do
-      {:ok, stale_user} = Accounts.register_user(valid_user_attributes())
-      {:ok, fresh_user} = Accounts.register_user(valid_user_attributes())
-      {:ok, confirmed_user} = Accounts.register_user(valid_user_attributes())
+  describe "register_pending_user/2" do
+    test "creates a pending user and not a user" do
+      attrs = valid_user_attributes()
 
-      confirmed_user
-      |> User.confirm_changeset()
-      |> Repo.update!()
+      assert {:ok, pending_user, _job} =
+               Accounts.register_pending_user(attrs, &"/users/confirm/#{&1}")
 
-      stale_token = Accounts.generate_user_session_token(stale_user)
-      fresh_token = Accounts.generate_user_session_token(fresh_user)
-      confirmed_token = Accounts.generate_user_session_token(confirmed_user)
+      assert pending_user.email == attrs.email
+      assert pending_user.username == attrs.username
+      assert is_binary(pending_user.hashed_password)
+      assert is_nil(pending_user.password)
+      assert Repo.get(PendingUser, pending_user.id)
+      refute Repo.get_by(User, username: attrs.username)
+    end
 
-      {2, nil} =
-        Repo.update_all(
-          from(u in User, where: u.id in ^[stale_user.id, confirmed_user.id]),
-          set: [created_at: ~N[2020-01-01 00:00:00]]
+    test "rejects a username already used by a user" do
+      user = user_fixture()
+
+      {:error, changeset} =
+        Accounts.register_pending_user(
+          valid_user_attributes(username: user.username, email: unique_user_email()),
+          &"/users/confirm/#{&1}"
         )
 
-      assert Accounts.prune_expired_unconfirmed_users() == {:ok, 1}
+      assert "has already been taken" in errors_on(changeset).username
+    end
 
-      refute Repo.get(User, stale_user.id)
-      refute Repo.get_by(UserToken, token: stale_token)
+    test "rejects a username already used by an active pending user" do
+      {pending_user, _token} = pending_user_fixture()
 
-      assert Repo.get(User, fresh_user.id)
-      assert Repo.get_by(UserToken, token: fresh_token)
+      {:error, changeset} =
+        Accounts.register_pending_user(
+          valid_user_attributes(username: pending_user.username, email: unique_user_email()),
+          &"/users/confirm/#{&1}"
+        )
 
-      assert Repo.get(User, confirmed_user.id)
-      assert Repo.get_by(UserToken, token: confirmed_token)
+      assert "has already been taken" in errors_on(changeset).username
+    end
+
+    test "replaces an expired pending user with the same username" do
+      {expired_pending_user, _token} = pending_user_fixture()
+
+      {1, nil} =
+        Repo.update_all(
+          from(p in PendingUser, where: p.id == ^expired_pending_user.id),
+          set: [expires_at: ~N[2020-01-01 00:00:00]]
+        )
+
+      attrs =
+        valid_user_attributes(
+          username: expired_pending_user.username,
+          email: unique_user_email()
+        )
+
+      assert {:ok, pending_user, _job} =
+               Accounts.register_pending_user(attrs, &"/users/confirm/#{&1}")
+
+      assert pending_user.id != expired_pending_user.id
+      refute Repo.get(PendingUser, expired_pending_user.id)
+    end
+
+    test "prunes expired pending users only" do
+      {expired_pending_user, _token} = pending_user_fixture()
+      {fresh_pending_user, _token} = pending_user_fixture()
+      user = user_fixture()
+
+      {1, nil} =
+        Repo.update_all(
+          from(p in PendingUser, where: p.id == ^expired_pending_user.id),
+          set: [expires_at: ~N[2020-01-01 00:00:00]]
+        )
+
+      assert Accounts.prune_expired_pending_users() == {:ok, 1}
+
+      refute Repo.get(PendingUser, expired_pending_user.id)
+      assert Repo.get(PendingUser, fresh_pending_user.id)
+      assert Repo.get(User, user.id)
     end
   end
 
@@ -604,6 +628,31 @@ defmodule Whistle.AccountsTest do
         end)
 
       %{user: user, token: token}
+    end
+
+    test "promotes a pending user with a valid token" do
+      {pending_user, token} = pending_user_fixture()
+
+      assert {:ok, confirmed_user} = Accounts.confirm_user(token)
+      assert confirmed_user.confirmed_at
+      assert confirmed_user.email == pending_user.email
+      assert confirmed_user.username == pending_user.username
+      assert confirmed_user.hashed_password == pending_user.hashed_password
+      refute Repo.get(PendingUser, pending_user.id)
+    end
+
+    test "does not promote an expired pending user" do
+      {pending_user, token} = pending_user_fixture()
+
+      {1, nil} =
+        Repo.update_all(
+          from(p in PendingUser, where: p.id == ^pending_user.id),
+          set: [expires_at: ~N[2020-01-01 00:00:00]]
+        )
+
+      assert Accounts.confirm_user(token) == :error
+      assert Repo.get(PendingUser, pending_user.id)
+      refute Repo.get_by(User, username: pending_user.username)
     end
 
     test "confirms the email with a valid token", %{user: user, token: token} do

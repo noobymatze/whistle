@@ -6,6 +6,8 @@ defmodule WhistleWeb.AuthorizationTest do
 
   alias Phoenix.Flash
   alias Whistle.Accounts
+  alias Whistle.Accounts.{PendingUser, User}
+  alias Whistle.Repo
 
   # ---------------------------------------------------------------------------
   # Helpers
@@ -46,7 +48,7 @@ defmodule WhistleWeb.AuthorizationTest do
       refute html =~ "readonly"
     end
 
-    test "POST /users/register creates an unconfirmed USER without an invite code", %{conn: conn} do
+    test "POST /users/register creates a pending user without an invite code", %{conn: conn} do
       params = %{
         "user" => %{
           "email" => "public-register@example.com",
@@ -65,12 +67,13 @@ defmodule WhistleWeb.AuthorizationTest do
       assert html =~ "public-register@example.com"
       refute html =~ ~s(id="registration-form")
 
-      user = Accounts.get_user_by_email("public-register@example.com")
-      assert user.role == "USER"
-      assert is_nil(user.confirmed_at)
+      assert Repo.get_by(PendingUser, email: "public-register@example.com")
+      refute Repo.get_by(User, email: "public-register@example.com")
     end
 
-    test "POST /users/register ignores a crafted role param and creates USER", %{conn: conn} do
+    test "POST /users/register ignores a crafted role param and creates a pending user", %{
+      conn: conn
+    } do
       params = %{
         "user" => %{
           "email" => "hacker@example.com",
@@ -86,9 +89,8 @@ defmodule WhistleWeb.AuthorizationTest do
       conn = post(conn, ~p"/users/register", params)
       assert html_response(conn, 201) =~ ~s(id="registration-success")
 
-      user = Accounts.get_user_by_email("hacker@example.com")
-      assert user != nil
-      assert user.role == "USER"
+      assert Repo.get_by(PendingUser, email: "hacker@example.com")
+      refute Repo.get_by(User, email: "hacker@example.com")
     end
 
     test "POST /users/register also ignores ADMIN role attempt", %{conn: conn} do
@@ -106,9 +108,8 @@ defmodule WhistleWeb.AuthorizationTest do
 
       post(conn, ~p"/users/register", params)
 
-      user = Accounts.get_user_by_email("fakeadmin@example.com")
-      assert user != nil
-      assert user.role == "USER"
+      assert Repo.get_by(PendingUser, email: "fakeadmin@example.com")
+      refute Repo.get_by(User, email: "fakeadmin@example.com")
     end
 
     test "POST /users/log_in rejects unconfirmed users", %{conn: conn} do

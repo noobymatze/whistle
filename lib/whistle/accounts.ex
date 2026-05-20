@@ -6,8 +6,7 @@ defmodule Whistle.Accounts do
   import Ecto.Query, warn: false
   alias Whistle.Repo
 
-  alias Whistle.Accounts.{Role, User, UserInvitation, UserToken, UserView}
-  alias Whistle.Clubs.Club
+  alias Whistle.Accounts.{PendingUser, Role, User, UserToken, UserView}
   alias Whistle.Oban
   alias Whistle.Workers.DeliverUserEmail
 
@@ -161,69 +160,9 @@ defmodule Whistle.Accounts do
 
   """
   def register_user(attrs) do
-    preflight_changeset =
-      User.registration_changeset(%User{}, attrs,
-        hash_password: false,
-        validate_username: false
-      )
-
-    if preflight_changeset.valid? do
-      Repo.transaction(fn ->
-        purge_expired_unconfirmed_registration(preflight_changeset)
-        changeset = User.registration_changeset(%User{}, attrs)
-
-        case Repo.insert(changeset) do
-          {:ok, user} -> user
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
-      end)
-      |> case do
-        {:ok, %User{} = user} -> {:ok, user}
-        {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
-      end
-    else
-      {:error, preflight_changeset}
-    end
-  end
-
-  defp purge_expired_unconfirmed_registration(changeset) do
-    email = Ecto.Changeset.get_field(changeset, :email)
-    username = Ecto.Changeset.get_field(changeset, :username)
-
-    expired_unconfirmed_users_query()
-    |> where([u], u.email == ^email or u.username == ^username)
-    |> delete_unconfirmed_users()
-  end
-
-  @doc """
-  Deletes unconfirmed users older than the registration confirmation window.
-
-  Returns the number of users deleted.
-  """
-  def prune_expired_unconfirmed_users do
-    Repo.transaction(fn ->
-      expired_unconfirmed_users_query()
-      |> delete_unconfirmed_users()
-    end)
-    |> case do
-      {:ok, count} -> {:ok, count}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp expired_unconfirmed_users_query do
-    cutoff = unconfirmed_registration_cutoff()
-
-    from u in User,
-      where: is_nil(u.confirmed_at) and u.created_at <= ^cutoff
-  end
-
-  defp delete_unconfirmed_users(users_query) do
-    user_ids_query = from u in users_query, select: u.id
-
-    Repo.delete_all(from t in UserToken, where: t.user_id in subquery(user_ids_query))
-    {count, _} = Repo.delete_all(users_query)
-    count
+    %User{}
+    |> User.registration_changeset(attrs)
+    |> Repo.insert()
   end
 
   defp unconfirmed_registration_cutoff do
@@ -232,154 +171,119 @@ defmodule Whistle.Accounts do
     |> NaiveDateTime.truncate(:second)
   end
 
-  def register_user_with_invitation(attrs, invite_code) when is_map(attrs) do
-    email =
-      attrs |> Map.get("email", Map.get(attrs, :email, "")) |> UserInvitation.normalize_email()
+  def register_pending_user(attrs, confirmation_url_fun)
+      when is_map(attrs) and is_function(confirmation_url_fun, 1) do
+    {encoded_token, token_hash} = PendingUser.generate_confirmation_token()
+    expires_at = PendingUser.expires_at()
 
-    Repo.transaction(fn ->
-      with %UserInvitation{} = invitation <- get_usable_invitation_for_update(email, invite_code) do
-        changeset =
-          %User{}
-          |> User.registration_changeset(attrs)
-          |> Ecto.Changeset.put_change(:club_id, invitation.club_id)
+    attrs =
+      attrs
+      |> stringify_keys()
+      |> Map.put("confirmation_token_hash", token_hash)
+      |> Map.put("expires_at", expires_at)
 
-        case Repo.insert(changeset) do
-          {:ok, user} ->
-            invitation
-            |> UserInvitation.accept_changeset()
-            |> Repo.update!()
+    preflight_changeset =
+      PendingUser.registration_changeset(%PendingUser{}, attrs,
+        hash_password: false,
+        validate_username: false
+      )
 
-            user
+    if preflight_changeset.valid? do
+      email = Ecto.Changeset.get_field(preflight_changeset, :email)
+      username = Ecto.Changeset.get_field(preflight_changeset, :username)
+      url = confirmation_url_fun.(encoded_token)
 
-          {:error, changeset} ->
-            Repo.rollback({:error, changeset})
-        end
-      else
-        _ ->
-          changeset =
-            %User{}
-            |> change_user_registration(attrs)
-            |> Map.put(:action, :insert)
+      Ecto.Multi.new()
+      |> Ecto.Multi.delete_all(
+        :expired_pending_users,
+        expired_pending_users_by_identity_query(email, username)
+      )
+      |> Ecto.Multi.insert(:pending_user, fn _changes ->
+        PendingUser.registration_changeset(%PendingUser{}, attrs)
+      end)
+      |> Oban.insert(
+        :mail_job,
+        DeliverUserEmail.new(%{
+          recipient: email,
+          type: "confirm",
+          url: url,
+          username: username
+        })
+      )
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{pending_user: pending_user, mail_job: job}} ->
+          {:ok, pending_user, job}
 
-          Repo.rollback({:error, :invalid_invitation, changeset})
+        {:error, :pending_user, changeset, _changes} ->
+          {:error, changeset}
+
+        {:error, _step, reason, _changes} ->
+          {:error, reason}
       end
-    end)
-    |> case do
-      {:ok, %User{} = user} ->
-        {:ok, user}
-
-      {:error, {:error, :invalid_invitation, changeset}} ->
-        {:error, :invalid_invitation, changeset}
-
-      {:error, {:error, changeset}} ->
-        {:error, changeset}
-    end
-  end
-
-  def change_user_invitation(%UserInvitation{} = invitation, attrs \\ %{}) do
-    UserInvitation.create_changeset(invitation, attrs)
-  end
-
-  def invite_user(%User{} = inviter, attrs, invitation_url_fun)
-      when is_function(invitation_url_fun, 2) do
-    if Role.can_access_user_admin?(inviter) do
-      do_invite_user(inviter, attrs, invitation_url_fun)
     else
-      {:error, :unauthorized}
+      {:error, preflight_changeset}
     end
   end
 
-  defp do_invite_user(inviter, attrs, invitation_url_fun) do
-    {code, code_hash} = UserInvitation.generate_code()
+  defp expired_pending_users_by_identity_query(email, username) do
+    PendingUser.expired_query()
+    |> where([p], p.email == ^email or p.username == ^username)
+  end
 
-    email =
-      attrs |> Map.get("email", Map.get(attrs, :email, "")) |> UserInvitation.normalize_email()
+  def prune_expired_pending_users do
+    {count, _} = Repo.delete_all(PendingUser.expired_query())
+    {:ok, count}
+  end
 
-    club_id = invite_club_id(inviter, attrs)
+  def deliver_pending_user_confirmation_instructions(email, confirmation_url_fun)
+      when is_binary(email) and is_function(confirmation_url_fun, 1) do
+    with %PendingUser{} = pending_user <- get_latest_active_pending_user_by_email(email) do
+      {encoded_token, token_hash} = PendingUser.generate_confirmation_token()
+      url = confirmation_url_fun.(encoded_token)
 
-    invitation_attrs = %{
-      email: email,
-      club_id: club_id,
-      invited_by_user_id: inviter.id,
-      expires_at: UserInvitation.expires_at(),
-      code_hash: code_hash
-    }
-
-    changeset = UserInvitation.create_changeset(%UserInvitation{}, invitation_attrs)
-    club = if club_id, do: Repo.get(Club, club_id), else: nil
-    invitation = struct(UserInvitation, Map.put(invitation_attrs, :club, club))
-    url = invitation_url_fun.(invitation, code)
-
-    Ecto.Multi.new()
-    |> Ecto.Multi.update_all(
-      :revoke_existing,
-      pending_invitations_by_email_query(email),
-      set: [revoked_at: Whistle.Timezone.now_local() |> NaiveDateTime.truncate(:second)]
-    )
-    |> Ecto.Multi.insert(:invitation, changeset)
-    |> Oban.insert(
-      :mail_job,
-      DeliverUserEmail.new(%{
-        recipient: email,
-        type: "invitation",
-        url: url,
-        invite_code: code,
-        username: email,
-        inviter_name: user_display_name(inviter),
-        club_name: club && club.name
-      })
-    )
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{invitation: invitation, mail_job: job}} -> {:ok, invitation, job}
-      {:error, _step, reason, _changes} -> {:error, reason}
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(
+        :pending_user,
+        PendingUser.confirmation_token_changeset(pending_user, %{
+          confirmation_token_hash: token_hash,
+          expires_at: PendingUser.expires_at()
+        })
+      )
+      |> Oban.insert(
+        :mail_job,
+        DeliverUserEmail.new(%{
+          recipient: pending_user.email,
+          type: "confirm",
+          url: url,
+          username: pending_user.username
+        })
+      )
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{mail_job: job}} -> {:ok, job}
+        {:error, _step, reason, _changes} -> {:error, reason}
+      end
+    else
+      nil -> {:error, :not_found}
     end
   end
 
-  defp get_usable_invitation_for_update(email, invite_code)
-       when is_binary(email) and is_binary(invite_code) do
-    code_hash = UserInvitation.hash_code(invite_code)
+  defp get_latest_active_pending_user_by_email(email) do
+    email = PendingUser.normalize_email(email)
 
-    Repo.one(
-      from i in UserInvitation,
-        where:
-          i.email == ^email and i.code_hash == ^code_hash and is_nil(i.accepted_at) and
-            is_nil(i.revoked_at),
-        lock: "FOR UPDATE"
-    )
-    |> case do
-      %UserInvitation{} = invitation ->
-        if UserInvitation.usable?(invitation), do: invitation, else: nil
-
-      nil ->
-        nil
-    end
+    PendingUser.active_query()
+    |> where([p], p.email == ^email)
+    |> order_by([p], desc: p.created_at, desc: p.id)
+    |> limit(1)
+    |> Repo.one()
   end
 
-  defp get_usable_invitation_for_update(_email, _invite_code), do: nil
-
-  defp pending_invitations_by_email_query(email) do
-    from i in UserInvitation,
-      where: i.email == ^email and is_nil(i.accepted_at) and is_nil(i.revoked_at)
-  end
-
-  defp invite_club_id(%User{role: role, club_id: club_id}, _attrs)
-       when role in ["CLUB_ADMIN", "INSTRUCTOR"],
-       do: club_id
-
-  defp invite_club_id(_inviter, attrs) do
-    attrs
-    |> Map.get("club_id", Map.get(attrs, :club_id))
-    |> normalize_id()
-  end
-
-  defp user_display_name(%User{} = user) do
-    [user.first_name, user.last_name]
-    |> Enum.filter(&(&1 && String.trim(&1) != ""))
-    |> case do
-      [] -> user.username || user.email
-      names -> Enum.join(names, " ")
-    end
+  defp stringify_keys(attrs) do
+    Enum.into(attrs, %{}, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      {key, value} -> {key, value}
+    end)
   end
 
   @doc """
@@ -679,12 +583,75 @@ defmodule Whistle.Accounts do
   end
 
   @doc """
-  Confirms a user by the given token.
+  Confirms a pending self-registration by promoting it to a user.
 
-  If the token matches, the user account is marked as confirmed
-  and the token is deleted.
+  Legacy user confirmation tokens are still accepted for users that were
+  created before pending registrations existed.
   """
   def confirm_user(token) do
+    case confirm_pending_user(token) do
+      {:ok, user} -> {:ok, user}
+      :error -> confirm_existing_user(token)
+    end
+  end
+
+  defp confirm_pending_user(token) do
+    with {:ok, token_hash} <- PendingUser.hash_confirmation_token(token),
+         {:ok, %{user: user}} <- Repo.transaction(confirm_pending_user_multi(token_hash)) do
+      {:ok, user}
+    else
+      _ -> :error
+    end
+  end
+
+  defp confirm_pending_user_multi(token_hash) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:pending_user, fn repo, _changes ->
+      pending_user =
+        PendingUser
+        |> where([p], p.confirmation_token_hash == ^token_hash)
+        |> lock("FOR UPDATE")
+        |> repo.one()
+
+      case pending_user do
+        %PendingUser{} = pending_user ->
+          if PendingUser.expired?(pending_user) do
+            {:error, :expired}
+          else
+            {:ok, pending_user}
+          end
+
+        nil ->
+          {:error, :not_found}
+      end
+    end)
+    |> Ecto.Multi.insert(:user, fn %{pending_user: pending_user} ->
+      user_changeset_from_pending_user(pending_user)
+    end)
+    |> Ecto.Multi.delete(:delete_pending_user, fn %{pending_user: pending_user} ->
+      pending_user
+    end)
+  end
+
+  defp user_changeset_from_pending_user(%PendingUser{} = pending_user) do
+    confirmed_at = Whistle.Timezone.now_local() |> NaiveDateTime.truncate(:second)
+
+    %User{}
+    |> Ecto.Changeset.change(%{
+      email: pending_user.email,
+      username: pending_user.username,
+      first_name: pending_user.first_name,
+      last_name: pending_user.last_name,
+      mobile: pending_user.mobile,
+      phone: pending_user.phone,
+      birthday: pending_user.birthday,
+      hashed_password: pending_user.hashed_password,
+      confirmed_at: confirmed_at
+    })
+    |> Ecto.Changeset.unique_constraint(:username)
+  end
+
+  defp confirm_existing_user(token) do
     with {:ok, query} <- UserToken.verify_email_token_query(token, "confirm"),
          %User{} = user <- Repo.one(query),
          {:ok, %{user: user}} <- Repo.transaction(confirm_user_multi(user)) do
