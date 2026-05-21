@@ -158,6 +158,28 @@ defmodule WhistleWeb.RegistrationLiveTest do
       assert html =~ "Online-Backen"
     end
 
+    test "does not show course-level participant count on online course cards", %{conn: conn} do
+      season = open_season_fixture()
+      user = user_fixture()
+
+      course =
+        online_course_fixture(season, %{
+          name: "Online ohne Kurszaehler",
+          max_participants: 20
+        })
+
+      _topic = topic_fixture(course)
+
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/")
+
+      card =
+        lv
+        |> element("div[phx-click='toggle_online_course'][phx-value-course-id='#{course.id}']")
+        |> render()
+
+      refute card =~ "0 / 20"
+    end
+
     test "shows Online badge for online courses", %{conn: conn} do
       season = open_season_fixture()
       user = user_fixture()

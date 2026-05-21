@@ -98,8 +98,8 @@ defmodule Whistle.Registrations do
   defp enroll_online(user, course, registered_by_user_id, date_ids) do
     with {:ok, {mandatory, elective}} <- validate_date_selection(course, date_ids),
          _ = lock_course_dates([mandatory.id, elective.id]),
-         :ok <- check_date_capacity(mandatory),
-         :ok <- check_date_capacity(elective),
+         :ok <- check_date_capacity(mandatory, course),
+         :ok <- check_date_capacity(elective, course),
          :ok <- check_date_club_limit(user, course, mandatory),
          :ok <- check_date_club_limit(user, course, elective),
          :ok <- check_allowed_online(user, course) do
@@ -159,7 +159,7 @@ defmodule Whistle.Registrations do
     end
   end
 
-  defp check_date_capacity(%CourseDate{id: id, course_id: course_id} = date, opts \\ []) do
+  defp check_date_capacity(%CourseDate{id: id} = date, %Course{} = course, opts \\ []) do
     exclude_registration_id = Keyword.get(opts, :exclude_registration_id)
 
     query =
@@ -177,9 +177,9 @@ defmodule Whistle.Registrations do
 
     count = Repo.one(from s in query, select: count(s.id))
 
-    course = Courses.get_course!(course_id)
+    limit = Courses.effective_date_max_participants(date, course)
 
-    if count >= course.max_participants do
+    if is_integer(limit) and count >= limit do
       {:error, {:not_available, date}}
     else
       :ok
@@ -298,11 +298,9 @@ defmodule Whistle.Registrations do
              validate_date_selection(course, Map.values(merged_date_ids)),
            :ok <- check_dates_in_future([mandatory, elective]),
            _ = lock_course_dates([mandatory.id, elective.id]),
-           :ok <- check_date_capacity(mandatory, exclude_registration_id: registration.id),
+           :ok <- check_date_capacity(mandatory, course, exclude_registration_id: registration.id),
            :ok <-
-             check_date_capacity(elective,
-               exclude_registration_id: registration.id
-             ),
+             check_date_capacity(elective, course, exclude_registration_id: registration.id),
            :ok <-
              check_date_club_limit(user, course, mandatory,
                exclude_registration_id: registration.id

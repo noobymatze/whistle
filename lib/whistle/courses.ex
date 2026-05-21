@@ -175,6 +175,15 @@ defmodule Whistle.Courses do
     |> Repo.update()
   end
 
+  def effective_date_max_participants(%CourseDate{max_participants: max_participants}, _course)
+      when is_integer(max_participants) do
+    max_participants
+  end
+
+  def effective_date_max_participants(%CourseDate{}, %Course{max_participants: max_participants}) do
+    max_participants
+  end
+
   def count_selections_for_date(%CourseDate{id: id}) do
     Repo.one(
       from s in CourseDateSelection,
@@ -197,28 +206,27 @@ defmodule Whistle.Courses do
     )
   end
 
-  def list_date_availability(%Course{id: course_id, max_participants: max_participants}) do
-    counts =
-      from(d in CourseDate,
-        left_join: s in CourseDateSelection,
-        on: s.course_date_id == d.id,
-        left_join: r in Registration,
-        on: r.id == s.registration_id and is_nil(r.unenrolled_at),
-        where: d.course_id == ^course_id,
-        group_by: d.id,
-        select: {d.id, count(r.id)}
-      )
-      |> Repo.all()
-      |> Map.new()
+  def list_date_availability(%Course{id: course_id} = course) do
+    from(d in CourseDate,
+      left_join: s in CourseDateSelection,
+      on: s.course_date_id == d.id,
+      left_join: r in Registration,
+      on: r.id == s.registration_id and is_nil(r.unenrolled_at),
+      where: d.course_id == ^course_id,
+      group_by: [d.id, d.max_participants],
+      select: {d.id, d.max_participants, count(r.id)}
+    )
+    |> Repo.all()
+    |> Enum.map(fn {date_id, max_participants, selected_count} ->
+      date = %CourseDate{id: date_id, max_participants: max_participants}
+      limit = effective_date_max_participants(date, course)
 
-    counts
-    |> Enum.map(fn {date_id, selected_count} ->
       remaining =
-        if is_integer(max_participants) do
-          max(max_participants - selected_count, 0)
+        if is_integer(limit) do
+          max(limit - selected_count, 0)
         end
 
-      {date_id, %{selected_count: selected_count, remaining: remaining}}
+      {date_id, %{selected_count: selected_count, max_participants: limit, remaining: remaining}}
     end)
     |> Map.new()
   end

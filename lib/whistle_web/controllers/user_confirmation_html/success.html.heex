@@ -1,0 +1,24 @@
+<div id="confirmation-success" class="mx-auto max-w-md">
+  <div class="rounded-lg border border-base-200 bg-base-100 p-6 text-center shadow-sm">
+    <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+      <.icon name="hero-check" class="size-6" />
+    </div>
+
+    <.header class="mt-4 text-center">
+      E-Mail bestätigt
+      <:subtitle>
+        Du hast deine E-Mail-Adresse erfolgreich bestätigt.
+      </:subtitle>
+    </.header>
+
+    <p class="mt-6 text-sm">
+      <.link
+        id="confirmation-login-link"
+        href={~p"/users/log_in"}
+        class="font-semibold text-brand hover:underline"
+      >
+        Zur Anmeldung
+      </.link>
+    </p>
+  </div>
+</div>

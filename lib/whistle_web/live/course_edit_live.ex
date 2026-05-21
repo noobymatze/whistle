@@ -182,6 +182,45 @@ defmodule WhistleWeb.CourseEditLive do
     end
   end
 
+  def handle_event(
+        "update_date_limit",
+        %{"course_date" => %{"date_id" => id} = params},
+        socket
+      ) do
+    params = Map.delete(params, "date_id")
+
+    case parse_id(id) do
+      {:ok, date_id} ->
+        course_dates = socket.assigns.course_dates
+        date = Enum.find(course_dates, &(&1.id == date_id))
+
+        if date do
+          case Courses.update_course_date(date, params) do
+            {:ok, _updated} ->
+              course = socket.assigns.course
+
+              {:noreply,
+               socket
+               |> assign(:course_dates, Courses.list_course_dates(course))
+               |> put_flash(:info, "Teilnehmergrenze wurde aktualisiert.")}
+
+            {:error, _changeset} ->
+              {:noreply,
+               put_flash(
+                 socket,
+                 :error,
+                 "Teilnehmergrenze konnte nicht gespeichert werden. Sie darf nicht unter der aktuellen Teilnehmerzahl liegen."
+               )}
+          end
+        else
+          {:noreply, socket}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("add_topic", %{"course_date_topic" => params}, socket) do
     case Courses.create_course_date_topic(params) do
       {:ok, _} ->
@@ -408,6 +447,12 @@ defmodule WhistleWeb.CourseEditLive do
     form[:online].value in [true, "true", "on", "1"]
   end
 
+  defp date_limit_form(date) do
+    to_form(%{"date_id" => date.id, "max_participants" => date.max_participants},
+      as: :course_date
+    )
+  end
+
   defp parse_id(id), do: WhistleWeb.ControllerHelpers.parse_id(id)
 
   defp mailto_bcc(registrations) do
@@ -551,20 +596,46 @@ defmodule WhistleWeb.CourseEditLive do
             </h4>
             <div class="space-y-2 mb-3">
               <%= for date <- Enum.filter(@course_dates, &(&1.kind == :mandatory)) do %>
-                <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
+                <% limit_form = date_limit_form(date) %>
+                <div class="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
                   <div class="text-sm font-medium">
                     {Calendar.strftime(date.date, "%d.%m.%Y")} &middot; {Time.to_string(date.time)
                     |> String.slice(0, 5)} Uhr
                   </div>
-                  <.action_link
-                    phx-click="delete_date"
-                    phx-value-id={date.id}
-                    data-confirm="Termin wirklich löschen?"
-                    tone={:danger}
-                    href="#"
+                  <.form
+                    for={limit_form}
+                    id={"mandatory-course-date-limit-form-#{date.id}"}
+                    phx-submit="update_date_limit"
+                    class="flex items-end gap-2"
                   >
-                    Löschen
-                  </.action_link>
+                    <.input
+                      field={limit_form[:date_id]}
+                      id={"mandatory-course-date-limit-date-id-#{date.id}"}
+                      type="hidden"
+                      value={date.id}
+                    />
+                    <div class="w-40">
+                      <.input
+                        field={limit_form[:max_participants]}
+                        id={"mandatory-course-date-max-participants-#{date.id}"}
+                        type="number"
+                        label="Max. TN"
+                        placeholder={@course.max_participants}
+                      />
+                    </div>
+                    <.button type="submit">Speichern</.button>
+                  </.form>
+                  <div>
+                    <.action_link
+                      phx-click="delete_date"
+                      phx-value-id={date.id}
+                      data-confirm="Termin wirklich löschen?"
+                      tone={:danger}
+                      href="#"
+                    >
+                      Löschen
+                    </.action_link>
+                  </div>
                 </div>
               <% end %>
             </div>
@@ -604,6 +675,15 @@ defmodule WhistleWeb.CourseEditLive do
                   required
                 />
               </div>
+              <div>
+                <.input
+                  field={@course_date_form[:max_participants]}
+                  id="mandatory-course-date-max-participants"
+                  type="number"
+                  label="Max. TN"
+                  placeholder={@course.max_participants}
+                />
+              </div>
               <.button type="submit">Hinzufügen</.button>
             </.form>
           </div>
@@ -629,20 +709,46 @@ defmodule WhistleWeb.CourseEditLive do
                 </div>
                 <div class="space-y-2 mb-2">
                   <%= for date <- Enum.filter(@course_dates, &(&1.kind == :elective && &1.course_date_topic_id == topic.id)) do %>
-                    <div class="flex items-center justify-between gap-4 rounded-lg border border-base-200 bg-base-100 px-3 py-2">
+                    <% limit_form = date_limit_form(date) %>
+                    <div class="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-base-200 bg-base-100 px-3 py-2">
                       <div class="text-sm">
                         {Calendar.strftime(date.date, "%d.%m.%Y")} &middot; {Time.to_string(date.time)
                         |> String.slice(0, 5)} Uhr
                       </div>
-                      <.action_link
-                        phx-click="delete_date"
-                        phx-value-id={date.id}
-                        data-confirm="Termin wirklich löschen?"
-                        tone={:danger}
-                        href="#"
+                      <.form
+                        for={limit_form}
+                        id={"elective-course-date-limit-form-#{date.id}"}
+                        phx-submit="update_date_limit"
+                        class="flex items-end gap-2"
                       >
-                        Löschen
-                      </.action_link>
+                        <.input
+                          field={limit_form[:date_id]}
+                          id={"elective-course-date-limit-date-id-#{date.id}"}
+                          type="hidden"
+                          value={date.id}
+                        />
+                        <div class="w-40">
+                          <.input
+                            field={limit_form[:max_participants]}
+                            id={"elective-course-date-max-participants-#{date.id}"}
+                            type="number"
+                            label="Max. TN"
+                            placeholder={@course.max_participants}
+                          />
+                        </div>
+                        <.button type="submit">Speichern</.button>
+                      </.form>
+                      <div>
+                        <.action_link
+                          phx-click="delete_date"
+                          phx-value-id={date.id}
+                          data-confirm="Termin wirklich löschen?"
+                          tone={:danger}
+                          href="#"
+                        >
+                          Löschen
+                        </.action_link>
+                      </div>
                     </div>
                   <% end %>
                 </div>
@@ -686,6 +792,15 @@ defmodule WhistleWeb.CourseEditLive do
                       type="time"
                       label="Uhrzeit"
                       required
+                    />
+                  </div>
+                  <div>
+                    <.input
+                      field={@course_date_form[:max_participants]}
+                      id={"elective-course-date-max-participants-#{topic.id}"}
+                      type="number"
+                      label="Max. TN"
+                      placeholder={@course.max_participants}
                     />
                   </div>
                   <.button type="submit">Hinzufügen</.button>
@@ -831,6 +946,7 @@ defmodule WhistleWeb.CourseEditLive do
           <%= if @course.online do %>
             <div id="online-date-participant-overview" class="mb-6 grid gap-3 lg:grid-cols-2">
               <%= for %{date: date, registrations: date_registrations} <- @registrations_by_date do %>
+                <% limit = Courses.effective_date_max_participants(date, @course) %>
                 <section
                   id={"online-date-participants-#{date.id}"}
                   class="rounded-xl border border-base-200 bg-base-100 px-4 py-3 shadow-sm"
@@ -854,7 +970,11 @@ defmodule WhistleWeb.CourseEditLive do
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
                       <span class="rounded-full bg-base-200 px-2 py-0.5 text-xs font-semibold text-base-content/70">
-                        {length(date_registrations)} TN
+                        <%= if is_integer(limit) do %>
+                          {length(date_registrations)} / {limit} TN
+                        <% else %>
+                          {length(date_registrations)} TN
+                        <% end %>
                       </span>
                       <.button
                         :if={date_registrations != []}

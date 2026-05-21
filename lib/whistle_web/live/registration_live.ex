@@ -559,12 +559,6 @@ defmodule WhistleWeb.RegistrationLive do
                       <div class="flex gap-3">
                         <div class="flex-1">
                           <h4 class="font-bold text-base mb-3">{course.name}</h4>
-                          <div class="text-sm text-zinc-600 space-y-1">
-                            <div class="flex items-center gap-2">
-                              <.icon name="hero-users" class="h-4 w-4" />
-                              {course.participants} / {course.max_participants}
-                            </div>
-                          </div>
                         </div>
                         <div class="flex flex-col items-end gap-2">
                           <%= if already_registered do %>

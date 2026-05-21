@@ -102,6 +102,33 @@ defmodule Whistle.CoursesOnlineTest do
 
       assert date.kind == :mandatory
       assert is_nil(date.course_date_topic_id)
+      assert is_nil(date.max_participants)
+    end
+
+    test "Termin mit eigener Teilnehmergrenze anlegen", %{course: course} do
+      assert {:ok, date} =
+               Courses.create_course_date(%{
+                 course_id: course.id,
+                 date: ~D[2026-04-13],
+                 time: ~T[14:00:00],
+                 kind: :mandatory,
+                 max_participants: 22
+               })
+
+      assert date.max_participants == 22
+    end
+
+    test "Termin lehnt nicht-positive Teilnehmergrenze ab", %{course: course} do
+      assert {:error, changeset} =
+               Courses.create_course_date(%{
+                 course_id: course.id,
+                 date: ~D[2026-04-13],
+                 time: ~T[14:00:00],
+                 kind: :mandatory,
+                 max_participants: 0
+               })
+
+      assert %{max_participants: [_]} = errors_on(changeset)
     end
 
     test "elective Termin mit topic anlegen", %{course: course, topic: topic} do
@@ -116,6 +143,81 @@ defmodule Whistle.CoursesOnlineTest do
 
       assert date.kind == :elective
       assert date.course_date_topic_id == topic.id
+    end
+
+    test "Teilnehmergrenze kann nicht unter aktuelle Auswahl gesenkt werden", %{
+      course: course,
+      topic: topic
+    } do
+      first_user = user_fixture()
+      second_user = user_fixture()
+
+      {:ok, mandatory} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-04-13],
+          time: ~T[14:00:00],
+          kind: :mandatory
+        })
+
+      {:ok, elective} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-04-21],
+          time: ~T[16:00:00],
+          kind: :elective,
+          course_date_topic_id: topic.id
+        })
+
+      {:ok, _} = Registrations.enroll_one(first_user, course, nil, [mandatory.id, elective.id])
+      {:ok, _} = Registrations.enroll_one(second_user, course, nil, [mandatory.id, elective.id])
+
+      assert {:error, changeset} = Courses.update_course_date(mandatory, %{max_participants: 1})
+      assert %{max_participants: [_]} = errors_on(changeset)
+
+      assert {:ok, updated} = Courses.update_course_date(mandatory, %{max_participants: 2})
+      assert updated.max_participants == 2
+    end
+
+    test "Terminverfügbarkeit nutzt Terminlimit mit Kurslimit als Fallback", %{
+      course: course,
+      topic: topic
+    } do
+      user = user_fixture()
+
+      {:ok, mandatory} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-04-13],
+          time: ~T[14:00:00],
+          kind: :mandatory,
+          max_participants: 3
+        })
+
+      {:ok, elective} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-04-21],
+          time: ~T[16:00:00],
+          kind: :elective,
+          course_date_topic_id: topic.id
+        })
+
+      {:ok, _} = Registrations.enroll_one(user, course, nil, [mandatory.id, elective.id])
+
+      availability = Courses.list_date_availability(course)
+
+      assert availability[mandatory.id] == %{
+               selected_count: 1,
+               max_participants: 3,
+               remaining: 2
+             }
+
+      assert availability[elective.id] == %{
+               selected_count: 1,
+               max_participants: course.max_participants,
+               remaining: course.max_participants - 1
+             }
     end
 
     test "löschen des Kurses cascaded zu course_dates und course_date_selections", %{

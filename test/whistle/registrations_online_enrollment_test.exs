@@ -171,7 +171,14 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
       course = online_course_fixture(season)
       topic = topic_fixture(course)
       mandatory1 = mandatory_date_fixture(course, %{date: future_date(7), time: ~T[14:00:00]})
-      mandatory2 = mandatory_date_fixture(course, %{date: future_date(8), time: ~T[15:00:00]})
+
+      mandatory2 =
+        mandatory_date_fixture(course, %{
+          date: future_date(8),
+          time: ~T[15:00:00],
+          max_participants: 3
+        })
+
       elective = elective_date_fixture(course, topic)
 
       assert {:ok, registration} =
@@ -310,6 +317,101 @@ defmodule Whistle.RegistrationsOnlineEnrollmentTest do
                Registrations.reschedule_online_dates(user, registration.id, %{
                  "mandatory" => foreign_mandatory.id
                })
+    end
+  end
+
+  describe "enroll_one/4 - online course: per-date participant limit" do
+    test "falls back to the course limit when a date has no own limit" do
+      first_user = user_fixture()
+      second_user = user_fixture()
+      season = season_fixture()
+
+      course =
+        online_course_fixture(season, %{
+          max_participants: 1,
+          max_per_club: 6
+        })
+
+      topic = topic_fixture(course)
+      mandatory = mandatory_date_fixture(course)
+      elective = elective_date_fixture(course, topic)
+
+      assert {:ok, _} =
+               Registrations.enroll_one(first_user, course, nil, [mandatory.id, elective.id])
+
+      assert {:error, {:not_available, _date}} =
+               Registrations.enroll_one(second_user, course, nil, [mandatory.id, elective.id])
+    end
+
+    test "uses the date limit when present" do
+      first_user = user_fixture()
+      second_user = user_fixture()
+      third_user = user_fixture()
+      season = season_fixture()
+
+      course =
+        online_course_fixture(season, %{
+          max_participants: 1,
+          max_per_club: 6
+        })
+
+      topic = topic_fixture(course)
+      mandatory = mandatory_date_fixture(course, %{max_participants: 2})
+      elective = elective_date_fixture(course, topic, %{max_participants: 2})
+
+      assert {:ok, _} =
+               Registrations.enroll_one(first_user, course, nil, [mandatory.id, elective.id])
+
+      assert {:ok, _} =
+               Registrations.enroll_one(second_user, course, nil, [mandatory.id, elective.id])
+
+      assert {:error, {:not_available, _date}} =
+               Registrations.enroll_one(third_user, course, nil, [mandatory.id, elective.id])
+    end
+
+    test "rescheduling uses the date limit when present" do
+      first_user = user_fixture()
+      second_user = user_fixture()
+      third_user = user_fixture()
+      season = season_fixture()
+
+      course =
+        online_course_fixture(season, %{
+          max_participants: 1,
+          max_per_club: 6
+        })
+
+      topic = topic_fixture(course)
+      mandatory1 = mandatory_date_fixture(course, %{date: future_date(7), time: ~T[14:00:00]})
+      mandatory2 = mandatory_date_fixture(course, %{date: future_date(8), time: ~T[15:00:00]})
+
+      elective1 =
+        elective_date_fixture(course, topic, %{
+          date: future_date(14),
+          time: ~T[16:00:00],
+          max_participants: 2
+        })
+
+      elective2 =
+        elective_date_fixture(course, topic, %{
+          date: future_date(15),
+          time: ~T[18:00:00],
+          max_participants: 2
+        })
+
+      assert {:ok, registration1} =
+               Registrations.enroll_one(first_user, course, nil, [mandatory1.id, elective1.id])
+
+      assert {:ok, _registration2} =
+               Registrations.enroll_one(second_user, course, nil, [mandatory2.id, elective2.id])
+
+      assert {:ok, _} =
+               Registrations.reschedule_online_dates(first_user, registration1.id, %{
+                 "elective" => elective2.id
+               })
+
+      assert {:error, {:not_available, _date}} =
+               Registrations.enroll_one(third_user, course, nil, [mandatory2.id, elective2.id])
     end
   end
 
