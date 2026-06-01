@@ -1,31 +1,57 @@
 <.header>
   Kursanmeldungen
   <:actions>
-    <.button href={
-      ~p"/admin/registrations/export?#{if @selected_season_id, do: [season_id: @selected_season_id], else: []}"
-    }>
+    <.button href={~p"/admin/registrations/export?#{@filter_params}"}>
       CSV exportieren
     </.button>
   </:actions>
 </.header>
 
-<form method="get" action={~p"/admin/registrations"} class="mb-4">
-  <select
-    id="season_id"
-    name="season_id"
-    onchange="this.form.submit()"
-    class="rounded-md border border-base-300 bg-base-100 py-1.5 pl-3 pr-8 text-sm focus:outline-none"
-  >
-    <option value="">Alle Saisons</option>
-    <%= for season <- @seasons do %>
-      <option
-        value={season.id}
-        selected={season.id == (@selected_season_id && String.to_integer(@selected_season_id))}
-      >
-        Saison {season.year}
-      </option>
-    <% end %>
-  </select>
+<form
+  id="registration-filter-form"
+  method="get"
+  action={~p"/admin/registrations"}
+  class="mb-4 flex flex-wrap items-center gap-3"
+>
+  <div class="flex items-center gap-2">
+    <label for="season_id" class="text-sm font-medium text-base-content/70">Saison</label>
+    <select
+      id="season_id"
+      name="season_id"
+      onchange="this.form.submit()"
+      class="rounded-md border border-base-300 bg-base-100 py-1.5 pl-3 pr-8 text-sm shadow-sm transition focus:border-base-content/30 focus:outline-none focus:ring-2 focus:ring-base-content/10"
+    >
+      <option value="">Alle Saisons</option>
+      <%= for season <- @seasons do %>
+        <option
+          value={season.id}
+          selected={season.id == (@selected_season_id && String.to_integer(@selected_season_id))}
+        >
+          Saison {season.year}
+        </option>
+      <% end %>
+    </select>
+  </div>
+
+  <div :if={@can_filter_by_club?} class="flex items-center gap-2">
+    <label for="club_id" class="text-sm font-medium text-base-content/70">Verein</label>
+    <select
+      id="club_id"
+      name="club_id"
+      onchange="this.form.submit()"
+      class="rounded-md border border-base-300 bg-base-100 py-1.5 pl-3 pr-8 text-sm shadow-sm transition focus:border-base-content/30 focus:outline-none focus:ring-2 focus:ring-base-content/10"
+    >
+      <option value="">Alle Vereine</option>
+      <%= for club <- @clubs do %>
+        <option
+          value={club.id}
+          selected={club.id == (@selected_club_id && String.to_integer(@selected_club_id))}
+        >
+          {club.name}
+        </option>
+      <% end %>
+    </select>
+  </div>
 </form>
 
 <div class="space-y-2">
@@ -33,7 +59,10 @@
     <p class="py-10 text-center text-sm text-base-content/50">Keine Anmeldungen gefunden.</p>
   <% else %>
     <%= for reg <- @registrations do %>
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3">
+      <div
+        id={"registration-row-#{reg.registration_id}"}
+        class="flex items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-100 shadow-sm px-4 py-3"
+      >
         <div class="min-w-0 flex-1">
           <div class="truncate text-sm font-medium">
             {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
@@ -43,6 +72,7 @@
           <div class="mt-0.5 text-xs text-base-content/55">
             {[
               reg.course_name,
+              reg.user_club_name,
               reg.organizer_name,
               reg.course_date && Calendar.strftime(reg.course_date, "%d.%m.%Y")
             ]

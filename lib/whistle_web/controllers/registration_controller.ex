@@ -2,6 +2,7 @@ defmodule WhistleWeb.RegistrationController do
   use WhistleWeb, :controller
 
   alias Whistle.Accounts.Role
+  alias Whistle.Clubs
   alias Whistle.Courses
   alias Whistle.Registrations
   alias Whistle.Seasons
@@ -12,6 +13,7 @@ defmodule WhistleWeb.RegistrationController do
     current_user = conn.assigns.current_user
     current_season = Seasons.get_current_season()
     all_seasons = Seasons.list_seasons()
+    can_filter_by_club? = not Role.has_role?(current_user, "CLUB_ADMIN")
 
     selected_season_id =
       case params["season_id"] do
@@ -20,14 +22,29 @@ defmodule WhistleWeb.RegistrationController do
         id -> id
       end
 
-    with {:ok, season_id} <- parse_optional_id(selected_season_id) do
+    selected_club_id =
+      if can_filter_by_club? do
+        case params["club_id"] do
+          nil -> nil
+          "" -> nil
+          id -> id
+        end
+      end
+
+    with {:ok, season_id} <- parse_optional_id(selected_season_id),
+         {:ok, club_id} <- parse_optional_id(selected_club_id) do
       filter_opts = if season_id, do: [season_id: season_id], else: []
 
       filter_opts =
-        if Role.has_role?(current_user, "CLUB_ADMIN") do
-          Keyword.put(filter_opts, :club_id, current_user.club_id)
-        else
-          filter_opts
+        cond do
+          Role.has_role?(current_user, "CLUB_ADMIN") ->
+            Keyword.put(filter_opts, :club_id, current_user.club_id)
+
+          club_id ->
+            Keyword.put(filter_opts, :club_id, club_id)
+
+          true ->
+            filter_opts
         end
 
       registrations = Registrations.list_registrations_view(filter_opts)
@@ -37,7 +54,11 @@ defmodule WhistleWeb.RegistrationController do
         current_user: current_user,
         current_season: current_season,
         seasons: all_seasons,
-        selected_season_id: selected_season_id
+        selected_season_id: selected_season_id,
+        clubs: if(can_filter_by_club?, do: Clubs.list_clubs(), else: []),
+        selected_club_id: selected_club_id,
+        filter_params: filter_params(selected_season_id, selected_club_id),
+        can_filter_by_club?: can_filter_by_club?
       )
     else
       _ -> render_not_found(conn)
@@ -68,15 +89,23 @@ defmodule WhistleWeb.RegistrationController do
   def export(conn, params) do
     current_user = conn.assigns.current_user
     selected_season_id = params["season_id"]
+    can_filter_by_club? = not Role.has_role?(current_user, "CLUB_ADMIN")
+    selected_club_id = if can_filter_by_club?, do: params["club_id"]
 
-    with {:ok, season_id} <- parse_optional_id(selected_season_id) do
+    with {:ok, season_id} <- parse_optional_id(selected_season_id),
+         {:ok, club_id} <- parse_optional_id(selected_club_id) do
       filter_opts = if season_id, do: [season_id: season_id], else: []
 
       filter_opts =
-        if Role.has_role?(current_user, "CLUB_ADMIN") do
-          Keyword.put(filter_opts, :club_id, current_user.club_id)
-        else
-          filter_opts
+        cond do
+          Role.has_role?(current_user, "CLUB_ADMIN") ->
+            Keyword.put(filter_opts, :club_id, current_user.club_id)
+
+          club_id ->
+            Keyword.put(filter_opts, :club_id, club_id)
+
+          true ->
+            filter_opts
         end
 
       filter_opts = Keyword.put(filter_opts, :include_unenrolled, true)
@@ -147,6 +176,11 @@ defmodule WhistleWeb.RegistrationController do
   defp parse_optional_id(nil), do: {:ok, nil}
   defp parse_optional_id(""), do: {:ok, nil}
   defp parse_optional_id(id), do: parse_id(id)
+
+  defp filter_params(selected_season_id, selected_club_id) do
+    [season_id: selected_season_id, club_id: selected_club_id]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) or value == "" end)
+  end
 
   defp escape_csv_field(value) when is_binary(value) do
     if String.contains?(value, [",", "\"", "\n"]) do
