@@ -8,7 +8,7 @@ defmodule WhistleWeb.RegistrationLive do
   require Logger
 
   def mount(_params, _session, socket) do
-    subscribe()
+    if connected?(socket), do: subscribe()
 
     user = socket.assigns.current_user
     season = Seasons.get_current_season()
@@ -22,8 +22,8 @@ defmodule WhistleWeb.RegistrationLive do
         []
       end
 
-    existing_registrations = load_existing_registrations(user, season)
-    existing_date_selections = load_existing_date_selections(user, season)
+    {existing_registrations, existing_date_selections} =
+      load_existing_registration_data(user, season)
 
     start_at = if season, do: season.start_registration, else: nil
     is_registration_passed = is_registration_passed?(season)
@@ -62,8 +62,10 @@ defmodule WhistleWeb.RegistrationLive do
       end
 
     courses = if season, do: load_courses(season.id), else: []
-    existing_registrations = load_existing_registrations(target_user, season)
-    existing_date_selections = load_existing_date_selections(target_user, season)
+
+    {existing_registrations, existing_date_selections} =
+      load_existing_registration_data(target_user, season)
+
     {offline_courses_by_date, online_courses} = split_courses(courses)
 
     {:noreply,
@@ -130,12 +132,14 @@ defmodule WhistleWeb.RegistrationLive do
   def handle_event("select_member", %{"member_id" => ""}, socket) do
     user = socket.assigns.current_user
     season = socket.assigns.season
-    existing_registrations = load_existing_registrations(user, season)
-    existing_date_selections = load_existing_date_selections(user, season)
+
+    {existing_registrations, existing_date_selections} =
+      load_existing_registration_data(user, season)
 
     {:noreply,
      socket
      |> assign(:selected_member_id, nil)
+     |> clear_pending_selections()
      |> assign(:existing_registrations, existing_registrations)
      |> assign(:existing_date_selections, existing_date_selections)}
   end
@@ -144,12 +148,14 @@ defmodule WhistleWeb.RegistrationLive do
     with {:ok, member_id} <- parse_id(member_id) do
       member = Accounts.get_user!(member_id)
       season = socket.assigns.season
-      existing_registrations = load_existing_registrations(member, season)
-      existing_date_selections = load_existing_date_selections(member, season)
+
+      {existing_registrations, existing_date_selections} =
+        load_existing_registration_data(member, season)
 
       {:noreply,
        socket
        |> assign(:selected_member_id, member_id)
+       |> clear_pending_selections()
        |> assign(:existing_registrations, existing_registrations)
        |> assign(:existing_date_selections, existing_date_selections)}
     else
@@ -223,29 +229,26 @@ defmodule WhistleWeb.RegistrationLive do
   end
 
   defp load_courses(season_id) do
-    Courses.list_courses_view()
-    |> Enum.filter(&(&1.season_id == season_id))
+    Courses.list_courses_view(season_id: season_id)
   end
 
-  defp load_existing_registrations(user, season) do
+  defp load_existing_registration_data(user, season) do
     if season do
-      Registrations.list_registrations_view(season_id: season.id)
-      |> Enum.filter(&(&1.user_id == user.id))
-      |> MapSet.new(& &1.course_id)
-    else
-      MapSet.new()
-    end
-  end
+      registrations =
+        Registrations.list_registrations_view(season_id: season.id, user_id: user.id)
 
-  defp load_existing_date_selections(user, season) do
-    if season do
-      Registrations.list_registrations_view(season_id: season.id)
-      |> Enum.filter(&(&1.user_id == user.id and &1.course_online))
-      |> Map.new(fn reg ->
-        {reg.course_id, Courses.list_date_selections_for_registration(reg.registration_id)}
-      end)
+      existing_registrations = MapSet.new(registrations, & &1.course_id)
+
+      existing_date_selections =
+        registrations
+        |> Enum.filter(& &1.course_online)
+        |> Map.new(fn reg ->
+          {reg.course_id, Courses.list_date_selections_for_registration(reg.registration_id)}
+        end)
+
+      {existing_registrations, existing_date_selections}
     else
-      %{}
+      {MapSet.new(), %{}}
     end
   end
 
@@ -263,21 +266,14 @@ defmodule WhistleWeb.RegistrationLive do
 
   defp load_online_course_dates(online_courses) do
     online_courses
-    |> Enum.map(fn course ->
-      full_course = Courses.get_course!(course.id)
-      dates = Courses.list_course_dates_with_topics(full_course)
-      {course.id, dates}
-    end)
-    |> Map.new()
+    |> Enum.map(& &1.id)
+    |> Courses.list_course_dates_with_topics_for_courses()
   end
 
   defp load_online_date_availability(online_courses) do
     online_courses
-    |> Enum.map(fn course ->
-      full_course = Courses.get_course!(course.id)
-      {course.id, Courses.list_date_availability(full_course)}
-    end)
-    |> Map.new()
+    |> Enum.map(& &1.id)
+    |> Courses.list_date_availability_for_courses()
   end
 
   # Compute the set of course types already "spoken for":
@@ -396,6 +392,13 @@ defmodule WhistleWeb.RegistrationLive do
 
   defp pending_count(selected_courses, selected_online_courses) do
     MapSet.size(selected_courses) + MapSet.size(selected_online_courses)
+  end
+
+  defp clear_pending_selections(socket) do
+    socket
+    |> assign(:selected_courses, MapSet.new())
+    |> assign(:selected_online_courses, MapSet.new())
+    |> assign(:selected_online_dates, %{})
   end
 
   defp type_badge_color(type) do
@@ -799,9 +802,8 @@ defmodule WhistleWeb.RegistrationLive do
                           type="checkbox"
                           checked={selected}
                           disabled={disabled}
-                          class="h-4 w-4 rounded border-gray-300 flex-shrink-0"
-                          phx-click={unless disabled, do: "toggle_course"}
-                          phx-value-course-id={course.id}
+                          class="h-4 w-4 rounded border-gray-300 flex-shrink-0 pointer-events-none"
+                          readonly
                         />
                         <span class={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border " <> type_badge_color(course.type)}>
                           {course.type}

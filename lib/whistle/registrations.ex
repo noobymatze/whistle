@@ -489,6 +489,7 @@ defmodule Whistle.Registrations do
   ## Options
 
     * `:season_id` - Filter by season ID
+    * `:user_id` - Filter by user ID
     * `:club_id` - Filter by user club ID (for club admins)
     * `:include_unenrolled` - Include unenrolled registrations (default: false)
 
@@ -503,6 +504,7 @@ defmodule Whistle.Registrations do
   """
   def list_registrations_view(opts \\ []) do
     season_id = Keyword.get(opts, :season_id)
+    user_id = Keyword.get(opts, :user_id)
     club_id = Keyword.get(opts, :club_id)
     include_unenrolled = Keyword.get(opts, :include_unenrolled, false)
 
@@ -511,6 +513,13 @@ defmodule Whistle.Registrations do
     query =
       if season_id do
         from(r in query, where: r.season_id == ^season_id)
+      else
+        query
+      end
+
+    query =
+      if user_id do
+        from(r in query, where: r.user_id == ^user_id)
       else
         query
       end

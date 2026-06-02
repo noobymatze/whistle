@@ -161,6 +161,20 @@ defmodule Whistle.Courses do
     Repo.all(query)
   end
 
+  def list_course_dates_with_topics_for_courses([]), do: %{}
+
+  def list_course_dates_with_topics_for_courses(course_ids) when is_list(course_ids) do
+    from(d in CourseDate,
+      left_join: t in CourseDateTopic,
+      on: t.id == d.course_date_topic_id,
+      where: d.course_id in ^course_ids,
+      order_by: [asc: d.course_id, asc: d.date, asc: d.time],
+      preload: [topic: t]
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.course_id)
+  end
+
   def get_course_date!(id), do: Repo.get!(CourseDate, id)
 
   def create_course_date(attrs) do
@@ -229,6 +243,38 @@ defmodule Whistle.Courses do
       {date_id, %{selected_count: selected_count, max_participants: limit, remaining: remaining}}
     end)
     |> Map.new()
+  end
+
+  def list_date_availability_for_courses([]), do: %{}
+
+  def list_date_availability_for_courses(course_ids) when is_list(course_ids) do
+    from(d in CourseDate,
+      join: c in Course,
+      on: c.id == d.course_id,
+      left_join: s in CourseDateSelection,
+      on: s.course_date_id == d.id,
+      left_join: r in Registration,
+      on: r.id == s.registration_id and is_nil(r.unenrolled_at),
+      where: d.course_id in ^course_ids,
+      group_by: [d.course_id, d.id, d.max_participants, c.max_participants],
+      select: {d.course_id, d.id, d.max_participants, c.max_participants, count(r.id)}
+    )
+    |> Repo.all()
+    |> Enum.group_by(
+      fn {course_id, _date_id, _date_max, _course_max, _selected_count} -> course_id end,
+      fn {_course_id, date_id, date_max, course_max, selected_count} ->
+        limit = date_max || course_max
+
+        remaining =
+          if is_integer(limit) do
+            max(limit - selected_count, 0)
+          end
+
+        {date_id,
+         %{selected_count: selected_count, max_participants: limit, remaining: remaining}}
+      end
+    )
+    |> Map.new(fn {course_id, availability} -> {course_id, Map.new(availability)} end)
   end
 
   def delete_course_date(%CourseDate{} = course_date) do

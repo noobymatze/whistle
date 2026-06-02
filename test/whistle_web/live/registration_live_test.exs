@@ -225,6 +225,49 @@ defmodule WhistleWeb.RegistrationLiveTest do
       assert render(lv) =~ "1 Kurs ausgewählt"
     end
 
+    test "changing managed member clears pending course selections", %{
+      conn: conn,
+      course: course
+    } do
+      club = club_fixture()
+      admin = user_fixture(%{club_id: club.id, role: "CLUB_ADMIN"})
+      member = user_fixture(%{club_id: club.id})
+
+      {:ok, lv, _html} = conn |> log_in(admin) |> live(~p"/")
+
+      lv
+      |> element("div[phx-click='toggle_course'][phx-value-course-id='#{course.id}']")
+      |> render_click()
+
+      assert render(lv) =~ "1 Kurs ausgewählt"
+
+      lv
+      |> element("select[name='member_id']")
+      |> render_change(%{"member_id" => "#{member.id}"})
+
+      html = render(lv)
+      assert html =~ "0 Kurse ausgewählt"
+      refute html =~ "1 Kurs ausgewählt"
+    end
+
+    test "offline course checkbox does not emit a second toggle event", %{
+      conn: conn,
+      user: user,
+      course: course
+    } do
+      {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/")
+
+      html =
+        lv
+        |> element(
+          "div[phx-click='toggle_course'][phx-value-course-id='#{course.id}'] input[type='checkbox']"
+        )
+        |> render()
+
+      refute html =~ ~s(phx-click="toggle_course")
+      assert html =~ "pointer-events-none"
+    end
+
     test "submitting enrollment registers the user", %{conn: conn, user: user, course: course} do
       {:ok, lv, _html} = conn |> log_in(user) |> live(~p"/")
 
