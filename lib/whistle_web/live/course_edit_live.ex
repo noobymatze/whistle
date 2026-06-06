@@ -1004,6 +1004,9 @@ defmodule WhistleWeb.CourseEditLive do
                           <span class="text-xs text-base-content/50">
                             {reg.username && "(#{reg.username})"}
                           </span>
+                          <span class="ml-1 text-xs text-base-content/50">
+                            Angemeldet {registered_at_label(reg)}
+                          </span>
                         </li>
                       <% end %>
                     </ul>
@@ -1039,7 +1042,7 @@ defmodule WhistleWeb.CourseEditLive do
                       Abgemeldet {datum}
                     <% end %>
                   <% else %>
-                    {reg.user_email}
+                    {reg.user_email} · Angemeldet {registered_at_label(reg)}
                   <% end %>
                 </div>
                 <%= if @course.online && is_nil(reg.unenrolled_at) && selected_dates != [] do %>
@@ -1098,5 +1101,9 @@ defmodule WhistleWeb.CourseEditLive do
     else
       false
     end
+  end
+
+  defp registered_at_label(%{registered_at: registered_at}) do
+    Whistle.Timezone.format_local(registered_at, "%d.%m.%Y %H:%M")
   end
 end

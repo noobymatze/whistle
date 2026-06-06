@@ -7,6 +7,7 @@ defmodule WhistleWeb.CourseEditLiveTest do
   import Whistle.SeasonsFixtures
 
   alias Whistle.Courses
+  alias Whistle.Repo
   alias Whistle.Registrations
 
   defp log_in(conn, user) do
@@ -218,6 +219,66 @@ defmodule WhistleWeb.CourseEditLiveTest do
       assert has_element?(view, "#online-date-participants-#{mandatory.id}")
       assert has_element?(view, "#online-date-participant-#{mandatory.id}-#{registration.id}")
       assert has_element?(view, "#online-date-participant-#{elective.id}-#{registration.id}")
+    end
+
+    test "shows when online course participants registered", %{conn: conn} do
+      instructor = instructor_fixture()
+      participant = user_fixture(%{first_name: "Anton", last_name: "Anmeldung"})
+      season = season_fixture(%{year: 2026, start: ~D[2026-01-01]})
+
+      course =
+        course_fixture(%{
+          season_id: season.id,
+          type: "F",
+          online: true,
+          date: nil,
+          max_participants: 10,
+          max_per_club: 10,
+          max_organizer_participants: 0
+        })
+
+      {:ok, topic} = Courses.create_course_date_topic(%{course_id: course.id, name: "Thema"})
+
+      {:ok, mandatory} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-13],
+          time: ~T[14:00:00],
+          kind: :mandatory
+        })
+
+      {:ok, elective} =
+        Courses.create_course_date(%{
+          course_id: course.id,
+          date: ~D[2026-05-21],
+          time: ~T[16:00:00],
+          kind: :elective,
+          course_date_topic_id: topic.id
+        })
+
+      {:ok, registration} =
+        Registrations.enroll_one(participant, course, nil, [mandatory.id, elective.id])
+
+      registered_at = ~N[2026-05-03 09:45:00]
+
+      registration
+      |> Ecto.Changeset.change(created_at: registered_at, updated_at: registered_at)
+      |> Repo.update!()
+
+      {:ok, view, _html} =
+        conn |> log_in(instructor) |> live(~p"/admin/courses/#{course}/edit?tab=teilnehmer")
+
+      assert has_element?(
+               view,
+               "#online-date-participant-#{mandatory.id}-#{registration.id}",
+               "Angemeldet 03.05.2026 09:45"
+             )
+
+      assert has_element?(
+               view,
+               "#online-date-participant-#{elective.id}-#{registration.id}",
+               "Angemeldet 03.05.2026 09:45"
+             )
     end
 
     test "offers mail links for participants of individual online dates", %{conn: conn} do

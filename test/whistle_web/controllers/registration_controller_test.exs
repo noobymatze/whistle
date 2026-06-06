@@ -20,7 +20,7 @@ defmodule WhistleWeb.RegistrationControllerTest do
   defp element_count(html, selector) do
     html
     |> LazyHTML.from_fragment()
-    |> LazyHTML.filter(selector)
+    |> LazyHTML.query(selector)
     |> Enum.count()
   end
 
