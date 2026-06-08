@@ -1004,6 +1004,9 @@ defmodule WhistleWeb.CourseEditLive do
                           <span class="text-xs text-base-content/50">
                             {reg.username && "(#{reg.username})"}
                           </span>
+                          <span :if={reg.user_club_name} class="ml-1 text-xs text-base-content/50">
+                            · {reg.user_club_name}
+                          </span>
                           <span class="ml-1 text-xs text-base-content/50">
                             Angemeldet {registered_at_label(reg)}
                           </span>
@@ -1019,11 +1022,14 @@ defmodule WhistleWeb.CourseEditLive do
           <%= for reg <- @registrations do %>
             <% selected_dates = Map.get(@date_selections_by_registration, reg.registration_id, []) %>
             <% short_notice_unenrolled = short_notice_unenrollment?(reg, selected_dates) %>
-            <div class={[
-              "flex items-center justify-between gap-4 rounded-xl border shadow-sm px-4 py-3",
-              short_notice_unenrolled && "border-error/35 bg-error/5",
-              !short_notice_unenrolled && "border-base-200 bg-base-100"
-            ]}>
+            <div
+              class={[
+                "flex items-center justify-between gap-4 rounded-xl border shadow-sm px-4 py-3",
+                short_notice_unenrolled && "border-error/35 bg-error/5",
+                !short_notice_unenrolled && "border-base-200 bg-base-100"
+              ]}
+              id={"course-registration-row-#{reg.registration_id}"}
+            >
               <div class="min-w-0 flex-1">
                 <div class="truncate text-sm font-medium">
                   {[reg.user_first_name, reg.user_last_name, reg.username && "(#{reg.username})"]
@@ -1034,15 +1040,21 @@ defmodule WhistleWeb.CourseEditLive do
                   <%= if reg.unenrolled_at do %>
                     <% datum = Calendar.strftime(reg.unenrolled_at, "%d.%m.%Y %H:%M") %>
                     <%= if short_notice_unenrolled do %>
-                      Abgemeldet {datum}
+                      {reg.user_club_name && "Verein: #{reg.user_club_name} · "}Abgemeldet {datum}
                       <span class="ml-1 text-error font-medium">
                         Abmeldung weniger als 7 Tage vor Kurs
                       </span>
                     <% else %>
-                      Abgemeldet {datum}
+                      {reg.user_club_name && "Verein: #{reg.user_club_name} · "}Abgemeldet {datum}
                     <% end %>
                   <% else %>
-                    {reg.user_email} · Angemeldet {registered_at_label(reg)}
+                    {[
+                      reg.user_email,
+                      reg.user_club_name && "Verein: #{reg.user_club_name}",
+                      "Angemeldet #{registered_at_label(reg)}"
+                    ]
+                    |> Enum.filter(& &1)
+                    |> Enum.join(" · ")}
                   <% end %>
                 </div>
                 <%= if @course.online && is_nil(reg.unenrolled_at) && selected_dates != [] do %>

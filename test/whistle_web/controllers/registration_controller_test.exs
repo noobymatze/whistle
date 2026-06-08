@@ -54,6 +54,7 @@ defmodule WhistleWeb.RegistrationControllerTest do
     assert element_count(html, "#club_id option[selected][value='#{club_a.id}']") == 1
     assert element_count(html, "#registration-row-#{registration_a.id}") == 1
     assert element_count(html, "#registration-row-#{registration_b.id}") == 0
+    assert html =~ "Verein: Alpha Verein"
   end
 
   test "CLUB_ADMIN remains scoped to own club and does not see the club filter", %{conn: conn} do
@@ -85,5 +86,33 @@ defmodule WhistleWeb.RegistrationControllerTest do
     assert element_count(html, "#club_id") == 0
     assert element_count(html, "#registration-row-#{registration_a.id}") == 1
     assert element_count(html, "#registration-row-#{registration_b.id}") == 0
+  end
+
+  test "CSV export includes participant club", %{conn: conn} do
+    season = season_fixture(%{start: ~D[2026-01-01], year: 2026})
+    club = club_fixture(%{name: "CSV Verein", short_name: "CSV"})
+    admin = user_fixture(%{role: "ADMIN"})
+    user = user_fixture(%{club_id: club.id, first_name: "Clara", last_name: "Club"})
+
+    course =
+      course_fixture(%{
+        season_id: season.id,
+        name: "CSV Kurs",
+        type: "Basis",
+        organizer_id: club.id
+      })
+
+    {:ok, _registration} = Registrations.enroll_one(user, course, admin.id)
+
+    conn =
+      conn
+      |> log_in(admin)
+      |> get(~p"/admin/registrations/export?season_id=#{season.id}")
+
+    csv = response(conn, 200)
+
+    assert get_resp_header(conn, "content-type") == ["text/csv; charset=utf-8"]
+    assert csv =~ "Id,E-Mail,Name,Geburtstag,Verein,Kurs,Lizenznummer,Abgemeldet am"
+    assert csv =~ "CSV Verein"
   end
 end

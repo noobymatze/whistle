@@ -3,6 +3,7 @@ defmodule WhistleWeb.CourseEditLiveTest do
 
   import Phoenix.LiveViewTest
   import Whistle.AccountsFixtures
+  import Whistle.ClubsFixtures
   import Whistle.CoursesFixtures
   import Whistle.SeasonsFixtures
 
@@ -172,6 +173,32 @@ defmodule WhistleWeb.CourseEditLiveTest do
       render_click(view, "sign_out_participant", %{"user-id" => to_string(participant.id)})
 
       assert render(view) =~ "Abmeldung weniger als 7 Tage vor Kurs"
+    end
+
+    test "shows participant club in course participant overview", %{conn: conn} do
+      instructor = instructor_fixture()
+      club = club_fixture(%{name: "Live Verein", short_name: "LIVE"})
+      participant = user_fixture(%{club_id: club.id})
+      season = season_fixture(%{year: 2026, start: ~D[2026-01-01]})
+
+      course =
+        course_fixture(%{
+          season_id: season.id,
+          type: "F",
+          date: Date.add(Whistle.Timezone.today_local(), 30)
+        })
+
+      {:ok, registration} =
+        Registrations.create_registration(%{course_id: course.id, user_id: participant.id})
+
+      {:ok, view, _html} =
+        conn |> log_in(instructor) |> live(~p"/admin/courses/#{course}/edit?tab=teilnehmer")
+
+      assert has_element?(
+               view,
+               "#course-registration-row-#{registration.id}",
+               "Verein: Live Verein"
+             )
     end
 
     test "groups online course participants by selected date", %{conn: conn} do

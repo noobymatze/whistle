@@ -72,7 +72,7 @@
           <div class="mt-0.5 text-xs text-base-content/55">
             {[
               reg.course_name,
-              reg.user_club_name,
+              reg.user_club_name && "Verein: #{reg.user_club_name}",
               reg.organizer_name,
               reg.course_date && Calendar.strftime(reg.course_date, "%d.%m.%Y")
             ]

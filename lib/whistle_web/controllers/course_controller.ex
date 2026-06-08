@@ -102,7 +102,7 @@ defmodule WhistleWeb.CourseController do
   defp generate_csv(registrations, date_selections) do
     has_selections = date_selections != %{}
     date_header = if has_selections, do: ",Gewählte Termine", else: ""
-    header = "Id,E-Mail,Name,Geburtstag,Kurs,Lizenznummer,Abgemeldet am#{date_header}\n"
+    header = "Id,E-Mail,Name,Geburtstag,Verein,Kurs,Lizenznummer,Abgemeldet am#{date_header}\n"
 
     rows =
       Enum.map(registrations, fn reg ->
@@ -128,7 +128,8 @@ defmodule WhistleWeb.CourseController do
            reg.user_email || "",
            "#{reg.user_first_name} #{reg.user_last_name}",
            format_date(reg.user_birthday),
-           escape_csv_field(reg.course_name),
+           reg.user_club_name || "",
+           reg.course_name || "",
            to_string(reg.license_number || ""),
            format_datetime(reg.unenrolled_at)
          ] ++ dates_str)
